@@ -99,7 +99,7 @@ export function confirmDialog(options: {
 // Asks for one or more lines of text. Resolves to the values, or null if cancelled.
 export function formDialog(options: {
   title: string
-  fields: { label: string; value: string; placeholder?: string }[]
+  fields: { label: string; value: string; placeholder?: string; multiline?: boolean }[]
   confirm: string
 }): Promise<string[] | null> {
   return new Promise(resolve => {
@@ -107,7 +107,8 @@ export function formDialog(options: {
     const form = h('form', 'dialog-form')
     const inputs = options.fields.map(field => {
       const label = h('label', 'field')
-      const input = h('input')
+      const input = field.multiline ? h('textarea') : h('input')
+      if (input instanceof HTMLTextAreaElement) input.rows = 5
       input.value = field.value
       input.placeholder = field.placeholder ?? ''
       label.append(h('span', '', field.label), input)

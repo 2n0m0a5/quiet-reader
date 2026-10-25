@@ -79,3 +79,10 @@ export function keepScreenOn(enabled: boolean) {
     wakeLock = null
   }
 }
+
+// Opens a web page outside Quiet: the system browser in the app, a new tab on the website.
+// (In the app, Capacitor hands any navigation away from the app to the system browser.)
+export function openExternal(url: string) {
+  if (isNativeApp) window.location.href = url
+  else window.open(url, '_blank', 'noopener')
+}

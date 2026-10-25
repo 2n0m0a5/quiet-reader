@@ -1,4 +1,6 @@
 import '../../vendor/foliate-js/view.js'
+import { Overlayer } from '../../vendor/foliate-js/overlayer.js'
+import * as CFI from '../../vendor/foliate-js/epubcfi.js'
 import type { Book, FoliateView, Location } from './foliate'
 import type { Flow, Margins, Settings } from '../settings'
 import { bookCSS } from './book-css'
@@ -26,7 +28,14 @@ export interface ReaderEvents {
   onTap(zone: TapZone): void
   // The reader started scrolling or turning pages by hand.
   onUserMove(): void
+  // Text was selected (or the selection went away: null). The rectangle is in page coordinates.
+  onSelection(selection: { text: string; cfi: string; rect: DOMRect } | null): void
+  // A highlight was tapped.
+  onHighlightTap(value: string, rect: DOMRect): void
 }
+
+// A highlight drawn on the page.
+export interface Mark { value: string; color: string }
 
 // One open book on screen. Create a new Reader for each book.
 export class Reader {
@@ -37,6 +46,8 @@ export class Reader {
   #wheelReset = 0
   #turning = false
   #touch: { y: number; atStart: boolean; atEnd: boolean } | null = null
+  #marks = new Map<string, Mark & { index: number }>()
+  #selectionTimer = 0
 
   constructor(container: HTMLElement, events: ReaderEvents) {
     this.#events = events
@@ -60,7 +71,24 @@ export class Reader {
     })
 
     view.addEventListener('relocate', e => this.#onRelocate((e as CustomEvent<Location>).detail))
-    view.addEventListener('load', e => this.#listenTo((e as CustomEvent<{ doc: Document }>).detail.doc))
+    // Highlights: drawn when their chapter is shown, tappable afterwards.
+    view.addEventListener('create-overlay', e => {
+      const { index } = (e as CustomEvent<{ index: number }>).detail
+      for (const mark of this.#marks.values()) if (mark.index === index) view.addAnnotation(mark)
+    })
+    view.addEventListener('draw-annotation', e => {
+      const { draw, annotation } = (e as CustomEvent).detail
+      draw(Overlayer.highlight, { color: annotation.color })
+    })
+    view.addEventListener('show-annotation', e => {
+      const { value, range } = (e as CustomEvent<{ value: string; range: Range }>).detail
+      this.#events.onHighlightTap(value, this.#screenRect(range))
+    })
+    view.addEventListener('load', e => {
+      const { doc, index } = (e as CustomEvent<{ doc: Document; index: number }>).detail
+      this.#listenTo(doc)
+      this.#watchSelection(doc, () => index)
+    })
     this.#listenTo(view)
 
     this.apply(settings)
@@ -82,6 +110,66 @@ export class Reader {
 
   get flow(): Flow {
     return this.view.renderer?.scrolled ? 'scrolled' : 'paginated'
+  }
+
+  // ---------- Highlights, bookmarks, selection ----------
+
+  setMarks(marks: Mark[]) {
+    for (const mark of marks) this.addMark(mark)
+  }
+
+  addMark(mark: Mark) {
+    const index = this.view.resolveNavigation(mark.value)?.index ?? -1
+    this.#marks.set(mark.value, { ...mark, index })
+    this.view.addAnnotation({ ...mark })
+  }
+
+  removeMark(value: string) {
+    this.#marks.delete(value)
+    this.view.deleteAnnotation({ value })
+  }
+
+  // Where the visible page starts, and the first words on it (for bookmarks).
+  here() {
+    const location = this.view.lastLocation
+    if (!location?.cfi) return null
+    const text = location.range?.toString().replace(/\s+/g, ' ').trim().slice(0, 160) ?? ''
+    return { cfi: CFI.collapse(location.cfi), text, label: location.tocItem?.label?.trim() ?? '', progress: location.fraction ?? 0 }
+  }
+
+  // Is this position on the page that's showing now?
+  isVisible(cfi: string) {
+    const location = this.view.lastLocation?.cfi
+    if (!location) return false
+    try {
+      return CFI.compare(CFI.collapse(location), cfi) <= 0 && CFI.compare(cfi, CFI.collapse(location, true)) <= 0
+    } catch { return false }
+  }
+
+  clearSelection() {
+    this.view.deselect()
+  }
+
+  // A rectangle inside a chapter, moved into the main page's coordinates.
+  #screenRect(range: Range) {
+    const rect = range.getBoundingClientRect()
+    const frame = range.startContainer.ownerDocument?.defaultView?.frameElement?.getBoundingClientRect()
+    return new DOMRect(rect.left + (frame?.left ?? 0), rect.top + (frame?.top ?? 0), rect.width, rect.height)
+  }
+
+  #watchSelection(doc: Document, index: () => number | undefined) {
+    doc.addEventListener('selectionchange', () => {
+      window.clearTimeout(this.#selectionTimer)
+      this.#selectionTimer = window.setTimeout(() => {
+        const selection = doc.getSelection()
+        const text = selection?.toString().trim() ?? ''
+        if (!selection || selection.isCollapsed || !text || selection.rangeCount === 0) return this.#events.onSelection(null)
+        const range = selection.getRangeAt(0)
+        const i = index()
+        if (i == null) return
+        this.#events.onSelection({ text, cfi: this.view.getCFI(i, range), rect: this.#screenRect(range) })
+      }, 350)
+    })
   }
 
   prev() { return this.view.prev() }

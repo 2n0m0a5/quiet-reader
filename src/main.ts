@@ -5,6 +5,7 @@ import './styles/app.css'
 import {
   createIcons, AArrowDown, AArrowUp, AlignJustify, AlignLeft, ArrowLeft, BookOpen, ChevronDown,
   ChevronLeft, ChevronRight, ChevronUp, Download, Library, List, Moon, Plus, Settings2, Sun, Sunset,
+  Bookmark, BookmarkCheck, Search,
 } from 'lucide'
 import { Reader, type TapZone } from './reader/reader'
 import type { Location } from './reader/foliate'
@@ -16,6 +17,9 @@ import { asFile, importBook, ImportError } from './library/import'
 import { LibraryView } from './library/library-view'
 import { showBookDetails } from './library/details'
 import { closeTopDialog, confirmDialog } from './ui/dialog'
+import { BookNotes, BookSearch } from './reader/notes'
+import { hideSelectionMenu } from './reader/selection-menu'
+import { duration } from './ui/format'
 import { setUpInstallButton, setUpOffline } from './app/install'
 import { ACCEPTED } from './formats/load'
 import { isNativeApp, onBackButton, onIncomingFile, setSystemBarsHidden, setSystemBarsTheme } from './app/native'
@@ -24,6 +28,7 @@ createIcons({
   icons: {
     AArrowDown, AArrowUp, AlignJustify, AlignLeft, ArrowLeft, BookOpen, ChevronDown,
     ChevronLeft, ChevronRight, ChevronUp, Download, Library, List, Moon, Plus, Settings2, Sun, Sunset,
+    Bookmark, BookmarkCheck, Search,
   },
 })
 
@@ -37,7 +42,9 @@ const ui = {
   cover: $('cover'),
   bookTitle: $('bookTitle'),
   bookMeta: $('bookMeta'),
-  tocCount: $('tocCount'),
+  bookmarkToggle: $('bookmarkToggle'),
+  searchForm: $<HTMLFormElement>('searchForm'),
+  searchInput: $<HTMLInputElement>('searchInput'),
   chapterLabel: $('chapterLabel'),
   viewer: $('viewer'),
   stage: $('readerStage'),
@@ -56,12 +63,15 @@ const ui = {
   brightValue: $('brightValue'),
   progress: $<HTMLInputElement>('progress'),
   progressText: $('progressText'),
+  timeLeft: $('timeLeft'),
 }
 
 const toc = new TocView($('toc'))
 const coverPlaceholder = ui.cover.innerHTML
 let settings = loadSettings()
 let reader: Reader | null = null
+let notes: BookNotes | null = null
+let bookSearch: BookSearch | null = null
 let coverUrl = ''
 let openToken = 0
 
@@ -148,6 +158,8 @@ function setChrome(shown: boolean) {
 }
 
 function onTap(zone: TapZone) {
+  // A tap while the selection menu is open just closes it.
+  if (document.querySelector('.selection-menu')) { hideSelectionMenu(); return }
   const paged = settings.flow === 'paginated' || reader?.view.isFixedLayout
   if (paged && zone !== 'center') {
     // Tap the left or right third to turn the page.
@@ -166,6 +178,40 @@ const setSidebar = (open: boolean) => {
 }
 $('tocToggle').addEventListener('click', () => setSidebar(true))
 ui.scrim.addEventListener('click', () => setSidebar(false))
+
+// ---------- Side panel: contents, bookmarks, notes, search ----------
+
+function showPanel(tab: string) {
+  document.querySelectorAll<HTMLElement>('.panel-tab').forEach(t => {
+    t.classList.toggle('selected', t.dataset.tab === tab)
+    t.setAttribute('aria-selected', String(t.dataset.tab === tab))
+  })
+  document.querySelectorAll<HTMLElement>('.panel').forEach(p => { p.hidden = p.dataset.pane !== tab })
+}
+document.querySelectorAll<HTMLElement>('.panel-tab').forEach(t =>
+  t.addEventListener('click', () => {
+    showPanel(t.dataset.tab!)
+    if (t.dataset.tab === 'search') ui.searchInput.focus()
+  }))
+
+// Jump to a place from the side panel; on phones the panel closes so the page is visible.
+function goToFromPanel(cfi: string) {
+  reader?.goTo(cfi)
+  if (compact.matches) setSidebar(false)
+}
+
+ui.bookmarkToggle.addEventListener('click', () => notes?.toggleBookmark())
+$('searchToggle').addEventListener('click', () => {
+  setSidebar(true)
+  showPanel('search')
+  ui.searchInput.focus()
+})
+ui.searchForm.addEventListener('submit', e => {
+  e.preventDefault()
+  ui.searchInput.blur()
+  bookSearch?.search(ui.searchInput.value)
+})
+ui.searchInput.addEventListener('input', () => { if (!ui.searchInput.value) bookSearch?.clear() })
 
 
 // ---------- Screens ----------
@@ -279,9 +325,15 @@ async function removeBook(record: BookRecord) {
 
 function closeReader() {
   openToken++
+  bookSearch?.clear()
+  bookSearch = null
+  notes = null
+  hideSelectionMenu()
   reader?.close()
   reader = null
   setSidebar(false)
+  showPanel('contents')
+  ui.searchInput.value = ''
   setSettingsOpen(false)
   if (coverUrl) URL.revokeObjectURL(coverUrl)
   coverUrl = ''
@@ -296,7 +348,6 @@ async function showReader(id: string) {
   ui.topTitle.textContent = ''
   ui.chapterLabel.textContent = 'Preparing your reading space…'
   ui.progress.disabled = true
-  ui.tocCount.textContent = ''
   setProgress(0)
   toc.showMessage('Loading contents…')
 
@@ -319,7 +370,9 @@ async function showReader(id: string) {
     onRelocate,
     onSavePosition: (cfi, progress) => { updateBook(id, { cfi, progress }) },
     onTap,
-    onUserMove: () => setChrome(false),
+    onUserMove: () => { setChrome(false); hideSelectionMenu() },
+    onSelection: selection => notes?.onSelection(selection),
+    onHighlightTap: (value, rect) => notes?.onHighlightTap(value, rect),
   })
   try {
     await next.open(asFile(record, blob), settings, record.cfi)
@@ -331,6 +384,9 @@ async function showReader(id: string) {
   }
   if (token !== openToken) { next.close(); return }
   reader = next
+  notes = new BookNotes(next, id, { bookmarkList: $('bookmarkList'), noteList: $('noteList'), bookmarkButton: ui.bookmarkToggle }, goToFromPanel)
+  notes.load()
+  bookSearch = new BookSearch(next, { status: $('searchStatus'), results: $('searchResults') }, goToFromPanel)
   updateBook(id, { lastOpenedAt: Date.now() })
   ui.progress.disabled = false
 
@@ -339,7 +395,6 @@ async function showReader(id: string) {
     setSidebar(false)
   })
   if (!count) toc.showMessage('This book has no table of contents.')
-  ui.tocCount.textContent = count ? `(${count})` : ''
 }
 
 function showSidebarCover(record: BookRecord) {
@@ -369,10 +424,15 @@ function onRelocate(location: Location) {
   setProgress(location.fraction ?? 0)
   if (location.tocItem?.label) ui.chapterLabel.textContent = location.tocItem.label.trim()
   toc.setCurrent(location.tocItem?.href)
-  const minutes = location.time?.section
-  ui.progress.title = minutes != null
-    ? `${Math.round(minutes)} min left in this chapter`
-    : ''
+  notes?.refreshBookmarkButton()
+  // Time left, from the book's length and an average reading speed.
+  const { section, total } = location.time ?? {}
+  if (section != null && total != null) {
+    const chapter = `${duration(section)} left in chapter`
+    ui.progress.title = `${chapter} · ${duration(total)} left in book`
+    ui.miniProgress.textContent = `${chapter} · ${Math.round((location.fraction ?? 0) * 100)}%`
+    ui.timeLeft.textContent = chapter
+  }
 }
 
 ui.progress.addEventListener('input', () => reader?.goToFraction(Number(ui.progress.value)))

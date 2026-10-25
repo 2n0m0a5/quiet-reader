@@ -8,7 +8,7 @@ Copied as-is, except:
 - `pdf.js` loads PDF.js from the `pdfjs-dist` package and its data files from
   `public/pdfjs/` (copied by `scripts/copy-pdfjs.mjs`); the rendering code is upstream's.
 - `vendor/pdfjs/` contains only upstream's two text/annotation layer stylesheets.
-- `view.d.ts` is added (TypeScript types, written for Quiet).
+- `view.d.ts`, `overlayer.d.ts`, `epubcfi.d.ts` are added (TypeScript types, written for Quiet).
 - the rest of `vendor/pdfjs`, `reader.html`, `reader.js`, `ui/`, `opds.js`, `dict.js`,
   `quote-image.js`, `uri-template.js`, tests and build files are left out.
 

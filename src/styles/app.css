@@ -64,8 +64,7 @@ svg.lucide { width: 16px; height: 16px; stroke-width: 1.8; flex-shrink: 0; }
 .book-name { font-size: 13px; font-weight: 650; overflow-wrap: anywhere; }
 .book-meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
 
-.toc-wrap { min-height: 0; display: flex; flex-direction: column; flex: 1; }
-.toc { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; flex: 1; padding-right: 4px; }
+.toc { display: flex; flex-direction: column; gap: 2px; }
 .toc-note { padding: 10px; color: var(--muted); font-size: 12px; }
 .toc-item {
   border: 0; background: transparent; text-align: left; padding: 8px 10px; border-radius: var(--radius-s);
@@ -409,3 +408,59 @@ dialog .sheet-handle { display: none; }
   .btn.small .label { display: none; }
   .btn.small { width: 34px; height: 34px; justify-content: center; padding: 0; }
 }
+
+/* ---------- Reading side panel: tabs, bookmarks, notes, search ---------- */
+.panel-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin: -6px -4px 0; padding: 0 4px; }
+.panel-tab {
+  flex: 1; border: 0; background: transparent; padding: 9px 4px; font-size: 12px; color: var(--muted);
+  border-bottom: 2px solid transparent; margin-bottom: -1px; display: inline-flex; align-items: center; justify-content: center;
+}
+.panel-tab[data-tab="search"] { flex: 0 0 38px; }
+.panel-tab.selected { color: var(--accent-strong); border-bottom-color: var(--accent); font-weight: 650; }
+.panel { flex: 1; min-height: 0; overflow-y: auto; margin-top: -8px; padding-right: 4px; }
+.panel-empty { color: var(--muted); font-size: 12px; line-height: 1.6; padding: 10px; margin: 0; }
+
+.note-list { display: flex; flex-direction: column; gap: 6px; }
+.note-list-action { align-self: flex-start; margin-bottom: 4px; }
+.note-item { display: flex; align-items: flex-start; gap: 2px; border-radius: var(--radius-s); background: var(--bg); border: 1px solid var(--line); }
+.note-item.highlight { border-left: 4px solid var(--note-color, var(--accent)); }
+.note-open { flex: 1; min-width: 0; border: 0; background: transparent; text-align: left; padding: 10px 6px 10px 10px; }
+.note-text { font-size: 12px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.note-item.highlight .note-text { font-family: var(--font-reading); font-size: 13px; }
+.note-note { font-size: 12px; color: var(--accent-strong); margin-top: 6px; white-space: pre-line; }
+.note-meta { font-size: 10px; color: var(--muted); margin-top: 6px; }
+.note-tools { display: flex; flex-direction: column; padding: 4px; }
+.note-tool { border: 0; background: transparent; color: var(--muted); width: 28px; height: 28px; border-radius: 6px; display: grid; place-items: center; }
+.note-tool:hover { background: var(--accent-soft); color: var(--text); }
+.note-tool svg.lucide { width: 14px; height: 14px; }
+
+.book-search { margin: 0 0 8px; }
+.book-search .search-input { padding-left: 12px; }
+.search-status { font-size: 11px; color: var(--muted); padding: 0 2px 8px; }
+.search-group { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin: 10px 2px 4px; }
+.search-hit {
+  border: 0; background: transparent; text-align: left; padding: 8px; border-radius: var(--radius-s);
+  font-size: 12px; line-height: 1.5; color: var(--muted);
+}
+.search-hit:hover { background: var(--bg); }
+.search-hit mark { background: color-mix(in srgb, var(--accent) 30%, transparent); color: var(--text); border-radius: 3px; padding: 0 1px; }
+
+/* Bookmark button: outline when the page isn't bookmarked, filled tick when it is. */
+#bookmarkToggle .when-marked, #bookmarkToggle.marked .when-unmarked { display: none; }
+#bookmarkToggle.marked .when-marked { display: inline; }
+#bookmarkToggle.marked { color: var(--accent); border-color: var(--accent); }
+
+.time-left { font-size: 11px; color: var(--muted); white-space: nowrap; }
+@media (max-width: 600px) { .time-left { display: none; } }
+
+/* ---------- Selection menu ---------- */
+.selection-menu {
+  position: fixed; z-index: 70; display: flex; align-items: center; gap: 2px; padding: 6px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow);
+  animation: fade-in .12s ease;
+}
+.selection-colors { display: flex; gap: 6px; padding: 0 6px 0 4px; margin-right: 2px; border-right: 1px solid var(--line); }
+.color-dot { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--panel); box-shadow: 0 0 0 1px var(--line); padding: 0; }
+.color-dot.selected { box-shadow: 0 0 0 2px var(--text); }
+.selection-action { border: 0; background: transparent; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; color: var(--text); }
+.selection-action:hover { background: var(--bg); }

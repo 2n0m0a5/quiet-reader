@@ -31,6 +31,7 @@ export interface Book {
 export interface Location {
   fraction: number
   cfi: string
+  range?: Range
   tocItem?: TocItem & { id?: number }
   section?: { current: number; total: number }
   location?: { current: number; next: number; total: number }
@@ -62,4 +63,15 @@ export interface FoliateView extends HTMLElement {
   next(distance?: number): Promise<void>
   goLeft(): Promise<void>
   goRight(): Promise<void>
+  addAnnotation(annotation: { value: string; color?: string }): Promise<unknown>
+  deleteAnnotation(annotation: { value: string }): Promise<unknown>
+  resolveNavigation(target: string | number): { index: number } | undefined
+  search(options: { query: string; matchCase?: boolean; matchDiacritics?: boolean; matchWholeWords?: boolean; drawOptions?: { color?: string; width?: number; radius?: number } }): AsyncGenerator<SearchResult | 'done'>
+  clearSearch(): void
+  deselect(): void
+  getCFI(index: number, range: Range): string
 }
+
+export type SearchResult =
+  | { progress: number }
+  | { label: string; subitems: { cfi: string; excerpt: { pre: string; match: string; post: string } }[] }

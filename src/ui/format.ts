@@ -22,3 +22,12 @@ export function date(timestamp: number) {
 }
 
 export const percent = (fraction: number) => `${Math.round(fraction * 100)}%`
+
+// Reading time: "4 min", "1 h 20 min".
+export function duration(minutes: number) {
+  const m = Math.max(1, Math.round(minutes))
+  if (m < 60) return `${m} min`
+  const hours = Math.floor(m / 60)
+  const rest = m % 60
+  return rest ? `${hours} h ${rest} min` : `${hours} h`
+}

@@ -40,9 +40,21 @@
           <div><div class="book-name" id="bookTitle"></div><div class="book-meta" id="bookMeta"></div></div>
         </div>
       </div>
-      <div class="toc-wrap">
-        <div class="section-label">Contents <span id="tocCount"></span></div>
-        <nav class="toc" id="toc"></nav>
+      <div class="panel-tabs" role="tablist" aria-label="Book panels">
+        <button class="panel-tab selected" data-tab="contents" role="tab">Contents</button>
+        <button class="panel-tab" data-tab="bookmarks" role="tab">Bookmarks</button>
+        <button class="panel-tab" data-tab="notes" role="tab">Notes</button>
+        <button class="panel-tab" data-tab="search" role="tab" aria-label="Search in book"><i data-lucide="search"></i></button>
+      </div>
+      <div class="panel" data-pane="contents"><nav class="toc" id="toc"></nav></div>
+      <div class="panel" data-pane="bookmarks" hidden><div class="note-list" id="bookmarkList"></div></div>
+      <div class="panel" data-pane="notes" hidden><div class="note-list" id="noteList"></div></div>
+      <div class="panel" data-pane="search" hidden>
+        <form class="book-search" id="searchForm">
+          <input type="search" class="search-input" id="searchInput" placeholder="Search in this book" enterkeyhint="search" aria-label="Search in this book">
+        </form>
+        <div class="search-status" id="searchStatus"></div>
+        <div class="note-list" id="searchResults"></div>
       </div>
       <div class="sidebar-bottom">Your reading space, kept simple.</div>
     </aside>
@@ -51,6 +63,8 @@
       <div class="reader-toolbar">
         <div class="location-label" id="chapterLabel"></div>
         <div class="tool-group">
+          <button class="btn icon" id="bookmarkToggle" title="Bookmark this page" aria-pressed="false"><i data-lucide="bookmark" class="when-unmarked"></i><i data-lucide="bookmark-check" class="when-marked"></i></button>
+          <button class="btn icon" id="searchToggle" title="Search in book"><i data-lucide="search"></i></button>
           <button class="btn icon" id="smaller" title="Smaller text"><i data-lucide="a-arrow-down"></i></button>
           <button class="btn icon" id="larger" title="Larger text"><i data-lucide="a-arrow-up"></i></button>
           <div class="divider"></div>
@@ -119,6 +133,7 @@
         <div class="progress-wrap">
           <input type="range" class="progress" id="progress" min="0" max="1" step="0.001" value="0" disabled aria-label="Reading progress">
           <div class="percent" id="progressText">0%</div>
+          <div class="time-left" id="timeLeft"></div>
         </div>
         <div class="page-nav">
           <button class="btn icon" id="prev" title="Previous page"><i data-lucide="chevron-up" class="when-scrolled"></i><i data-lucide="chevron-left" class="when-paginated"></i></button>
