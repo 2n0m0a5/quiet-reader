@@ -4,7 +4,7 @@ import './styles/tokens.css'
 import './styles/app.css'
 import {
   createIcons, AArrowDown, AArrowUp, AlignJustify, AlignLeft, ArrowLeft, BookOpen, ChevronDown,
-  ChevronLeft, ChevronRight, ChevronUp, Library, List, Moon, Plus, Settings2, Sun, Sunset,
+  ChevronLeft, ChevronRight, ChevronUp, Download, Library, List, Moon, Plus, Settings2, Sun, Sunset,
 } from 'lucide'
 import { Reader, type TapZone } from './reader/reader'
 import type { Location } from './reader/foliate'
@@ -14,11 +14,12 @@ import { clamp, limits, loadSettings, saveSettings, type Settings } from './sett
 import { deleteBook, getBook, getFile, updateBook, type BookRecord } from './library/db'
 import { asFile, importBook, ImportError } from './library/import'
 import { LibraryView } from './library/library-view'
+import { setUpInstallButton, setUpOffline } from './app/install'
 
 createIcons({
   icons: {
     AArrowDown, AArrowUp, AlignJustify, AlignLeft, ArrowLeft, BookOpen, ChevronDown,
-    ChevronLeft, ChevronRight, ChevronUp, Library, List, Moon, Plus, Settings2, Sun, Sunset,
+    ChevronLeft, ChevronRight, ChevronUp, Download, Library, List, Moon, Plus, Settings2, Sun, Sunset,
   },
 })
 
@@ -198,6 +199,7 @@ function showLibrary() {
   ui.app.dataset.view = 'library'
   document.title = 'Quiet'
   library.refresh()
+  offline.offerUpdate()
 }
 
 $('backToLibrary').addEventListener('click', goToLibrary)
@@ -369,6 +371,9 @@ document.addEventListener('keydown', e => {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') reader?.save()
 })
+
+const offline = setUpOffline(() => ui.app.dataset.view === 'reader')
+setUpInstallButton($('installApp'))
 
 render()
 route()
