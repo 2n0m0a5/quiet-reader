@@ -2,6 +2,8 @@
 
 A calm, distraction-free e-book reader. Web first, then Android, iOS and desktop.
 
+**Live:** https://2n0m0a5.github.io/quiet-reader/ (updates automatically on every push to `main`)
+
 Opens EPUB, MOBI, AZW3 (DRM-free), FB2 and CBZ. PDF comes later.
 
 ## Run it on your computer
@@ -27,15 +29,22 @@ Press `Ctrl+C` in the terminal to stop it.
 
 ```
 index.html              The page layout
-src/main.ts             Connects the buttons, settings and reader together
+src/main.ts             Switches between library and reader; connects buttons and settings
 src/settings.ts         Reading preferences (theme, font size, mode) and saving them
-src/reader/reader.ts    Opens a book, turns pages, continuous scroll, remembers your place
+src/library/db.ts       The library database (books, covers, reading positions) in IndexedDB
+src/library/import.ts   Adding a book: reads its title, author and cover
+src/library/library-view.ts  The library screen
+src/reader/reader.ts    Opens a book, turns pages, continuous scroll
 src/reader/book-css.ts  How the text inside the book is styled
 src/ui/toc.ts           The contents list
+src/ui/toast.ts         Short messages at the bottom of the screen
 src/styles/tokens.css   Colours and themes — the design system
 src/styles/app.css      Layout and components
 vendor/foliate-js/      The e-book engine (see QUIET_VENDOR.md inside)
+.github/workflows/      Builds and publishes the website
 ```
+
+Books are stored in the browser on the device that added them. Nothing is uploaded anywhere.
 
 ## Security
 

@@ -1,18 +1,21 @@
 import './styles/tokens.css'
 import './styles/app.css'
 import {
-  createIcons, AArrowDown, AArrowUp, BookOpen, ChevronDown, ChevronLeft, ChevronRight,
+  createIcons, AArrowDown, AArrowUp, ArrowLeft, BookOpen, ChevronDown, ChevronLeft, ChevronRight,
   ChevronUp, Library, List, Moon, Plus, Settings2, Sun, Sunset,
 } from 'lucide'
 import { Reader } from './reader/reader'
 import type { Location } from './reader/foliate'
-import { authorString, bookKey, langString, titleFromFileName } from './reader/metadata'
 import { TocView } from './ui/toc'
+import { toast } from './ui/toast'
 import { clamp, limits, loadSettings, saveSettings, type Settings } from './settings'
+import { deleteBook, getBook, getFile, updateBook, type BookRecord } from './library/db'
+import { asFile, importBook, ImportError } from './library/import'
+import { LibraryView } from './library/library-view'
 
 createIcons({
   icons: {
-    AArrowDown, AArrowUp, BookOpen, ChevronDown, ChevronLeft, ChevronRight,
+    AArrowDown, AArrowUp, ArrowLeft, BookOpen, ChevronDown, ChevronLeft, ChevronRight,
     ChevronUp, Library, List, Moon, Plus, Settings2, Sun, Sunset,
   },
 })
@@ -20,6 +23,7 @@ createIcons({
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T
 
 const ui = {
+  app: $('app'),
   fileInput: $<HTMLInputElement>('fileInput'),
   sidebar: $('sidebar'),
   scrim: $('scrim'),
@@ -30,9 +34,8 @@ const ui = {
   chapterLabel: $('chapterLabel'),
   viewer: $('viewer'),
   stage: $('readerStage'),
-  emptyState: $('emptyState'),
-  emptyTitle: $('emptyTitle'),
-  emptyText: $('emptyText'),
+  readerError: $('readerError'),
+  readerErrorText: $('readerErrorText'),
   settings: $('settings'),
   settingsToggle: $('settingsToggle'),
   fontRange: $<HTMLInputElement>('fontRange'),
@@ -49,6 +52,7 @@ const toc = new TocView($('toc'))
 const coverPlaceholder = ui.cover.innerHTML
 let settings = loadSettings()
 let reader: Reader | null = null
+let coverUrl = ''
 let openToken = 0
 
 // ---------- Settings ----------
@@ -115,91 +119,180 @@ const setSidebar = (open: boolean) => {
 $('tocToggle').addEventListener('click', () => setSidebar(true))
 ui.scrim.addEventListener('click', () => setSidebar(false))
 
-// ---------- Opening a book ----------
+// ---------- Screens ----------
+// "#/book/<id>" shows that book; anything else shows the library.
+// Using the address bar means the browser's (and Android's) back button returns to the library.
 
-const chooseFile = () => ui.fileInput.click()
-$('openFile').addEventListener('click', chooseFile)
-$('emptyOpen').addEventListener('click', chooseFile)
-ui.fileInput.addEventListener('change', () => {
-  const file = ui.fileInput.files?.[0]
-  ui.fileInput.value = ''
-  if (file) openBook(file)
+const library = new LibraryView($('library'), {
+  open: openBook,
+  add: chooseFiles,
+  remove: removeBook,
 })
 
-// Drag and drop a book anywhere on the window (desktop).
+function openBook(id: string) {
+  location.hash = `#/book/${id}`
+}
+
+function goToLibrary() {
+  // Go back if we came from the library, so the back button doesn't bounce between the two.
+  if (history.state?.fromLibrary) history.back()
+  else location.hash = ''
+}
+
+function route() {
+  const match = location.hash.match(/^#\/book\/(.+)$/)
+  if (match) showReader(decodeURIComponent(match[1]))
+  else showLibrary()
+}
+
+window.addEventListener('hashchange', e => {
+  // Remember that this book was opened from the library (see goToLibrary).
+  if (/#\/book\//.test(location.hash) && !/#\/book\//.test(new URL(e.oldURL).hash))
+    history.replaceState({ fromLibrary: true }, '')
+  route()
+})
+
+function showLibrary() {
+  closeReader()
+  ui.app.dataset.view = 'library'
+  document.title = 'Quiet'
+  library.refresh()
+}
+
+$('backToLibrary').addEventListener('click', goToLibrary)
+$('errorBack').addEventListener('click', goToLibrary)
+
+// ---------- Adding books ----------
+
+function chooseFiles() {
+  ui.fileInput.click()
+}
+$('openFile').addEventListener('click', chooseFiles)
+
+ui.fileInput.addEventListener('change', () => {
+  const files = Array.from(ui.fileInput.files ?? [])
+  ui.fileInput.value = ''
+  addFiles(files)
+})
+
+// Drag and drop books anywhere on the window (desktop).
 document.addEventListener('dragover', e => e.preventDefault())
 document.addEventListener('drop', e => {
   e.preventDefault()
-  const file = e.dataTransfer?.files?.[0]
-  if (file) openBook(file)
+  addFiles(Array.from(e.dataTransfer?.files ?? []))
 })
 
-async function openBook(file: File) {
-  const token = ++openToken
+async function addFiles(files: File[]) {
+  if (!files.length) return
+  if (files.length > 1) toast(`Adding ${files.length} books…`, 60_000)
+  const added: BookRecord[] = []
+  const failed: string[] = []
+  for (const file of files) {
+    try {
+      added.push(await importBook(file))
+    } catch (err) {
+      console.error('Could not add book:', err)
+      failed.push(err instanceof ImportError ? err.message : `Couldn’t add “${file.name}”.`)
+    }
+  }
+
+  // One book: open it straight away. Several: show them in the library.
+  if (files.length === 1 && added.length === 1) {
+    openBook(added[0].id)
+    return
+  }
+  if (ui.app.dataset.view === 'library') library.refresh()
+  if (failed.length === 1 && !added.length) toast(failed[0], 6000)
+  else if (failed.length) toast(`Added ${added.length} of ${files.length} books. ${failed.length} couldn’t be read.`, 6000)
+  else toast(`Added ${added.length} books.`)
+}
+
+async function removeBook(record: BookRecord) {
+  if (!confirm(`Remove “${record.title}” from your library?\n\nThe book file and your reading position will be deleted from Quiet.`)) return
+  await deleteBook(record.id)
+  library.refresh()
+  toast(`Removed “${record.title}”.`)
+}
+
+// ---------- Reading ----------
+
+function closeReader() {
+  openToken++
   reader?.close()
   reader = null
+  setSidebar(false)
+  ui.settings.classList.remove('open')
+  if (coverUrl) URL.revokeObjectURL(coverUrl)
+  coverUrl = ''
+}
 
-  const fallbackTitle = titleFromFileName(file.name)
-  ui.emptyState.hidden = true
-  ui.bookTitle.textContent = fallbackTitle
-  ui.bookMeta.textContent = 'Opening book…'
+async function showReader(id: string) {
+  closeReader()
+  const token = openToken
+  ui.app.dataset.view = 'reader'
+  ui.readerError.hidden = true
   ui.chapterLabel.textContent = 'Preparing your reading space…'
-  ui.cover.innerHTML = coverPlaceholder
-  ui.tocCount.textContent = ''
   ui.progress.disabled = true
+  ui.tocCount.textContent = ''
   setProgress(0)
   toc.showMessage('Loading contents…')
 
-  const next = new Reader(ui.viewer, bookKey(file), { onRelocate })
+  const record = await getBook(id)
+  const blob = record && await getFile(id)
+  if (token !== openToken) return
+  if (!record || !blob) {
+    showReaderError('This book is no longer in your library.')
+    return
+  }
+
+  document.title = `${record.title} · Quiet`
+  ui.bookTitle.textContent = record.title
+  ui.bookMeta.textContent = record.author || 'Unknown author'
+  showSidebarCover(record)
+  setProgress(record.progress)
+
+  const next = new Reader(ui.viewer, {
+    onRelocate,
+    onSavePosition: (cfi, progress) => { updateBook(id, { cfi, progress }) },
+  })
   try {
-    await next.open(file, settings)
+    await next.open(asFile(record, blob), settings, record.cfi)
   } catch (err) {
     console.error('Could not open book:', err)
-    if (token !== openToken) return
     next.close()
-    showError(err instanceof Error && err.message.startsWith('PDF')
-      ? err.message
-      : 'This file may be damaged, protected by DRM, or in a format Quiet doesn’t read yet.')
+    if (token === openToken) showReaderError('This file may be damaged, or in a format Quiet doesn’t read yet.')
     return
   }
   if (token !== openToken) { next.close(); return }
   reader = next
-
-  const { book } = next
-  const title = langString(book.metadata?.title) || fallbackTitle
-  const author = authorString(book.metadata?.author)
-  document.title = `${title} · Quiet`
-  ui.bookTitle.textContent = title
-  ui.bookMeta.textContent = author || 'Unknown author'
+  updateBook(id, { lastOpenedAt: Date.now() })
   ui.progress.disabled = false
 
-  const count = toc.render(book.toc ?? [], href => {
+  const count = toc.render(next.book.toc ?? [], href => {
     reader?.goTo(href)
     setSidebar(false)
   })
   if (!count) toc.showMessage('This book has no table of contents.')
   ui.tocCount.textContent = count ? `(${count})` : ''
+}
 
-  Promise.resolve(book.getCover?.()).then(blob => {
-    if (!blob || token !== openToken) return
+function showSidebarCover(record: BookRecord) {
+  if (record.cover) {
     const img = document.createElement('img')
     img.alt = ''
-    img.src = URL.createObjectURL(blob)
+    img.src = coverUrl = URL.createObjectURL(record.cover)
     ui.cover.replaceChildren(img)
-  }).catch(() => {})
+  } else {
+    ui.cover.innerHTML = coverPlaceholder
+  }
 }
 
-function showError(message: string) {
-  ui.emptyState.hidden = false
-  ui.emptyTitle.textContent = 'Couldn’t open this book'
-  ui.emptyText.textContent = message
-  ui.bookTitle.textContent = 'No book open'
-  ui.bookMeta.textContent = 'Ready when you are'
-  ui.chapterLabel.textContent = 'A little room for a good book.'
-  toc.showMessage('Open a book to see its chapters here.')
+function showReaderError(message: string) {
+  ui.readerError.hidden = false
+  ui.readerErrorText.textContent = message
+  ui.chapterLabel.textContent = ''
+  toc.showMessage('')
 }
-
-// ---------- Reading progress ----------
 
 function setProgress(fraction: number) {
   ui.progress.value = String(fraction)
@@ -232,3 +325,4 @@ document.addEventListener('visibilitychange', () => {
 })
 
 render()
+route()

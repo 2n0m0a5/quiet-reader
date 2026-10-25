@@ -17,8 +17,3 @@ export function authorString(value?: Contributor): string {
 export function titleFromFileName(name: string): string {
   return name.replace(/\.[^.]+$/, '').replace(/_/g, ' ').trim()
 }
-
-// Identifies a book for remembering its reading position.
-export function bookKey(file: File): string {
-  return `${file.name}:${file.size}`
-}

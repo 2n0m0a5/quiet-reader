@@ -3,8 +3,6 @@ import type { Book, FoliateView, Location } from './foliate'
 import type { Flow, Settings } from '../settings'
 import { bookCSS } from './book-css'
 
-const POSITION_KEY = 'quiet:position:'
-
 // How far past the end (or start) of a chapter you have to keep scrolling
 // before Quiet moves to the next (or previous) chapter.
 const WHEEL_PULL = 140
@@ -12,12 +10,13 @@ const TOUCH_PULL = 70
 
 export interface ReaderEvents {
   onRelocate(location: Location): void
+  // Called (at most a few times a second) with the place to remember.
+  onSavePosition(cfi: string, fraction: number): void
 }
 
 // One open book on screen. Create a new Reader for each book.
 export class Reader {
   readonly view: FoliateView
-  #key: string
   #events: ReaderEvents
   #saveTimer = 0
   #wheelPull = 0
@@ -25,8 +24,7 @@ export class Reader {
   #turning = false
   #touch: { y: number; atStart: boolean; atEnd: boolean } | null = null
 
-  constructor(container: HTMLElement, key: string, events: ReaderEvents) {
-    this.#key = key
+  constructor(container: HTMLElement, events: ReaderEvents) {
     this.#events = events
     this.view = document.createElement('foliate-view') as FoliateView
     container.replaceChildren(this.view)
@@ -36,7 +34,7 @@ export class Reader {
     return this.view.book
   }
 
-  async open(file: File, settings: Settings) {
+  async open(file: File, settings: Settings, lastPosition?: string | null) {
     const { view } = this
     await view.open(file)
 
@@ -52,7 +50,7 @@ export class Reader {
     this.#listenTo(view)
 
     this.apply(settings)
-    await view.init({ lastLocation: this.#savedPosition() ?? undefined })
+    await view.init({ lastLocation: lastPosition ?? undefined })
   }
 
   apply(settings: Settings) {
@@ -110,14 +108,9 @@ export class Reader {
     this.#events.onRelocate(location)
   }
 
-  #savedPosition(): string | null {
-    try { return localStorage.getItem(POSITION_KEY + this.#key) } catch { return null }
-  }
-
   #savePosition() {
-    const cfi = this.view.lastLocation?.cfi
-    if (!cfi) return
-    try { localStorage.setItem(POSITION_KEY + this.#key, cfi) } catch { /* storage unavailable */ }
+    const location = this.view.lastLocation
+    if (location?.cfi) this.#events.onSavePosition(location.cfi, location.fraction ?? 0)
   }
 
   // ---- Continuous scroll: keep scrolling at the end of a chapter to move on ----

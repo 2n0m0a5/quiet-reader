@@ -6,6 +6,7 @@ License: MIT (see LICENSE)
 
 Copied as-is, except:
 - `pdf.js` is replaced by a stub (PDF support comes later).
+- `view.d.ts` is added (TypeScript types, written for Quiet).
 - `vendor/pdfjs`, `reader.html`, `reader.js`, `ui/`, `opds.js`, `dict.js`,
   `quote-image.js`, `uri-template.js`, tests and build files are left out.
 
