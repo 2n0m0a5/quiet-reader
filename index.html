@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <!-- Books can contain JavaScript. Only our own scripts may run; everything a book loads comes from blob: URLs. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' blob: data:; script-src 'self'; style-src 'self' 'unsafe-inline' blob:; img-src 'self' blob: data:; font-src 'self' blob: data:; frame-src blob:; connect-src 'self' blob: data:; object-src 'none'">
+  <meta name="theme-color" content="#fffdf9">
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <title>Quiet</title>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><div class="logo">q</div> quiet<span class="brand-sub">reader</span></div>
+    <div class="top-actions">
+      <button class="btn mobile-toc" id="tocToggle" title="Contents"><i data-lucide="list"></i><span class="label">Contents</span></button>
+      <button class="btn primary" id="openFile"><i data-lucide="plus"></i><span class="label">Open book</span></button>
+      <input id="fileInput" type="file" accept=".epub,.mobi,.azw3,.azw,.fb2,.fbz,.cbz,application/epub+zip,application/x-mobipocket-ebook,application/x-fictionbook+xml,application/vnd.comicbook+zip" hidden>
+      <button class="btn icon" id="themeQuick" title="Switch day/night"><i data-lucide="moon" class="when-light"></i><i data-lucide="sun" class="when-dark"></i></button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <div class="scrim" id="scrim"></div>
+    <aside class="sidebar" id="sidebar">
+      <div>
+        <div class="section-label">Currently reading</div>
+        <div class="book-card">
+          <div class="cover" id="cover"><i data-lucide="book-open"></i></div>
+          <div><div class="book-name" id="bookTitle">No book open</div><div class="book-meta" id="bookMeta">Ready when you are</div></div>
+        </div>
+      </div>
+      <div class="toc-wrap">
+        <div class="section-label">Contents <span id="tocCount"></span></div>
+        <nav class="toc" id="toc"><div class="toc-note">Open a book to see its chapters here.</div></nav>
+      </div>
+      <div class="sidebar-bottom">Your reading space, kept simple.</div>
+    </aside>
+
+    <main class="main">
+      <div class="reader-toolbar">
+        <div class="location-label" id="chapterLabel">A little room for a good book.</div>
+        <div class="tool-group">
+          <button class="btn icon" id="smaller" title="Smaller text"><i data-lucide="a-arrow-down"></i></button>
+          <button class="btn icon" id="larger" title="Larger text"><i data-lucide="a-arrow-up"></i></button>
+          <div class="divider"></div>
+          <button class="btn icon" id="settingsToggle" title="Reading settings"><i data-lucide="settings-2"></i></button>
+          <div class="settings-pop" id="settings">
+            <div class="setting">
+              <div class="setting-head"><span>Reading mode</span></div>
+              <div class="choice-row" data-setting="flow">
+                <button class="choice" data-value="scrolled">Scroll</button>
+                <button class="choice" data-value="paginated">Pages</button>
+              </div>
+            </div>
+            <div class="setting"><div class="setting-head"><span>Font size</span><span id="fontValue"></span></div><input type="range" id="fontRange" min="80" max="180" step="5"></div>
+            <div class="setting"><div class="setting-head"><span>Line spacing</span><span id="lineValue"></span></div><input type="range" id="lineRange" min="1.2" max="2.2" step="0.1"></div>
+            <div class="setting"><div class="setting-head"><span>Brightness</span><span id="brightValue"></span></div><input type="range" id="brightRange" min="50" max="100" step="5"></div>
+            <div class="setting">
+              <div class="setting-head"><span>Appearance</span></div>
+              <div class="choice-row" data-setting="theme">
+                <button class="choice" data-value="light"><i data-lucide="sun"></i> Day</button>
+                <button class="choice" data-value="sepia"><i data-lucide="sunset"></i> Sepia</button>
+                <button class="choice" data-value="dark"><i data-lucide="moon"></i> Night</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <section class="reader-stage" id="readerStage">
+        <div class="viewer" id="viewer"></div>
+        <div class="empty-state" id="emptyState">
+          <div class="empty-inner">
+            <div class="empty-icon"><i data-lucide="library"></i></div>
+            <h1 id="emptyTitle">Make yourself at home.</h1>
+            <p id="emptyText">A quiet, distraction-free place for your next book. Open an EPUB, MOBI, AZW3, FB2 or CBZ file to begin reading.</p>
+            <button class="btn primary" id="emptyOpen"><i data-lucide="plus"></i> Choose a book</button>
+          </div>
+        </div>
+      </section>
+
+      <footer class="reader-footer">
+        <div class="progress-wrap">
+          <input type="range" class="progress" id="progress" min="0" max="1" step="0.001" value="0" disabled aria-label="Reading progress">
+          <div class="percent" id="progressText">0%</div>
+        </div>
+        <div class="page-nav">
+          <button class="btn icon" id="prev" title="Previous page"><i data-lucide="chevron-up" class="when-scrolled"></i><i data-lucide="chevron-left" class="when-paginated"></i></button>
+          <button class="btn icon" id="next" title="Next page"><i data-lucide="chevron-down" class="when-scrolled"></i><i data-lucide="chevron-right" class="when-paginated"></i></button>
+        </div>
+      </footer>
+    </main>
+  </div>
+</div>
+<script type="module" src="./src/main.ts"></script>
+</body>
+</html>

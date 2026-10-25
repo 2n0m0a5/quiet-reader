@@ -1,0 +1,19 @@
+{
+  "name": "quiet",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Quiet — a calm, distraction-free e-book reader.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "lucide": "^1.61.0"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  }
+}

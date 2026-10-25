@@ -1,0 +1,53 @@
+/* Quiet design tokens. Every colour in the app comes from here. */
+:root {
+  --bg: #f7f5f0;
+  --panel: #fffdf9;
+  --text: #252522;
+  --muted: #89877f;
+  --line: #e8e4dc;
+  --accent: #6e806c;
+  --accent-soft: #e9ede6;
+  --accent-strong: #435743;
+  --on-accent: #ffffff;
+  --reader-bg: #fffdf9;
+  --reader-text: #292923;
+  --reader-link: #55704f;
+  --shadow: 0 12px 35px #0002;
+
+  --radius-s: 8px;
+  --radius-m: 10px;
+  --radius-l: 14px;
+
+  --font-ui: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-reading: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+}
+
+[data-theme="sepia"] {
+  --bg: #f0e6d2;
+  --panel: #f7efdf;
+  --text: #43382b;
+  --muted: #93836e;
+  --line: #e0d2b9;
+  --accent: #92734f;
+  --accent-soft: #eadcc3;
+  --accent-strong: #6b5236;
+  --reader-bg: #f6eddc;
+  --reader-text: #43382b;
+  --reader-link: #85623d;
+}
+
+[data-theme="dark"] {
+  --bg: #181a18;
+  --panel: #202320;
+  --text: #e8e8e0;
+  --muted: #a0a49a;
+  --line: #343933;
+  --accent: #a2b49a;
+  --accent-soft: #2c332b;
+  --accent-strong: #c5d4be;
+  --on-accent: #181a18;
+  --reader-bg: #1d201d;
+  --reader-text: #e5e4dc;
+  --reader-link: #b4c8aa;
+  --shadow: 0 12px 35px #0006;
+}
