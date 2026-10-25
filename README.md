@@ -4,7 +4,13 @@ A calm, distraction-free e-book reader. Web first, then Android, iOS and desktop
 
 **Live:** hosted on Cloudflare Pages, which rebuilds automatically on every push to `main`.
 
-Opens EPUB, MOBI, AZW3 (DRM-free), FB2 and CBZ. PDF comes later.
+Opens EPUB, MOBI, AZW3/AZW (DRM-free), FB2, CBZ, PDF, TXT and HTML.
+
+**Features (0.2.0):** library with covers, search, sorting, grid/list view, reading status and
+collections; book details; continuous scroll or pages; reading fonts, size, spacing, margins,
+alignment and three themes; bookmarks, highlights in four colours with notes, search in book,
+look up and translate; time left; works offline; Android app with "Open with Quiet", volume-key
+page turns and keep-screen-on.
 
 ## Run it on your computer
 
@@ -51,11 +57,17 @@ index.html              The page layout
 src/app/native.ts       Android-only features: back button, status bar
 src/app/install.ts      Offline support and the Install button (website)
 src/main.ts             Switches between library and reader; connects buttons and settings
+src/settings-screen.ts  The Settings screen and About
 src/settings.ts         Reading preferences (theme, font size, mode) and saving them
 src/library/db.ts       The library database (books, covers, reading positions) in IndexedDB
 src/library/import.ts   Adding a book: reads its title, author and cover
 src/library/library-view.ts  The library screen
-src/reader/reader.ts    Opens a book, turns pages, continuous scroll
+src/reader/reader.ts    Opens a book, turns pages, continuous scroll, highlights on the page
+src/reader/notes.ts     Bookmarks, highlights, notes and search in a book
+src/reader/selection-menu.ts  The menu shown for selected text
+src/formats/            TXT and HTML books; choosing the right reader for a file
+src/library/details.ts  The book details sheet and collections picker
+src/ui/dialog.ts        Dialogs and sheets
 src/reader/book-css.ts  How the text inside the book is styled
 src/reader/fonts.ts     The bundled reading fonts
 src/ui/toc.ts           The contents list
@@ -77,4 +89,6 @@ only Quiet's own code runs. Do not remove it.
 
 - [foliate-js](https://github.com/johnfactotum/foliate-js) — e-book engine, MIT License
 - [Literata](https://github.com/googlefonts/literata) and [Source Sans 3](https://github.com/adobe-fonts/source-sans) — reading fonts, SIL Open Font License 1.1 (via Fontsource)
+- [PDF.js](https://mozilla.github.io/pdf.js/) — PDF support, Apache License 2.0
 - [Lucide](https://lucide.dev) — icons, ISC License
+- [Capacitor](https://capacitorjs.com) — Android app, MIT License
