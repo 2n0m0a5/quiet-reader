@@ -2,7 +2,7 @@
 
 A calm, distraction-free e-book reader. Web first, then Android, iOS and desktop.
 
-**Live:** https://2n0m0a5.github.io/quiet-reader/ (updates automatically on every push to `main`)
+**Live:** hosted on Cloudflare Pages, which rebuilds automatically on every push to `main`.
 
 Opens EPUB, MOBI, AZW3 (DRM-free), FB2 and CBZ. PDF comes later.
 
@@ -41,7 +41,6 @@ src/ui/toast.ts         Short messages at the bottom of the screen
 src/styles/tokens.css   Colours and themes — the design system
 src/styles/app.css      Layout and components
 vendor/foliate-js/      The e-book engine (see QUIET_VENDOR.md inside)
-.github/workflows/      Builds and publishes the website
 ```
 
 Books are stored in the browser on the device that added them. Nothing is uploaded anywhere.
