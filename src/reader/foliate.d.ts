@@ -19,6 +19,10 @@ export interface Book {
     author?: Contributor
     language?: string | string[]
     identifier?: string
+    publisher?: Contributor
+    published?: string
+    description?: string
+    subject?: Contributor
   }
   rendition?: { layout?: string }
   getCover?: () => Promise<Blob | null> | Blob | null

@@ -14,6 +14,8 @@ import { clamp, limits, loadSettings, saveSettings, type Settings } from './sett
 import { deleteBook, getBook, getFile, updateBook, type BookRecord } from './library/db'
 import { asFile, importBook, ImportError } from './library/import'
 import { LibraryView } from './library/library-view'
+import { showBookDetails } from './library/details'
+import { closeTopDialog, confirmDialog } from './ui/dialog'
 import { setUpInstallButton, setUpOffline } from './app/install'
 import { isNativeApp, onBackButton, setSystemBarsHidden, setSystemBarsTheme } from './app/native'
 
@@ -172,7 +174,11 @@ ui.scrim.addEventListener('click', () => setSidebar(false))
 const library = new LibraryView($('library'), {
   open: openBook,
   add: chooseFiles,
-  remove: removeBook,
+  info: record => showBookDetails(record, {
+    read: openBook,
+    remove: removeBook,
+    changed: () => library.refresh(),
+  }),
 })
 
 function openBook(id: string) {
@@ -256,7 +262,13 @@ async function addFiles(files: File[]) {
 }
 
 async function removeBook(record: BookRecord) {
-  if (!confirm(`Remove “${record.title}” from your library?\n\nThe book file and your reading position will be deleted from Quiet.`)) return
+  const ok = await confirmDialog({
+    title: 'Remove this book?',
+    message: `“${record.title}” will be removed from your library, with its reading position, bookmarks and highlights. The original file on your device isn’t touched.`,
+    confirm: 'Remove',
+    danger: true,
+  })
+  if (!ok) return
   await deleteBook(record.id)
   library.refresh()
   toast(`Removed “${record.title}”.`)
@@ -387,6 +399,7 @@ if (!isNativeApp) setUpInstallButton($('installApp'))
 if (isNativeApp) ui.fileInput.removeAttribute('accept')
 
 onBackButton(() => {
+  if (closeTopDialog()) return true
   if (ui.settings.classList.contains('open')) { setSettingsOpen(false); return true }
   if (ui.sidebar.classList.contains('open')) { setSidebar(false); return true }
   if (ui.app.dataset.view === 'reader') { goToLibrary(); return true }

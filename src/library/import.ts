@@ -1,7 +1,7 @@
 import { makeBook } from '../../vendor/foliate-js/view.js'
 import type { Book } from '../reader/foliate'
 import { authorString, langString, titleFromFileName } from '../reader/metadata'
-import { addBook, getBook, requestPersistentStorage, type BookRecord } from './db'
+import { addBook, getBook, getFile, requestPersistentStorage, updateBook, type BookRecord } from './db'
 
 const COVER_WIDTH = 360
 
@@ -34,10 +34,56 @@ export async function importBook(file: File): Promise<BookRecord> {
     lastOpenedAt: null,
     progress: 0,
     cfi: null,
+    collections: [],
+    ...detailsOf(book, file.name),
   }
   await addBook(record, file)
   requestPersistentStorage()
   return record
+}
+
+// The extra information shown on a book's details page.
+function detailsOf(book: Book, fileName: string): Partial<BookRecord> {
+  const m = book.metadata ?? {}
+  const language = Array.isArray(m.language) ? m.language[0] : m.language
+  const description = m.description
+    ? new DOMParser().parseFromString(m.description, 'text/html').body.textContent?.trim()
+    : ''
+  const subjects = m.subject
+    ? (Array.isArray(m.subject) ? m.subject : [m.subject]).map(s => authorString(s)).filter(Boolean)
+    : []
+  return {
+    format: formatOf(fileName),
+    publisher: authorString(m.publisher),
+    language: language ? languageName(language) : '',
+    published: m.published ? String(m.published).slice(0, 10) : '',
+    description: description ?? '',
+    subjects,
+  }
+}
+
+function formatOf(fileName: string) {
+  const ext = fileName.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1] ?? ''
+  const names: Record<string, string> = { azw: 'AZW', azw3: 'AZW3', fbz: 'FB2', htm: 'HTML' }
+  return names[ext] ?? (ext ? ext.toUpperCase() : 'Unknown')
+}
+
+function languageName(code: string) {
+  try { return new Intl.DisplayNames(['en'], { type: 'language' }).of(code) ?? code } catch { return code }
+}
+
+// Books added before version 2 don't have the extra details yet; read them from the file once.
+export async function ensureDetails(record: BookRecord): Promise<BookRecord> {
+  if (record.format !== undefined) return record
+  const blob = await getFile(record.id)
+  if (!blob) return record
+  try {
+    const details = detailsOf(await makeBook(asFile(record, blob)), record.fileName)
+    await updateBook(record.id, details)
+    return { ...record, ...details }
+  } catch {
+    return record
+  }
 }
 
 // Turns a stored book back into a File, which the reading engine needs (it uses the name to tell formats apart).
