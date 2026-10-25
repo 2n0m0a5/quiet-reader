@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Quiet's colours, matching src/styles/tokens.css -->
+    <color name="colorPrimary">#6E806C</color>
+    <color name="colorPrimaryDark">#435743</color>
+    <color name="colorAccent">#6E806C</color>
+    <color name="quietBackground">#F7F5F0</color>
+</resources>

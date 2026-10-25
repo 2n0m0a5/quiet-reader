@@ -25,10 +25,31 @@ Press `Ctrl+C` in the terminal to stop it.
 | `npm run build` | Checks the code for errors and builds the final app into `dist/` |
 | `npm run preview` | Serves the built app from `dist/`, to check it before publishing |
 
+## Android app
+
+The Android app wraps the same web app with [Capacitor](https://capacitorjs.com).
+
+```sh
+npm run android   # builds the web app and copies it into android/
+```
+
+Then build the APK, either in Android Studio (open the `android/` folder) or from a terminal:
+
+```sh
+cd android
+./gradlew assembleDebug   # Windows: gradlew assembleDebug
+```
+
+The APK appears in `android/app/build/outputs/apk/debug/`. Test builds are signed with
+`android/app/quiet-test.keystore`, so each one installs over the previous and keeps the library.
+The Google Play build will use a separate, secret key.
+
 ## Where things are
 
 ```
 index.html              The page layout
+src/app/native.ts       Android-only features: back button, status bar
+src/app/install.ts      Offline support and the Install button (website)
 src/main.ts             Switches between library and reader; connects buttons and settings
 src/settings.ts         Reading preferences (theme, font size, mode) and saving them
 src/library/db.ts       The library database (books, covers, reading positions) in IndexedDB
@@ -42,6 +63,7 @@ src/ui/toast.ts         Short messages at the bottom of the screen
 src/styles/tokens.css   Colours and themes — the design system
 src/styles/app.css      Layout and components
 vendor/foliate-js/      The e-book engine (see QUIET_VENDOR.md inside)
+android/                The Android app project (Capacitor)
 ```
 
 Books are stored in the browser on the device that added them. Nothing is uploaded anywhere.

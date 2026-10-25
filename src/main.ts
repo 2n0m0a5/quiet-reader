@@ -15,6 +15,7 @@ import { deleteBook, getBook, getFile, updateBook, type BookRecord } from './lib
 import { asFile, importBook, ImportError } from './library/import'
 import { LibraryView } from './library/library-view'
 import { setUpInstallButton, setUpOffline } from './app/install'
+import { isNativeApp, onBackButton, setSystemBarsHidden, setSystemBarsTheme } from './app/native'
 
 createIcons({
   icons: {
@@ -76,6 +77,7 @@ function render() {
   root.dataset.flow = settings.flow
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content',
     getComputedStyle(root).getPropertyValue('--panel').trim())
+  setSystemBarsTheme(settings.theme)
 
   ui.fontRange.value = String(settings.fontSize)
   ui.fontValue.textContent = `${settings.fontSize}%`
@@ -138,6 +140,8 @@ placeSettings()
 function setChrome(shown: boolean) {
   if (!shown && (ui.settings.classList.contains('open') || ui.sidebar.classList.contains('open'))) return
   ui.app.dataset.chrome = shown ? 'shown' : 'hidden'
+  // In the Android app, hiding the controls also hides the status and navigation bars.
+  setSystemBarsHidden(!shown && compact.matches && ui.app.dataset.view === 'reader')
 }
 
 function onTap(zone: TapZone) {
@@ -196,6 +200,7 @@ window.addEventListener('hashchange', e => {
 
 function showLibrary() {
   closeReader()
+  setSystemBarsHidden(false)
   ui.app.dataset.view = 'library'
   document.title = 'Quiet'
   library.refresh()
@@ -372,8 +377,21 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') reader?.save()
 })
 
-const offline = setUpOffline(() => ui.app.dataset.view === 'reader')
-setUpInstallButton($('installApp'))
+// The website keeps itself offline with a service worker. The Android app doesn't need one:
+// its files are already on the phone, and a worker could keep showing an old version after an update.
+const offline = isNativeApp ? { offerUpdate() {} } : setUpOffline(() => ui.app.dataset.view === 'reader')
+if (!isNativeApp) setUpInstallButton($('installApp'))
+
+// Android's file picker often greys out e-books when filtered by type, so the app shows every file.
+// Quiet still checks each file and explains if one can't be read.
+if (isNativeApp) ui.fileInput.removeAttribute('accept')
+
+onBackButton(() => {
+  if (ui.settings.classList.contains('open')) { setSettingsOpen(false); return true }
+  if (ui.sidebar.classList.contains('open')) { setSidebar(false); return true }
+  if (ui.app.dataset.view === 'reader') { goToLibrary(); return true }
+  return false
+})
 
 render()
 route()
