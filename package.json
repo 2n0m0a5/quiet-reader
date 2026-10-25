@@ -2,10 +2,12 @@
   "name": "quiet",
   "version": "0.1.0",
   "private": true,
-  "description": "Quiet \u2014 a calm, distraction-free e-book reader.",
+  "description": "Quiet — a calm, distraction-free e-book reader.",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/copy-pdfjs.mjs",
     "dev": "vite",
+    "prebuild": "node scripts/copy-pdfjs.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "android": "npm run build && cap sync android"
@@ -16,7 +18,8 @@
     "@capacitor/core": "^8.5.3",
     "@fontsource-variable/literata": "^5.3.0",
     "@fontsource-variable/source-sans-3": "^5.3.1",
-    "lucide": "^1.61.0"
+    "lucide": "^1.61.0",
+    "pdfjs-dist": "^5.5.207"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.3",

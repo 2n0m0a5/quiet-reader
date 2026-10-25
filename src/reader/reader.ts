@@ -2,6 +2,7 @@ import '../../vendor/foliate-js/view.js'
 import type { Book, FoliateView, Location } from './foliate'
 import type { Flow, Margins, Settings } from '../settings'
 import { bookCSS } from './book-css'
+import { loadBook } from '../formats/load'
 
 // How far past the end (or start) of a chapter you have to keep scrolling
 // before Quiet moves to the next (or previous) chapter.
@@ -49,7 +50,7 @@ export class Reader {
 
   async open(file: File, settings: Settings, lastPosition?: string | null) {
     const { view } = this
-    await view.open(file)
+    await view.open(await loadBook(file))
 
     // A broken image or font inside the book should not stop the whole chapter from loading.
     const target = (view.book as { transformTarget?: EventTarget }).transformTarget

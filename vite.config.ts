@@ -33,8 +33,15 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        globPatterns: ['**/*.{js,mjs,css,html,svg,png,woff2}'],
+        globIgnores: ['pdfjs/**'],
         navigateFallback: 'index.html',
+        // PDF.js data files (character maps, fonts) are kept once they've been used.
+        runtimeCaching: [{
+          urlPattern: /\/pdfjs\//,
+          handler: 'CacheFirst',
+          options: { cacheName: 'pdfjs-data' },
+        }],
       },
     }),
   ],

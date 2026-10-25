@@ -17,7 +17,8 @@ import { LibraryView } from './library/library-view'
 import { showBookDetails } from './library/details'
 import { closeTopDialog, confirmDialog } from './ui/dialog'
 import { setUpInstallButton, setUpOffline } from './app/install'
-import { isNativeApp, onBackButton, setSystemBarsHidden, setSystemBarsTheme } from './app/native'
+import { ACCEPTED } from './formats/load'
+import { isNativeApp, onBackButton, onIncomingFile, setSystemBarsHidden, setSystemBarsTheme } from './app/native'
 
 createIcons({
   icons: {
@@ -397,6 +398,10 @@ if (!isNativeApp) setUpInstallButton($('installApp'))
 // Android's file picker often greys out e-books when filtered by type, so the app shows every file.
 // Quiet still checks each file and explains if one can't be read.
 if (isNativeApp) ui.fileInput.removeAttribute('accept')
+else ui.fileInput.accept = ACCEPTED
+
+// "Open with Quiet" and "Share to Quiet" in the Android app.
+onIncomingFile(file => addFiles([file]), name => toast(`Couldn’t open “${name}”.`, 6000))
 
 onBackButton(() => {
   if (closeTopDialog()) return true

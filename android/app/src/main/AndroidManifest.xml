@@ -22,6 +22,45 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- "Open with Quiet": tapping a book file in a file manager, Telegram, a browser… -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/epub+zip" />
+                <data android:mimeType="application/x-mobipocket-ebook" />
+                <data android:mimeType="application/vnd.amazon.ebook" />
+                <data android:mimeType="application/vnd.amazon.mobi8-ebook" />
+                <data android:mimeType="application/x-fictionbook+xml" />
+                <data android:mimeType="application/x-fictionbook" />
+                <data android:mimeType="application/x-zip-compressed-fb2" />
+                <data android:mimeType="application/vnd.comicbook+zip" />
+                <data android:mimeType="application/x-cbz" />
+                <data android:mimeType="application/pdf" />
+                <data android:mimeType="application/octet-stream" />
+                <data android:mimeType="text/plain" />
+                <data android:mimeType="text/html" />
+            </intent-filter>
+
+            <!-- "Share to Quiet" from other apps (book files only, not shared text or links). -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/epub+zip" />
+                <data android:mimeType="application/x-mobipocket-ebook" />
+                <data android:mimeType="application/vnd.amazon.ebook" />
+                <data android:mimeType="application/vnd.amazon.mobi8-ebook" />
+                <data android:mimeType="application/x-fictionbook+xml" />
+                <data android:mimeType="application/x-fictionbook" />
+                <data android:mimeType="application/x-zip-compressed-fb2" />
+                <data android:mimeType="application/vnd.comicbook+zip" />
+                <data android:mimeType="application/x-cbz" />
+                <data android:mimeType="application/pdf" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+
         </activity>
 
         <provider

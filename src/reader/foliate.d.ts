@@ -53,7 +53,7 @@ export interface FoliateView extends HTMLElement {
   renderer: Paginator
   isFixedLayout: boolean
   lastLocation?: Location
-  open(book: File | Blob | string): Promise<void>
+  open(book: File | Blob | string | Book): Promise<void>
   close(): void
   init(opts: { lastLocation?: string; showTextStart?: boolean }): Promise<void>
   goTo(target: string | number): Promise<unknown>

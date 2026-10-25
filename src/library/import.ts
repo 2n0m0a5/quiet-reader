@@ -1,4 +1,4 @@
-import { makeBook } from '../../vendor/foliate-js/view.js'
+import { loadBook } from '../formats/load'
 import type { Book } from '../reader/foliate'
 import { authorString, langString, titleFromFileName } from '../reader/metadata'
 import { addBook, getBook, getFile, requestPersistentStorage, updateBook, type BookRecord } from './db'
@@ -15,11 +15,10 @@ export async function importBook(file: File): Promise<BookRecord> {
 
   let book: Book
   try {
-    book = await makeBook(file)
+    book = await loadBook(file)
   } catch (err) {
-    throw new ImportError(err instanceof Error && err.message.startsWith('PDF')
-      ? err.message
-      : `“${file.name}” may be damaged, protected by DRM, or in a format Quiet doesn’t read yet.`)
+    console.error(`Could not read ${file.name}:`, err)
+    throw new ImportError(`“${file.name}” may be damaged, protected by DRM, or in a format Quiet doesn’t read yet.`)
   }
 
   const record: BookRecord = {
@@ -78,7 +77,7 @@ export async function ensureDetails(record: BookRecord): Promise<BookRecord> {
   const blob = await getFile(record.id)
   if (!blob) return record
   try {
-    const details = detailsOf(await makeBook(asFile(record, blob)), record.fileName)
+    const details = detailsOf(await loadBook(asFile(record, blob)), record.fileName)
     await updateBook(record.id, details)
     return { ...record, ...details }
   } catch {
