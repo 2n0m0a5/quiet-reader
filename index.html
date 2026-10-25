@@ -14,20 +14,23 @@
 <div class="app" id="app" data-view="library">
   <header class="topbar">
     <div class="top-start">
-      <button class="btn icon reader-only" id="backToLibrary" title="Back to library" aria-label="Back to library"><i data-lucide="arrow-left"></i></button>
+      <button class="btn icon back-button" id="backToLibrary" title="Back to library" aria-label="Back to library"><i data-lucide="arrow-left"></i></button>
       <div class="brand"><div class="logo">q</div> quiet<span class="brand-sub">reader</span></div>
       <div class="top-title reader-only" id="topTitle"></div>
+      <div class="top-title settings-only">Settings</div>
     </div>
     <div class="top-actions">
       <button class="btn mobile-toc reader-only" id="tocToggle" title="Contents"><i data-lucide="list"></i><span class="label">Contents</span></button>
       <button class="btn library-only" id="installApp" hidden><i data-lucide="download"></i><span class="label">Install</span></button>
       <button class="btn primary" id="openFile"><i data-lucide="plus"></i><span class="label">Add books</span></button>
       <input id="fileInput" type="file" multiple accept=".epub,.mobi,.azw3,.azw,.fb2,.fbz,.cbz,application/epub+zip,application/x-mobipocket-ebook,application/x-fictionbook+xml,application/vnd.comicbook+zip" hidden>
+      <button class="btn icon library-only" id="openSettings" title="Settings" aria-label="Settings"><i data-lucide="settings"></i></button>
       <button class="btn icon" id="themeQuick" title="Switch day/night"><i data-lucide="moon" class="when-light"></i><i data-lucide="sun" class="when-dark"></i></button>
     </div>
   </header>
 
   <section class="library" id="library" aria-label="Library"></section>
+  <section class="settings-screen" id="settingsScreen" aria-label="Settings"></section>
   <div class="sheet-scrim" id="sheetScrim"></div>
 
   <div class="workspace">
@@ -112,6 +115,7 @@
                 <button class="choice" data-value="dark"><i data-lucide="moon"></i> Night</button>
               </div>
             </div>
+            <button class="link-button more-settings" id="moreSettings">More settings</button>
           </div>
         </div>
       </div>

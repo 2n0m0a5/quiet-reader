@@ -15,6 +15,10 @@ export interface Settings {
   margins: Margins
   align: Align
   brightness: number // percent
+  tapZones: boolean       // tap the left/right side to turn pages (page mode)
+  scrollPastEnd: boolean  // keep scrolling at a chapter's end to go on (scroll mode)
+  keepAwake: boolean      // keep the screen on while reading
+  volumeKeys: boolean     // volume keys turn pages (Android app)
 }
 
 export const defaults: Settings = {
@@ -26,6 +30,10 @@ export const defaults: Settings = {
   margins: 'normal',
   align: 'start',
   brightness: 100,
+  tapZones: true,
+  scrollPastEnd: true,
+  keepAwake: true,
+  volumeKeys: true,
 }
 
 export const limits = {

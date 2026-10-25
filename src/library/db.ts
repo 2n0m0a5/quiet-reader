@@ -174,6 +174,13 @@ export async function deleteAnnotation(id: string) {
   await done((await store('annotations', 'readwrite')).delete(id))
 }
 
+// Deletes every book, file, collection, bookmark and highlight.
+export async function clearLibrary() {
+  const tx = (await db()).transaction(['books', 'files', 'collections', 'annotations'], 'readwrite')
+  for (const name of ['books', 'files', 'collections', 'annotations'] as const) tx.objectStore(name).clear()
+  await finished(tx)
+}
+
 // Ask the browser not to clear our storage when the device is low on space.
 export function requestPersistentStorage() {
   navigator.storage?.persist?.().catch(() => {})

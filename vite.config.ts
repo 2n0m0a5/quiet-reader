@@ -1,9 +1,13 @@
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { version } from './package.json'
 
 export default defineConfig({
   // Relative paths, so the same build works on a website and inside the Android app.
   base: './',
+  define: {
+    __APP_VERSION__: JSON.stringify(version),
+  },
   build: {
     // foliate-js uses modern JavaScript (top-level await, private fields).
     target: 'es2022',

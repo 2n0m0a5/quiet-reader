@@ -48,6 +48,7 @@ export class Reader {
   #touch: { y: number; atStart: boolean; atEnd: boolean } | null = null
   #marks = new Map<string, Mark & { index: number }>()
   #selectionTimer = 0
+  #scrollPastEnd = true
 
   constructor(container: HTMLElement, events: ReaderEvents) {
     this.#events = events
@@ -99,6 +100,7 @@ export class Reader {
     const { renderer } = this.view
     if (!renderer) return
     renderer.setStyles?.(bookCSS(settings))
+    this.#scrollPastEnd = settings.scrollPastEnd
     if (!this.view.isFixedLayout) {
       const { gap, maxWidth } = MARGINS[settings.margins] ?? MARGINS.normal
       renderer.setAttribute('flow', settings.flow)
@@ -220,7 +222,7 @@ export class Reader {
 
   #edges() {
     const r = this.view.renderer
-    const active = r && r.scrolled && !this.view.isFixedLayout
+    const active = this.#scrollPastEnd && r && r.scrolled && !this.view.isFixedLayout
     return {
       active,
       atStart: active && r.start <= 1,

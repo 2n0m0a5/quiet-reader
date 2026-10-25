@@ -5,7 +5,7 @@ import './styles/app.css'
 import {
   createIcons, AArrowDown, AArrowUp, AlignJustify, AlignLeft, ArrowLeft, BookOpen, ChevronDown,
   ChevronLeft, ChevronRight, ChevronUp, Download, Library, List, Moon, Plus, Settings2, Sun, Sunset,
-  Bookmark, BookmarkCheck, Search,
+  Bookmark, BookmarkCheck, Search, Settings as SettingsIcon,
 } from 'lucide'
 import { Reader, type TapZone } from './reader/reader'
 import type { Location } from './reader/foliate'
@@ -22,13 +22,16 @@ import { hideSelectionMenu } from './reader/selection-menu'
 import { duration } from './ui/format'
 import { setUpInstallButton, setUpOffline } from './app/install'
 import { ACCEPTED } from './formats/load'
-import { isNativeApp, onBackButton, onIncomingFile, setSystemBarsHidden, setSystemBarsTheme } from './app/native'
+import {
+  isNativeApp, keepScreenOn, onBackButton, onIncomingFile, setSystemBarsHidden, setSystemBarsTheme, setVolumeKeys,
+} from './app/native'
+import { SettingsScreen } from './settings-screen'
 
 createIcons({
   icons: {
     AArrowDown, AArrowUp, AlignJustify, AlignLeft, ArrowLeft, BookOpen, ChevronDown,
     ChevronLeft, ChevronRight, ChevronUp, Download, Library, List, Moon, Plus, Settings2, Sun, Sunset,
-    Bookmark, BookmarkCheck, Search,
+    Bookmark, BookmarkCheck, Search, Settings: SettingsIcon,
   },
 })
 
@@ -82,6 +85,16 @@ function update(patch: Partial<Settings>) {
   saveSettings(settings)
   render()
   reader?.apply(settings)
+  applyReadingSession()
+}
+
+// While a book is open: keep the screen on, and let the volume keys turn pages (if switched on).
+function applyReadingSession() {
+  const reading = !!reader && ui.app.dataset.view === 'reader'
+  keepScreenOn(reading && settings.keepAwake)
+  setVolumeKeys(reading && settings.volumeKeys
+    ? direction => { setChrome(false); direction === 'next' ? reader?.next() : reader?.prev() }
+    : null)
 }
 
 function render() {
@@ -161,7 +174,7 @@ function onTap(zone: TapZone) {
   // A tap while the selection menu is open just closes it.
   if (document.querySelector('.selection-menu')) { hideSelectionMenu(); return }
   const paged = settings.flow === 'paginated' || reader?.view.isFixedLayout
-  if (paged && zone !== 'center') {
+  if (paged && zone !== 'center' && settings.tapZones) {
     // Tap the left or right third to turn the page.
     zone === 'left' ? reader?.view.goLeft() : reader?.view.goRight()
     setChrome(false)
@@ -215,7 +228,7 @@ ui.searchInput.addEventListener('input', () => { if (!ui.searchInput.value) book
 
 
 // ---------- Screens ----------
-// "#/book/<id>" shows that book; anything else shows the library.
+// "#/book/<id>" shows that book, "#/settings" the settings; anything else shows the library.
 // Using the address bar means the browser's (and Android's) back button returns to the library.
 
 const library = new LibraryView($('library'), {
@@ -241,15 +254,35 @@ function goToLibrary() {
 function route() {
   const match = location.hash.match(/^#\/book\/(.+)$/)
   if (match) showReader(decodeURIComponent(match[1]))
+  else if (location.hash === '#/settings') showSettings()
   else showLibrary()
 }
 
 window.addEventListener('hashchange', e => {
-  // Remember that this book was opened from the library (see goToLibrary).
-  if (/#\/book\//.test(location.hash) && !/#\/book\//.test(new URL(e.oldURL).hash))
+  // Remember that this screen was opened from the library (see goToLibrary).
+  const oldHash = new URL(e.oldURL).hash
+  if (location.hash.length > 1 && (oldHash === '' || oldHash === '#'))
     history.replaceState({ fromLibrary: true }, '')
   route()
 })
+
+const settingsScreen = new SettingsScreen($('settingsScreen'), {
+  get: () => settings,
+  update,
+  libraryCleared: () => library.refresh(),
+})
+
+function showSettings() {
+  closeReader()
+  setSystemBarsHidden(false)
+  ui.app.dataset.view = 'settings'
+  document.title = 'Settings · Quiet'
+  settingsScreen.render()
+  $('settingsScreen').scrollTop = 0
+}
+
+$('openSettings').addEventListener('click', () => { location.hash = '#/settings' })
+$('moreSettings').addEventListener('click', () => { setSettingsOpen(false); location.hash = '#/settings' })
 
 function showLibrary() {
   closeReader()
@@ -331,6 +364,7 @@ function closeReader() {
   hideSelectionMenu()
   reader?.close()
   reader = null
+  applyReadingSession()
   setSidebar(false)
   showPanel('contents')
   ui.searchInput.value = ''
@@ -387,6 +421,7 @@ async function showReader(id: string) {
   notes = new BookNotes(next, id, { bookmarkList: $('bookmarkList'), noteList: $('noteList'), bookmarkButton: ui.bookmarkToggle }, goToFromPanel)
   notes.load()
   bookSearch = new BookSearch(next, { status: $('searchStatus'), results: $('searchResults') }, goToFromPanel)
+  applyReadingSession()
   updateBook(id, { lastOpenedAt: Date.now() })
   ui.progress.disabled = false
 
@@ -467,7 +502,7 @@ onBackButton(() => {
   if (closeTopDialog()) return true
   if (ui.settings.classList.contains('open')) { setSettingsOpen(false); return true }
   if (ui.sidebar.classList.contains('open')) { setSidebar(false); return true }
-  if (ui.app.dataset.view === 'reader') { goToLibrary(); return true }
+  if (ui.app.dataset.view !== 'library') { goToLibrary(); return true }
   return false
 })
 

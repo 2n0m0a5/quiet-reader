@@ -29,10 +29,13 @@ svg.lucide { width: 16px; height: 16px; stroke-width: 1.8; flex-shrink: 0; }
 .top-actions { display: flex; gap: 8px; align-items: center; }
 
 /* Which screen is showing */
-.app[data-view="library"] .workspace,
-.app[data-view="library"] .reader-only,
-.app[data-view="reader"] .library,
-.app[data-view="reader"] .library-only { display: none; }
+.app:not([data-view="reader"]) .workspace,
+.app:not([data-view="reader"]) .reader-only,
+.app:not([data-view="library"]) .library,
+.app:not([data-view="library"]) .library-only,
+.app:not([data-view="settings"]) .settings-screen,
+.app:not([data-view="settings"]) .settings-only,
+.app[data-view="library"] .back-button { display: none; }
 .btn[hidden] { display: none; }
 
 /* Buttons */
@@ -464,3 +467,43 @@ dialog .sheet-handle { display: none; }
 .color-dot.selected { box-shadow: 0 0 0 2px var(--text); }
 .selection-action { border: 0; background: transparent; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; color: var(--text); }
 .selection-action:hover { background: var(--bg); }
+
+/* ---------- Settings screen ---------- */
+.settings-screen { flex: 1; min-height: 0; overflow-y: auto; background: var(--bg); }
+.settings-inner { max-width: 640px; margin: 0 auto; padding: 28px 20px calc(64px + env(safe-area-inset-bottom)); }
+.app[data-view="settings"] .settings-only.top-title { display: block; font-size: 16px; font-weight: 650; }
+.settings-section { margin-bottom: 30px; }
+.settings-section h2 { margin-bottom: 4px; }
+.settings-hint { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 2px 0 0; }
+.settings-section > .settings-hint { margin-bottom: 10px; }
+.settings-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-l); margin-top: 10px; }
+.settings-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.settings-row:last-child { border-bottom: 0; }
+.settings-row.stacked { flex-direction: column; align-items: stretch; gap: 10px; }
+.settings-label { font-size: 14px; }
+.toggle-row { cursor: pointer; }
+
+.switch {
+  appearance: none; flex-shrink: 0; width: 44px; height: 26px; border-radius: 99px; background: var(--line);
+  position: relative; cursor: pointer; transition: background .15s; margin: 0;
+}
+.switch::after {
+  content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px #0003; transition: transform .15s;
+}
+.switch:checked { background: var(--accent); }
+.switch:checked::after { transform: translateX(18px); }
+.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.about-card { padding: 18px 16px; }
+.about-head { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+.about-logo { width: 48px; height: 48px; border-radius: 14px; font-size: 26px; font-family: var(--font-reading); }
+.about-name { font-size: 18px; font-weight: 650; letter-spacing: -.02em; }
+.about-text { font-size: 13px; line-height: 1.6; margin: 0 0 6px; }
+.about-credits { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.9; color: var(--muted); }
+
+.more-settings { display: block; margin: 14px auto 0; }
+
+@media (max-width: 480px) {
+  .app[data-view="settings"] .brand { display: none; }
+}
