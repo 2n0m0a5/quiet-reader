@@ -36,6 +36,7 @@ src/library/import.ts   Adding a book: reads its title, author and cover
 src/library/library-view.ts  The library screen
 src/reader/reader.ts    Opens a book, turns pages, continuous scroll
 src/reader/book-css.ts  How the text inside the book is styled
+src/reader/fonts.ts     The bundled reading fonts
 src/ui/toc.ts           The contents list
 src/ui/toast.ts         Short messages at the bottom of the screen
 src/styles/tokens.css   Colours and themes — the design system
@@ -49,3 +50,9 @@ Books are stored in the browser on the device that added them. Nothing is upload
 
 Books can contain JavaScript. The Content-Security-Policy in `index.html` makes sure
 only Quiet's own code runs. Do not remove it.
+
+## Credits
+
+- [foliate-js](https://github.com/johnfactotum/foliate-js) — e-book engine, MIT License
+- [Literata](https://github.com/googlefonts/literata) and [Source Sans 3](https://github.com/adobe-fonts/source-sans) — reading fonts, SIL Open Font License 1.1 (via Fontsource)
+- [Lucide](https://lucide.dev) — icons, ISC License

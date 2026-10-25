@@ -1,6 +1,6 @@
 import '../../vendor/foliate-js/view.js'
 import type { Book, FoliateView, Location } from './foliate'
-import type { Flow, Settings } from '../settings'
+import type { Flow, Margins, Settings } from '../settings'
 import { bookCSS } from './book-css'
 
 // How far past the end (or start) of a chapter you have to keep scrolling
@@ -8,10 +8,23 @@ import { bookCSS } from './book-css'
 const WHEEL_PULL = 140
 const TOUCH_PULL = 70
 
+// Side margin (percent of the page) and widest text column (px) for each margin setting.
+const MARGINS: Record<Margins, { gap: string; maxWidth: string }> = {
+  narrow: { gap: '3%', maxWidth: '820px' },
+  normal: { gap: '6%', maxWidth: '720px' },
+  wide: { gap: '10%', maxWidth: '620px' },
+}
+
+export type TapZone = 'left' | 'center' | 'right'
+
 export interface ReaderEvents {
   onRelocate(location: Location): void
   // Called (at most a few times a second) with the place to remember.
   onSavePosition(cfi: string, fraction: number): void
+  // A tap or click on the page (not on a link, not after selecting text).
+  onTap(zone: TapZone): void
+  // The reader started scrolling or turning pages by hand.
+  onUserMove(): void
 }
 
 // One open book on screen. Create a new Reader for each book.
@@ -58,10 +71,11 @@ export class Reader {
     if (!renderer) return
     renderer.setStyles?.(bookCSS(settings))
     if (!this.view.isFixedLayout) {
+      const { gap, maxWidth } = MARGINS[settings.margins] ?? MARGINS.normal
       renderer.setAttribute('flow', settings.flow)
-      renderer.setAttribute('max-inline-size', '720px')
+      renderer.setAttribute('max-inline-size', maxWidth)
       renderer.setAttribute('margin', settings.flow === 'paginated' ? '44px' : '28px')
-      renderer.setAttribute('gap', '7%')
+      renderer.setAttribute('gap', gap)
     }
   }
 
@@ -133,11 +147,27 @@ export class Reader {
     finally { window.setTimeout(() => (this.#turning = false), 500) }
   }
 
+  // Which third of the screen a click landed in. Clicks inside a chapter are measured
+  // from the chapter's frame, so they are shifted by the frame's position on screen.
+  #onClick(e: MouseEvent, doc: Document | null) {
+    if (e.defaultPrevented || e.button !== 0) return                 // a link handled it
+    if (doc?.getSelection()?.toString()) return                     // finished selecting text
+    if ((e.target as Element | null)?.closest?.('a, button, input, audio, video')) return
+    const frame = doc?.defaultView?.frameElement
+    const x = (frame?.getBoundingClientRect().left ?? 0) + e.clientX
+    const third = window.innerWidth / 3
+    this.#events.onTap(x < third ? 'left' : x > third * 2 ? 'right' : 'center')
+  }
+
   #listenTo(target: Document | HTMLElement) {
+    const doc = target === this.view ? null : target as Document
     // Key presses inside a chapter don't reach the main page, so handle them here.
-    if (target !== this.view) target.addEventListener('keydown', e => this.handleKey(e as KeyboardEvent))
+    if (doc) doc.addEventListener('keydown', e => this.handleKey(e as KeyboardEvent))
+    target.addEventListener('click', e => this.#onClick(e as MouseEvent, doc))
+    target.addEventListener('touchmove', () => this.#events.onUserMove(), { passive: true })
 
     target.addEventListener('wheel', e => {
+      this.#events.onUserMove()
       const { deltaY } = e as WheelEvent
       const { active, atStart, atEnd } = this.#edges()
       if (!active) return

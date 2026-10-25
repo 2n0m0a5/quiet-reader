@@ -13,7 +13,7 @@ svg.lucide { width: 16px; height: 16px; stroke-width: 1.8; flex-shrink: 0; }
 [data-theme="dark"] .when-light, :root:not([data-theme="dark"]) .when-dark { display: none; }
 [data-flow="paginated"] .when-scrolled, :root:not([data-flow="paginated"]) .when-paginated { display: none; }
 
-.app { height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+.app { height: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; }
 
 /* Top bar */
 .topbar {
@@ -105,7 +105,8 @@ h1 { font-size: 24px; letter-spacing: -.04em; margin: 0 0 10px; }
 
 /* Settings popover */
 .settings-pop {
-  position: absolute; z-index: 20; right: 0; top: 46px; width: 270px; padding: 16px;
+  position: absolute; z-index: 20; right: 0; top: 46px; width: 290px; padding: 16px;
+  max-height: calc(100vh - 150px); overflow-y: auto; overscroll-behavior: contain;
   border: 1px solid var(--line); border-radius: var(--radius-l); background: var(--panel); box-shadow: var(--shadow);
   display: none;
 }
@@ -122,6 +123,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 }
 .choice svg.lucide { width: 13px; height: 13px; }
 .choice.selected { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.choice.font-serif { font-family: 'Literata Variable', Georgia, serif; font-size: 12px; }
+.choice.font-sans { font-family: 'Source Sans 3 Variable', system-ui, sans-serif; font-size: 12px; }
+.sheet-handle, .sheet-scrim, .top-title, .mini-progress { display: none; }
 
 .scrim { display: none; }
 .app[data-view="reader"] .mobile-toc { display: none; }
@@ -216,4 +220,57 @@ h2 .count { color: var(--muted); font-weight: 400; font-size: 14px; letter-spaci
   .book-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 24px 14px; }
   .continue-row { grid-template-columns: 1fr; }
   .shelf + .shelf { margin-top: 32px; }
+}
+
+/* ---------- Reading on a phone ----------
+   The book fills the screen. A tap in the middle shows or hides the controls,
+   which float over the page; reading settings open as a sheet from the bottom. */
+@media (max-width: 850px) {
+  .app[data-view="reader"] .brand,
+  .app[data-view="reader"] #openFile { display: none; }
+  .app[data-view="reader"] .top-title {
+    display: block; min-width: 0; font-size: 14px; font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .app[data-view="reader"] .top-start { flex: 1; }
+
+  .app[data-view="reader"] .topbar,
+  .app[data-view="reader"] .reader-toolbar,
+  .app[data-view="reader"] .reader-footer {
+    position: absolute; left: 0; right: 0; z-index: 40;
+    transition: opacity .22s ease, transform .22s ease, visibility .22s;
+  }
+  .app[data-view="reader"] .topbar { top: 0; height: calc(54px + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top); }
+  .app[data-view="reader"] .reader-toolbar { top: calc(54px + env(safe-area-inset-top)); }
+  .app[data-view="reader"] .reader-footer { bottom: 0; height: calc(56px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); }
+  .app[data-view="reader"] .main { position: relative; }
+
+  .app[data-view="reader"][data-chrome="hidden"] .topbar,
+  .app[data-view="reader"][data-chrome="hidden"] .reader-toolbar { opacity: 0; visibility: hidden; transform: translateY(-10px); }
+  .app[data-view="reader"][data-chrome="hidden"] .reader-footer { opacity: 0; visibility: hidden; transform: translateY(10px); }
+
+  .app[data-view="reader"][data-chrome="hidden"] .mini-progress {
+    display: block; position: absolute; right: 16px; bottom: calc(6px + env(safe-area-inset-bottom)); z-index: 6;
+    font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; pointer-events: none;
+  }
+
+  /* Settings as a bottom sheet */
+  .settings-pop {
+    position: fixed; display: block; z-index: 60; left: 0; right: 0; bottom: 0; top: auto; width: auto;
+    max-height: 78vh; border-radius: 20px 20px 0 0; border-bottom: 0;
+    padding: 10px 20px calc(22px + env(safe-area-inset-bottom));
+    transform: translateY(100%); visibility: hidden; transition: transform .25s ease, visibility .25s;
+  }
+  .settings-pop.open { transform: none; visibility: visible; }
+  .sheet-handle { display: block; width: 36px; height: 4px; border-radius: 4px; background: var(--line); margin: 0 auto 14px; }
+  .sheet-scrim {
+    display: block; position: fixed; inset: 0; z-index: 55; background: #0004;
+    opacity: 0; pointer-events: none; transition: opacity .25s;
+  }
+  .sheet-scrim.open { opacity: 1; pointer-events: auto; }
+  /* The contents drawer covers the floating top bar. */
+  .app[data-view="reader"] .sidebar { z-index: 45; padding-top: calc(20px + env(safe-area-inset-top)); }
+  .app[data-view="reader"] .scrim { z-index: 44; }
+  .choice { padding: 10px 3px; font-size: 12px; }
+  .setting { margin-bottom: 18px; }
 }

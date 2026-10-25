@@ -2,20 +2,29 @@
 
 export type Theme = 'light' | 'sepia' | 'dark'
 export type Flow = 'scrolled' | 'paginated'
+export type FontChoice = 'original' | 'serif' | 'sans'
+export type Margins = 'narrow' | 'normal' | 'wide'
+export type Align = 'start' | 'justify'
 
 export interface Settings {
   theme: Theme
   flow: Flow
+  font: FontChoice   // 'original' keeps the book's own fonts
   fontSize: number   // percent
   lineHeight: number
+  margins: Margins
+  align: Align
   brightness: number // percent
 }
 
 export const defaults: Settings = {
   theme: 'light',
   flow: 'scrolled',
+  font: 'serif',
   fontSize: 100,
   lineHeight: 1.7,
+  margins: 'normal',
+  align: 'start',
   brightness: 100,
 }
 

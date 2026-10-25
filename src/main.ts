@@ -1,10 +1,12 @@
+import '@fontsource-variable/literata'
+import '@fontsource-variable/source-sans-3'
 import './styles/tokens.css'
 import './styles/app.css'
 import {
-  createIcons, AArrowDown, AArrowUp, ArrowLeft, BookOpen, ChevronDown, ChevronLeft, ChevronRight,
-  ChevronUp, Library, List, Moon, Plus, Settings2, Sun, Sunset,
+  createIcons, AArrowDown, AArrowUp, AlignJustify, AlignLeft, ArrowLeft, BookOpen, ChevronDown,
+  ChevronLeft, ChevronRight, ChevronUp, Library, List, Moon, Plus, Settings2, Sun, Sunset,
 } from 'lucide'
-import { Reader } from './reader/reader'
+import { Reader, type TapZone } from './reader/reader'
 import type { Location } from './reader/foliate'
 import { TocView } from './ui/toc'
 import { toast } from './ui/toast'
@@ -15,8 +17,8 @@ import { LibraryView } from './library/library-view'
 
 createIcons({
   icons: {
-    AArrowDown, AArrowUp, ArrowLeft, BookOpen, ChevronDown, ChevronLeft, ChevronRight,
-    ChevronUp, Library, List, Moon, Plus, Settings2, Sun, Sunset,
+    AArrowDown, AArrowUp, AlignJustify, AlignLeft, ArrowLeft, BookOpen, ChevronDown,
+    ChevronLeft, ChevronRight, ChevronUp, Library, List, Moon, Plus, Settings2, Sun, Sunset,
   },
 })
 
@@ -36,6 +38,9 @@ const ui = {
   stage: $('readerStage'),
   readerError: $('readerError'),
   readerErrorText: $('readerErrorText'),
+  topTitle: $('topTitle'),
+  miniProgress: $('miniProgress'),
+  sheetScrim: $('sheetScrim'),
   settings: $('settings'),
   settingsToggle: $('settingsToggle'),
   fontRange: $<HTMLInputElement>('fontRange'),
@@ -102,13 +107,48 @@ document.querySelectorAll<HTMLElement>('.choice-row').forEach(row => {
   })
 })
 
-// Settings popover: toggle on the gear, close on outside click or Escape.
+// Reading settings: a popover on wide screens, a sheet from the bottom on phones.
+// Closes on outside click, a tap on the backdrop, or Escape.
+function setSettingsOpen(open: boolean) {
+  ui.settings.classList.toggle('open', open)
+  ui.sheetScrim.classList.toggle('open', open)
+}
 ui.settingsToggle.addEventListener('click', e => {
   e.stopPropagation()
-  ui.settings.classList.toggle('open')
+  setSettingsOpen(!ui.settings.classList.contains('open'))
 })
 ui.settings.addEventListener('click', e => e.stopPropagation())
-document.addEventListener('click', () => ui.settings.classList.remove('open'))
+ui.sheetScrim.addEventListener('click', () => setSettingsOpen(false))
+document.addEventListener('click', () => setSettingsOpen(false))
+
+// ---------- Controls on a phone ----------
+// On small screens the book fills the screen. A tap in the middle shows or hides the
+// controls; scrolling or turning a page hides them again.
+
+const compact = matchMedia('(max-width: 850px)')
+
+// On phones the settings sheet sits at the top level, so the backdrop dims everything behind it.
+// On wide screens it's a popover under the settings button.
+const settingsHome = ui.settings.parentElement!
+const placeSettings = () => (compact.matches ? ui.app : settingsHome).append(ui.settings)
+compact.addEventListener('change', placeSettings)
+placeSettings()
+
+function setChrome(shown: boolean) {
+  if (!shown && (ui.settings.classList.contains('open') || ui.sidebar.classList.contains('open'))) return
+  ui.app.dataset.chrome = shown ? 'shown' : 'hidden'
+}
+
+function onTap(zone: TapZone) {
+  const paged = settings.flow === 'paginated' || reader?.view.isFixedLayout
+  if (paged && zone !== 'center') {
+    // Tap the left or right third to turn the page.
+    zone === 'left' ? reader?.view.goLeft() : reader?.view.goRight()
+    setChrome(false)
+  } else if (compact.matches) {
+    setChrome(ui.app.dataset.chrome === 'hidden')
+  }
+}
 
 // ---------- Sidebar on small screens ----------
 
@@ -118,6 +158,7 @@ const setSidebar = (open: boolean) => {
 }
 $('tocToggle').addEventListener('click', () => setSidebar(true))
 ui.scrim.addEventListener('click', () => setSidebar(false))
+
 
 // ---------- Screens ----------
 // "#/book/<id>" shows that book; anything else shows the library.
@@ -221,7 +262,7 @@ function closeReader() {
   reader?.close()
   reader = null
   setSidebar(false)
-  ui.settings.classList.remove('open')
+  setSettingsOpen(false)
   if (coverUrl) URL.revokeObjectURL(coverUrl)
   coverUrl = ''
 }
@@ -230,7 +271,9 @@ async function showReader(id: string) {
   closeReader()
   const token = openToken
   ui.app.dataset.view = 'reader'
+  ui.app.dataset.chrome = 'shown'
   ui.readerError.hidden = true
+  ui.topTitle.textContent = ''
   ui.chapterLabel.textContent = 'Preparing your reading space…'
   ui.progress.disabled = true
   ui.tocCount.textContent = ''
@@ -247,6 +290,7 @@ async function showReader(id: string) {
 
   document.title = `${record.title} · Quiet`
   ui.bookTitle.textContent = record.title
+  ui.topTitle.textContent = record.title
   ui.bookMeta.textContent = record.author || 'Unknown author'
   showSidebarCover(record)
   setProgress(record.progress)
@@ -254,6 +298,8 @@ async function showReader(id: string) {
   const next = new Reader(ui.viewer, {
     onRelocate,
     onSavePosition: (cfi, progress) => { updateBook(id, { cfi, progress }) },
+    onTap,
+    onUserMove: () => setChrome(false),
   })
   try {
     await next.open(asFile(record, blob), settings, record.cfi)
@@ -296,7 +342,7 @@ function showReaderError(message: string) {
 
 function setProgress(fraction: number) {
   ui.progress.value = String(fraction)
-  ui.progressText.textContent = `${Math.round(fraction * 100)}%`
+  ui.progressText.textContent = ui.miniProgress.textContent = `${Math.round(fraction * 100)}%`
 }
 
 function onRelocate(location: Location) {
@@ -317,7 +363,7 @@ $('prev').addEventListener('click', () => reader?.prev())
 $('next').addEventListener('click', () => reader?.next())
 document.addEventListener('keydown', e => {
   if ((e.target as HTMLElement).matches('input, textarea')) return
-  if (e.key === 'Escape') { ui.settings.classList.remove('open'); setSidebar(false); return }
+  if (e.key === 'Escape') { setSettingsOpen(false); setSidebar(false); return }
   reader?.handleKey(e)
 })
 document.addEventListener('visibilitychange', () => {

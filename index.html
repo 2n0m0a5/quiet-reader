@@ -15,6 +15,7 @@
     <div class="top-start">
       <button class="btn icon reader-only" id="backToLibrary" title="Back to library" aria-label="Back to library"><i data-lucide="arrow-left"></i></button>
       <div class="brand"><div class="logo">q</div> quiet<span class="brand-sub">reader</span></div>
+      <div class="top-title reader-only" id="topTitle"></div>
     </div>
     <div class="top-actions">
       <button class="btn mobile-toc reader-only" id="tocToggle" title="Contents"><i data-lucide="list"></i><span class="label">Contents</span></button>
@@ -25,6 +26,7 @@
   </header>
 
   <section class="library" id="library" aria-label="Library"></section>
+  <div class="sheet-scrim" id="sheetScrim"></div>
 
   <div class="workspace">
     <div class="scrim" id="scrim"></div>
@@ -51,7 +53,8 @@
           <button class="btn icon" id="larger" title="Larger text"><i data-lucide="a-arrow-up"></i></button>
           <div class="divider"></div>
           <button class="btn icon" id="settingsToggle" title="Reading settings"><i data-lucide="settings-2"></i></button>
-          <div class="settings-pop" id="settings">
+          <div class="settings-pop" id="settings" role="dialog" aria-label="Reading settings">
+            <div class="sheet-handle" aria-hidden="true"></div>
             <div class="setting">
               <div class="setting-head"><span>Reading mode</span></div>
               <div class="choice-row" data-setting="flow">
@@ -59,8 +62,31 @@
                 <button class="choice" data-value="paginated">Pages</button>
               </div>
             </div>
+            <div class="setting">
+              <div class="setting-head"><span>Font</span></div>
+              <div class="choice-row" data-setting="font">
+                <button class="choice font-serif" data-value="serif">Serif</button>
+                <button class="choice font-sans" data-value="sans">Sans</button>
+                <button class="choice" data-value="original">Book’s own</button>
+              </div>
+            </div>
             <div class="setting"><div class="setting-head"><span>Font size</span><span id="fontValue"></span></div><input type="range" id="fontRange" min="80" max="180" step="5"></div>
             <div class="setting"><div class="setting-head"><span>Line spacing</span><span id="lineValue"></span></div><input type="range" id="lineRange" min="1.2" max="2.2" step="0.1"></div>
+            <div class="setting">
+              <div class="setting-head"><span>Margins</span></div>
+              <div class="choice-row" data-setting="margins">
+                <button class="choice" data-value="narrow">Narrow</button>
+                <button class="choice" data-value="normal">Normal</button>
+                <button class="choice" data-value="wide">Wide</button>
+              </div>
+            </div>
+            <div class="setting">
+              <div class="setting-head"><span>Text alignment</span></div>
+              <div class="choice-row" data-setting="align">
+                <button class="choice" data-value="start"><i data-lucide="align-left"></i> Left</button>
+                <button class="choice" data-value="justify"><i data-lucide="align-justify"></i> Justified</button>
+              </div>
+            </div>
             <div class="setting"><div class="setting-head"><span>Brightness</span><span id="brightValue"></span></div><input type="range" id="brightRange" min="50" max="100" step="5"></div>
             <div class="setting">
               <div class="setting-head"><span>Appearance</span></div>
@@ -76,6 +102,7 @@
 
       <section class="reader-stage" id="readerStage">
         <div class="viewer" id="viewer"></div>
+        <div class="mini-progress" id="miniProgress" aria-hidden="true"></div>
         <div class="empty-state" id="readerError" hidden>
           <div class="empty-inner">
             <div class="empty-icon"><i data-lucide="book-open"></i></div>

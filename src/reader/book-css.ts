@@ -1,4 +1,5 @@
 import type { Settings } from '../settings'
+import { fontFaceCSS, fontStacks } from './fonts'
 
 // Colours used inside the book itself. They mirror the reader tokens in tokens.css.
 const palettes = {
@@ -7,11 +8,18 @@ const palettes = {
   dark: { bg: '#1d201d', text: '#e5e4dc', link: '#b4c8aa' },
 }
 
+// Replaces the book's fonts everywhere except code, which stays monospaced.
+const fontRule = (stack: string) => `
+    html body, html body *:not(code, pre, kbd, samp, tt, code *, pre *) {
+      font-family: ${stack} !important;
+    }`
+
 // CSS injected into every chapter of the book.
-export function bookCSS({ theme, fontSize, lineHeight }: Settings) {
+export function bookCSS({ theme, font, fontSize, lineHeight, align }: Settings) {
   const c = palettes[theme]
   return `
     @namespace epub "http://www.idpf.org/2007/ops";
+    ${font === 'original' ? '' : fontFaceCSS + fontRule(fontStacks[font])}
     html {
       color-scheme: ${theme === 'dark' ? 'dark' : 'light'};
       background: ${c.bg} !important;
@@ -26,6 +34,8 @@ export function bookCSS({ theme, fontSize, lineHeight }: Settings) {
       widows: 2;
       orphans: 2;
     }
+    /* Not !important: paragraphs a book centres or right-aligns with a class (titles, epigraphs) keep it. */
+    html body :is(p, li, dd) { text-align: ${align}; }
     a:link, a:visited { color: ${c.link} !important; }
     pre { white-space: pre-wrap !important; }
     img, svg, video { max-width: 100%; height: auto; }
