@@ -280,9 +280,11 @@ export async function allTags() {
 }
 
 // Tags: type a new one, or tap one you've used before. Lighter than collections, and a book can have many.
-export async function pickTags(current: string[], save: (tags: string[]) => void) {
+// (Highlights have tags too, with their own list of known tags.)
+export async function pickTags(current: string[], save: (tags: string[]) => void,
+  options: { known?: string[]; hint?: string } = {}) {
   const selected = [...current]
-  const known = await allTags()
+  const known = options.known ?? await allTags()
   const chips = h('div', 'tag-editor')
   const form = h('form', 'tag-form')
   const input = h('input', 'search-input')
@@ -298,7 +300,7 @@ export async function pickTags(current: string[], save: (tags: string[]) => void
 
   const render = () => {
     chips.replaceChildren()
-    if (!selected.length) chips.append(h('p', 'dialog-text', 'Tags are quick labels, like “classic”, “to reread” or “gift from Mum”. A book can have as many as you like.'))
+    if (!selected.length) chips.append(h('p', 'dialog-text', options.hint ?? 'Tags are quick labels, like “classic”, “to reread” or “gift from Mum”. A book can have as many as you like.'))
     for (const tag of selected) {
       const chip = h('button', 'chip selected tag-chip', `#${tag}`)
       chip.type = 'button'

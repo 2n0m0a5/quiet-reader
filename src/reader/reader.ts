@@ -3,8 +3,10 @@ import { Overlayer } from '../../vendor/foliate-js/overlayer.js'
 import * as CFI from '../../vendor/foliate-js/epubcfi.js'
 import type { Book, FoliateView, Location } from './foliate'
 import type { Flow, Margins, Settings } from '../settings'
+import type { MarkStyle } from '../library/db'
 import { bookCSS } from './book-css'
 import { addBionic, removeBionic } from './bionic'
+import { inkOf } from './selection-menu'
 import { loadBook } from '../formats/load'
 
 // How far past the end (or start) of a chapter you have to keep scrolling
@@ -48,7 +50,10 @@ export const ZOOM_STEPS = [1, 1.5, 2, 3]
 const MAX_ZOOM = 4
 
 // A highlight drawn on the page.
-export interface Mark { value: string; color: string }
+export interface Mark { value: string; color: string; style?: MarkStyle }
+
+// The outline of a passage saved only as a quote.
+const QUOTE_OUTLINE = '#b08d57'
 
 // One open book on screen. Create a new Reader for each book.
 export class Reader {
@@ -93,8 +98,12 @@ export class Reader {
       for (const mark of this.#marks.values()) if (mark.index === index) view.addAnnotation(mark)
     })
     view.addEventListener('draw-annotation', e => {
-      const { draw, annotation } = (e as CustomEvent).detail
-      draw(Overlayer.highlight, { color: annotation.color })
+      const { draw, annotation } = (e as CustomEvent<{ draw: (f: unknown, o: object) => void; annotation: Mark }>).detail
+      const { color, style } = annotation
+      if (style === 'underline') draw(Overlayer.underline, { color: inkOf(color), width: 2.5 })
+      else if (style === 'strike') draw(Overlayer.strikethrough, { color: inkOf(color), width: 2 })
+      else if (style === 'plain') draw(Overlayer.outline, { color: QUOTE_OUTLINE, width: 1.5, radius: 3 })
+      else draw(Overlayer.highlight, { color })
     })
     view.addEventListener('show-annotation', e => {
       const { value, range } = (e as CustomEvent<{ value: string; range: Range }>).detail

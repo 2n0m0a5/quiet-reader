@@ -35,6 +35,8 @@ svg.lucide { width: 16px; height: 16px; stroke-width: 1.8; flex-shrink: 0; }
 .app:not([data-view="library"]) .library-only,
 .app:not([data-view="settings"]) .settings-screen,
 .app:not([data-view="settings"]) .settings-only,
+.app:not([data-view="notes"]) .notes-screen,
+.app:not([data-view="notes"]) .notes-only,
 .app[data-view="library"] .back-button { display: none; }
 .btn[hidden] { display: none; }
 
@@ -102,7 +104,7 @@ svg.lucide { width: 16px; height: 16px; stroke-width: 1.8; flex-shrink: 0; }
 
 /* App text size: Quiet's own text and controls, never the book. Applied to the outermost
    parts only, because zoom multiplies when nested. */
-.topbar, .reader-toolbar, .reader-footer, .sidebar, .library, .settings-screen,
+.topbar, .reader-toolbar, .reader-footer, .sidebar, .library, .settings-screen, .notes-screen,
 .app > .settings-pop, dialog.dialog, .toast, .selection-menu { zoom: var(--ui-zoom, 1); }
 .tool-group { display: flex; align-items: center; gap: 7px; position: relative; }
 .divider { height: 20px; width: 1px; background: var(--line); margin: 0 4px; }
@@ -758,3 +760,67 @@ dialog.dialog-image .dialog-body { padding: 0; height: 100%; max-height: none; o
 }
 /* The browser outlines a dialog it just focused; the dialog's own edge is enough. */
 dialog.dialog:focus, dialog.dialog:focus-visible { outline: none; }
+
+/* ---------- Notes and quotes, version 3 ---------- */
+
+/* The selection menu: colours and styles on top, actions below. */
+.selection-menu { flex-direction: column; align-items: stretch; gap: 4px; }
+.selection-row { display: flex; align-items: center; gap: 2px; }
+.selection-row + .selection-row { border-top: 1px solid var(--line); padding-top: 4px; }
+.selection-row:first-child { justify-content: space-between; }
+.selection-colors { border-right: 0; margin-right: 0; padding: 0 4px; }
+.selection-styles { display: flex; gap: 2px; padding-left: 8px; border-left: 1px solid var(--line); }
+.selection-action.selected { background: var(--accent-soft); color: var(--accent-strong); }
+.selection-action svg.lucide { width: 17px; height: 17px; }
+
+/* How each kind of mark looks in lists: a coloured edge, and the text drawn like on the page. */
+.note-item { border-left: 4px solid var(--line); }
+.note-item.bookmark { border-left-color: var(--accent); }
+.note-item.style-highlight { border-left-color: var(--note-color, var(--accent)); }
+.note-item.style-underline, .note-item.style-strike { border-left-color: var(--note-ink, var(--accent)); }
+.note-item.style-plain { border-left-color: #b08d57; }
+.style-underline .note-mark { text-decoration: underline 2px var(--note-ink); text-underline-offset: 3px; }
+.style-strike .note-mark { text-decoration: line-through 1.5px var(--note-ink); }
+.quote-badge {
+  display: inline-flex; align-items: center; gap: 4px; margin-bottom: 4px;
+  font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #a07e4b;
+}
+.quote-badge svg.lucide { width: 11px; height: 11px; }
+[data-dark] .quote-badge { color: #d4b27c; }
+.note-item.is-quote .note-text { font-family: var(--font-reading); font-size: 13.5px; }
+.note-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.note-tag { font-size: 10.5px; color: var(--accent-strong); background: var(--accent-soft); border-radius: 99px; padding: 1px 7px; }
+.note-book { font-size: 11px; color: var(--text); font-weight: 600; margin-top: 8px; }
+.note-chips { padding: 0 0 8px; margin: 0; }
+.note-chips .chip { padding: 4px 10px; font-size: 11px; }
+
+/* The Notes screen */
+.notes-screen { flex: 1; min-height: 0; overflow-y: auto; background: var(--bg); }
+.notes-inner { max-width: 760px; margin: 0 auto; padding: 32px 24px calc(72px + env(safe-area-inset-bottom)); }
+.app[data-view="notes"] .notes-only.top-title { display: block; font-size: 16px; font-weight: 650; }
+.notes-order { margin: -2px 0 18px; }
+.notes-results .note-list { gap: 8px; margin-bottom: 26px; }
+.notes-results .note-text { font-size: 13.5px; -webkit-line-clamp: 8; }
+.notes-results .note-item.is-quote .note-text { font-size: 15px; line-height: 1.6; }
+.notes-results .note-open { padding: 12px 8px 12px 14px; }
+.notes-results .note-item { background: var(--panel); }
+.quotes-list .note-item { border-left-width: 0; padding-left: 6px; position: relative; }
+.quotes-list .note-item::before {
+  content: '“'; position: absolute; left: 12px; top: 2px; font: 700 34px/1 var(--font-reading); color: #b08d57; opacity: .55;
+}
+.quotes-list .note-open { padding-left: 30px; }
+.quotes-list .note-text { font-style: italic; -webkit-line-clamp: unset; }
+.quotes-list .quote-badge { display: none; }
+.notes-book { display: flex; align-items: center; gap: 12px; margin: 4px 0 10px; }
+.notes-book-cover { width: 34px; flex-shrink: 0; }
+.notes-book .tile-title { margin-top: 0; }
+.notes-empty { text-align: center; max-width: 400px; margin: 60px auto; }
+.notes-empty p { color: var(--muted); line-height: 1.6; }
+@media (max-width: 600px) {
+  .notes-inner { padding: 22px 16px 56px; }
+}
+@media (max-width: 480px) {
+  .app[data-view="notes"] .brand { display: none; }
+}
+/* Text buttons that are .small keep their width on phones (only icon buttons shrink there). */
+.note-list-action.btn.small { width: auto; height: auto; padding: 6px 10px; }

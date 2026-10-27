@@ -5,7 +5,7 @@ import './styles/app.css'
 import {
   createIcons, AArrowDown, AArrowUp, AlignJustify, AlignLeft, ArrowLeft, BookOpen, ChevronDown,
   ChevronLeft, ChevronRight, ChevronUp, Download, Library, List, Moon, Plus, Settings2, Sun, Sunset,
-  Bookmark, BookmarkCheck, Search, Settings as SettingsIcon, Undo2, X, ZoomIn, ZoomOut,
+  Bookmark, BookmarkCheck, NotebookText, Search, Settings as SettingsIcon, Undo2, X, ZoomIn, ZoomOut,
 } from 'lucide'
 import { Reader, ZOOM_STEPS, type TapZone } from './reader/reader'
 import { effectiveTheme, onSystemThemeChange, paletteOf } from './reader/themes'
@@ -31,12 +31,13 @@ import {
   setSystemBarsHidden, setSystemBarsTheme, setVolumeKeys,
 } from './app/native'
 import { SettingsScreen } from './settings-screen'
+import { NotesScreen } from './notes-screen'
 
 createIcons({
   icons: {
     AArrowDown, AArrowUp, AlignJustify, AlignLeft, ArrowLeft, BookOpen, ChevronDown,
     ChevronLeft, ChevronRight, ChevronUp, Download, Library, List, Moon, Plus, Settings2, Sun, Sunset,
-    Bookmark, BookmarkCheck, Search, Settings: SettingsIcon, Undo2, X, ZoomIn, ZoomOut,
+    Bookmark, BookmarkCheck, NotebookText, Search, Settings: SettingsIcon, Undo2, X, ZoomIn, ZoomOut,
   },
 })
 
@@ -322,13 +323,15 @@ function route() {
   const match = location.hash.match(/^#\/book\/(.+)$/)
   if (match) showReader(decodeURIComponent(match[1]))
   else if (location.hash === '#/settings') showSettings()
+  else if (location.hash === '#/notes') showNotes()
   else showLibrary()
 }
 
 window.addEventListener('hashchange', e => {
   // Remember that this screen was opened from the library (see goToLibrary).
+  // (A book opened from the Notes screen goes back to Notes the same way.)
   const oldHash = new URL(e.oldURL).hash
-  if (location.hash.length > 1 && (oldHash === '' || oldHash === '#'))
+  if (location.hash.length > 1 && (oldHash === '' || oldHash === '#' || (oldHash === '#/notes' && location.hash.startsWith('#/book/'))))
     history.replaceState({ fromLibrary: true }, '')
   route()
 })
@@ -350,6 +353,24 @@ function showSettings() {
 }
 
 $('openSettings').addEventListener('click', () => { location.hash = '#/settings' })
+
+// Notes and quotes from every book. Tapping one opens its book at that place.
+let openAtCfi: string | null = null
+const notesScreen = new NotesScreen($('notesScreen'), {
+  openAt: (bookId, cfi) => { openAtCfi = cfi; openBook(bookId) },
+})
+
+function showNotes() {
+  closeReader()
+  library.closeSelection()
+  setSystemBarsHidden(false)
+  ui.app.dataset.view = 'notes'
+  document.title = 'Notes · Quiet'
+  notesScreen.render()
+  notesScreen.reset()
+}
+
+$('openNotes').addEventListener('click', () => { location.hash = '#/notes' })
 $('moreSettings').addEventListener('click', () => { setSettingsOpen(false); location.hash = '#/settings' })
 
 function showLibrary() {
@@ -485,7 +506,9 @@ async function showReader(id: string) {
     },
   })
   try {
-    await next.open(asFile(record, blob), settings, record.cfi)
+    const at = openAtCfi
+    openAtCfi = null
+    await next.open(asFile(record, blob), settings, at ?? record.cfi)
   } catch (err) {
     console.error('Could not open book:', err)
     next.close()

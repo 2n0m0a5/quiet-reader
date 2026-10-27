@@ -52,7 +52,15 @@ export interface Annotation {
   label?: string        // chapter title
   progress?: number
   createdAt: number
+
+  // Added in version 3.
+  style?: MarkStyle     // how a highlight is drawn; missing means 'highlight'
+  quote?: boolean       // saved to Quotes
+  tags?: string[]
 }
+
+// 'plain' draws no colour, only a thin outline: a passage saved just as a quote.
+export type MarkStyle = 'highlight' | 'underline' | 'strike' | 'plain'
 
 export const FINISHED = 0.995
 
@@ -204,6 +212,13 @@ export async function deleteCollection(id: string) {
 export async function listAnnotations(bookId: string): Promise<Annotation[]> {
   const all = await done((await store('annotations')).index('bookId').getAll(bookId)) as Annotation[]
   return all.sort((a, b) => (a.progress ?? 0) - (b.progress ?? 0) || a.createdAt - b.createdAt)
+}
+
+// Highlights, notes and quotes from every book in the library (not ones in Recently deleted).
+export async function listAllAnnotations(): Promise<Annotation[]> {
+  const [all, books] = await Promise.all([done((await store('annotations')).getAll()) as Promise<Annotation[]>, listBooks()])
+  const ids = new Set(books.map(b => b.id))
+  return all.filter(a => ids.has(a.bookId))
 }
 
 export async function saveAnnotation(annotation: Annotation) {

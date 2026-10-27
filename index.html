@@ -18,11 +18,13 @@
       <div class="brand"><div class="logo">q</div> quiet<span class="brand-sub">reader</span></div>
       <div class="top-title reader-only" id="topTitle"></div>
       <div class="top-title settings-only">Settings</div>
+      <div class="top-title notes-only">Notes</div>
     </div>
     <div class="top-actions">
       <button class="btn library-only" id="installApp" hidden><i data-lucide="download"></i><span class="label">Install</span></button>
       <button class="btn primary" id="openFile"><i data-lucide="plus"></i><span class="label">Add books</span></button>
       <input id="fileInput" type="file" multiple accept=".epub,.mobi,.azw3,.azw,.fb2,.fbz,.cbz,application/epub+zip,application/x-mobipocket-ebook,application/x-fictionbook+xml,application/vnd.comicbook+zip" hidden>
+      <button class="btn icon library-only" id="openNotes" title="Notes and quotes" aria-label="Notes and quotes"><i data-lucide="notebook-text"></i></button>
       <button class="btn icon library-only" id="openSettings" title="Settings" aria-label="Settings"><i data-lucide="settings"></i></button>
       <button class="btn icon" id="themeQuick" title="Switch day/night"><i data-lucide="moon" class="when-light"></i><i data-lucide="sun" class="when-dark"></i></button>
     </div>
@@ -30,6 +32,7 @@
 
   <section class="library" id="library" aria-label="Library"></section>
   <section class="settings-screen" id="settingsScreen" aria-label="Settings"></section>
+  <section class="notes-screen" id="notesScreen" aria-label="Notes and quotes"></section>
   <div class="sheet-scrim" id="sheetScrim"></div>
 
   <div class="workspace">

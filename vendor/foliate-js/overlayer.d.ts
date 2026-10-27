@@ -2,5 +2,6 @@
 export class Overlayer {
   static highlight(rects: DOMRect[], options?: { color?: string }): SVGElement
   static underline(rects: DOMRect[], options?: { color?: string; width?: number }): SVGElement
+  static strikethrough(rects: DOMRect[], options?: { color?: string; width?: number }): SVGElement
   static outline(rects: DOMRect[], options?: { color?: string; width?: number; radius?: number }): SVGElement
 }
