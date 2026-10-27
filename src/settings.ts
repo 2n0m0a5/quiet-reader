@@ -35,6 +35,8 @@ export interface Settings {
   uiScale: number         // percent: size of the app's own text and controls (not the book)
   orientation: Orientation // Android app
   haptics: boolean        // Android app
+  dailyGoal: number       // minutes of reading a day; 0 for no goal
+  yearGoal: number        // books to finish this year; 0 for no goal
 }
 
 export const defaults: Settings = {
@@ -64,6 +66,8 @@ export const defaults: Settings = {
   uiScale: 100,
   orientation: 'auto',
   haptics: true,
+  dailyGoal: 0,
+  yearGoal: 0,
 }
 
 export const limits = {

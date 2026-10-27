@@ -1,5 +1,5 @@
 import {
-  ArrowDownUp, Bookmark, BookCheck, Check, CopyCheck, Ellipsis, FolderPlus, LayoutGrid, Library, ListChecks, Plus,
+  ArrowDownUp, Bookmark, BookCheck, ChartColumn, Check, CopyCheck, Ellipsis, FolderPlus, LayoutGrid, Library, ListChecks, Plus,
   RotateCcw, Rows3, Search, SquareLibrary, Tag, Trash2, Users, X,
 } from 'lucide'
 import {
@@ -28,6 +28,8 @@ export interface LibraryActions {
   info(record: BookRecord): void
   add(): void
   remove(books: BookRecord[]): Promise<void>   // to Recently deleted, with Undo
+  summary?(): Promise<HTMLElement | null>       // today's reading, shown at the top
+  stats?(): void
 }
 
 interface Prefs { sort: SortKey; reversed: boolean; view: View; groupByAuthor: boolean; shelfSize: number | null }
@@ -52,6 +54,7 @@ export class LibraryView {
   #welcome = h('div', 'library-empty')
   #inner = h('div', 'library-inner')
   #continue = h('section', 'shelf')
+  #summary = h('div', 'reading-summary')
   #count = h('span', 'count')
   #search = h('input', 'search-input')
   #sortButton = h('button', 'btn small')
@@ -88,6 +91,7 @@ export class LibraryView {
     if (this.#filter.startsWith('collection:') && !this.#currentCollection()) this.#filter = 'all'
     if (this.#filter.startsWith('tag:') && !this.#tags.includes(this.#filter.slice(4))) this.#filter = 'all'
     this.#count.textContent = String(this.#books.length)
+    this.#actions.summary?.().then(el => this.#summary.replaceChildren(...(el ? [el] : [])))
     this.#renderControls()
     this.#renderContinue()
     this.#renderChips()
@@ -144,7 +148,7 @@ export class LibraryView {
 
     const all = h('section', 'shelf')
     all.append(head, this.#chips, this.#results)
-    this.#inner.append(this.#continue, all)
+    this.#inner.append(this.#summary, this.#continue, all)
     this.#pinchShelves()
   }
 
@@ -364,6 +368,7 @@ export class LibraryView {
         })),
         { label: duplicates ? `Find duplicates (${duplicates})` : 'Find duplicates', icon: icon(CopyCheck), run: () => showDuplicates(this.#books, async b => { await this.#actions.remove([b]) }) },
         { label: this.#trashCount ? `Recently deleted (${this.#trashCount})` : 'Recently deleted', icon: icon(Trash2), run: () => showTrash(() => this.refresh()) },
+        ...(this.#actions.stats ? [{ label: 'Reading stats', icon: icon(ChartColumn), run: () => this.#actions.stats!() }] : []),
       ],
     })
   }

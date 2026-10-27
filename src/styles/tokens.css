@@ -3,7 +3,7 @@
   --bg: #f7f5f0;
   --panel: #fffdf9;
   --text: #252522;
-  --muted: #89877f;
+  --muted: #6f6d66;   /* 4.8:1 on --bg */
   --line: #e8e4dc;
   --accent: #6e806c;
   --accent-soft: #e9ede6;
@@ -26,7 +26,7 @@
   --bg: #f0e6d2;
   --panel: #f7efdf;
   --text: #43382b;
-  --muted: #93836e;
+  --muted: #6e5f49;   /* 4.9:1 on --bg */
   --line: #e0d2b9;
   --accent: #92734f;
   --accent-soft: #eadcc3;

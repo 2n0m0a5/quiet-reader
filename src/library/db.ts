@@ -33,6 +33,16 @@ export interface BookRecord {
   series?: string
   seriesIndex?: number | null // the book's number in the series
   deletedAt?: number | null   // in Recently deleted since then
+  finishedAt?: number | null  // when it was finished (for reading stats)
+}
+
+// Reading time, per day and book: what the reading stats are made from.
+export interface ReadingDay {
+  id: string        // `${day}|${bookId}`
+  day: string       // "2026-10-27", in the device's time zone
+  bookId: string
+  seconds: number
+  pages: number     // pages turned forward (a "page" is about 250 words, the same in every book)
 }
 
 export interface Collection {
@@ -77,7 +87,7 @@ export function statusOf(book: BookRecord): Status {
 export const TRASH_DAYS = 30
 
 const DB_NAME = 'quiet'
-const DB_VERSION = 2
+const DB_VERSION = 3
 
 let dbPromise: Promise<IDBDatabase> | null = null
 
@@ -89,6 +99,10 @@ function db(): Promise<IDBDatabase> {
       if (!d.objectStoreNames.contains('books')) d.createObjectStore('books', { keyPath: 'id' })
       if (!d.objectStoreNames.contains('files')) d.createObjectStore('files')
       if (!d.objectStoreNames.contains('collections')) d.createObjectStore('collections', { keyPath: 'id' })
+      if (!d.objectStoreNames.contains('reading')) {
+        const reading = d.createObjectStore('reading', { keyPath: 'id' })
+        reading.createIndex('day', 'day')
+      }
       if (!d.objectStoreNames.contains('annotations')) {
         const annotations = d.createObjectStore('annotations', { keyPath: 'id' })
         annotations.createIndex('bookId', 'bookId')
@@ -110,7 +124,7 @@ const finished = (tx: IDBTransaction) => new Promise<void>((resolve, reject) => 
   tx.onerror = tx.onabort = () => reject(tx.error)
 })
 
-type StoreName = 'books' | 'files' | 'collections' | 'annotations'
+type StoreName = 'books' | 'files' | 'collections' | 'annotations' | 'reading'
 
 async function store(name: StoreName, mode: IDBTransactionMode = 'readonly') {
   return (await db()).transaction(name, mode).objectStore(name)
@@ -170,7 +184,13 @@ export async function updateBook(id: string, patch: Partial<BookRecord>) {
   const tx = (await db()).transaction('books', 'readwrite')
   const books = tx.objectStore('books')
   const record = await done<BookRecord | undefined>(books.get(id))
-  if (record) books.put({ ...record, ...patch })
+  if (record) {
+    const next = { ...record, ...patch }
+    // Remember when a book was finished (by reading to the end, or by marking it), for the stats.
+    if (statusOf(next) === 'finished' && !next.finishedAt) next.finishedAt = Date.now()
+    if (statusOf(next) !== 'finished' && next.finishedAt) next.finishedAt = null
+    books.put(next)
+  }
   await finished(tx)
 }
 
@@ -229,11 +249,27 @@ export async function deleteAnnotation(id: string) {
   await done((await store('annotations', 'readwrite')).delete(id))
 }
 
-// Deletes every book, file, collection, bookmark and highlight.
+// Deletes every book, file, collection, bookmark, highlight and reading record.
 export async function clearLibrary() {
-  const tx = (await db()).transaction(['books', 'files', 'collections', 'annotations'], 'readwrite')
-  for (const name of ['books', 'files', 'collections', 'annotations'] as const) tx.objectStore(name).clear()
+  const names = ['books', 'files', 'collections', 'annotations', 'reading'] as const
+  const tx = (await db()).transaction(names, 'readwrite')
+  for (const name of names) tx.objectStore(name).clear()
   await finished(tx)
+}
+
+// ---------- Reading time ----------
+
+export async function addReading(day: string, bookId: string, seconds: number, pages: number) {
+  const tx = (await db()).transaction('reading', 'readwrite')
+  const reading = tx.objectStore('reading')
+  const id = `${day}|${bookId}`
+  const record = await done<ReadingDay | undefined>(reading.get(id))
+  reading.put({ id, day, bookId, seconds: (record?.seconds ?? 0) + seconds, pages: (record?.pages ?? 0) + pages })
+  await finished(tx)
+}
+
+export async function listReading(): Promise<ReadingDay[]> {
+  return done((await store('reading')).getAll())
 }
 
 // Ask the browser not to clear our storage when the device is low on space.

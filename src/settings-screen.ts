@@ -4,6 +4,7 @@ import { confirmDialog, h } from './ui/dialog'
 import { fileSize } from './ui/format'
 import { toast } from './ui/toast'
 import { haptic, isNativeApp, openExternal } from './app/native'
+import { showWelcome, showWhatsNew } from './app/onboarding'
 
 export interface SettingsScreenActions {
   get(): Settings
@@ -140,6 +141,7 @@ export class SettingsScreen {
     head.append(h('span', 'settings-label', label), value)
     const input = h('input')
     input.type = 'range'
+    input.setAttribute('aria-label', label)
     input.min = String(range.min)
     input.max = String(range.max)
     input.step = String(range.step)
@@ -225,11 +227,18 @@ export class SettingsScreen {
     credit('Lucide', 'icons', 'ISC License', 'https://lucide.dev')
     credit('Capacitor', 'the Android app', 'MIT License', 'https://capacitorjs.com')
 
+    const links = h('div', 'about-links')
+    const whatsNew = h('button', 'link-button', 'What’s new in this version')
+    whatsNew.addEventListener('click', () => showWhatsNew())
+    const welcome = h('button', 'link-button', 'Show the welcome again')
+    welcome.addEventListener('click', () => showWelcome(() => document.getElementById('fileInput')?.click()))
+    links.append(whatsNew, welcome)
     card.append(
       head,
       p('A calm, distraction-free place for your books.'),
+      links,
       h('h3', 'details-heading', 'Privacy'),
-      p('Quiet has no account, no ads and no tracking. Your books, reading positions, bookmarks and notes stay on this device and are never sent anywhere. The only time Quiet opens the internet is when you choose Look up or Translate on selected text.'),
+      p('Quiet has no account, no ads and no tracking. Your books, reading positions, bookmarks and notes stay on this device and are never sent anywhere. The only time Quiet uses the internet is when you choose Look up or Translate on selected text. Translate sends that text to Google Translate and shows the answer inside Quiet; Look up opens a Google search in your browser.'),
       h('h3', 'details-heading', 'Formats'),
       p('EPUB, MOBI, AZW3 and AZW (without DRM), FB2, CBZ comics, PDF, TXT and HTML.'),
       h('h3', 'details-heading', 'Made with'),

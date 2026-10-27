@@ -2,6 +2,7 @@ import { Copy, Pencil, Tag, Trash2, X } from 'lucide'
 import { deleteAnnotation, listAnnotations, newId, saveAnnotation, type Annotation, type MarkStyle } from '../library/db'
 import { pickTags } from '../library/details'
 import { allHighlightTags, noteCard, noteTool, passageText } from '../ui/note-card'
+import { showTranslation } from './translate'
 import type { Reader } from './reader'
 import type { SearchResult } from './foliate'
 import { HIGHLIGHT_COLORS, hideSelectionMenu, showSelectionMenu } from './selection-menu'
@@ -266,8 +267,7 @@ function lookUp(text: string) {
 }
 
 function translate(text: string) {
-  const target = (navigator.language || 'en').split('-')[0]
-  openExternal(`https://translate.google.com/?sl=auto&tl=${target}&op=translate&text=${encodeURIComponent(text.trim())}`)
+  showTranslation(text)
 }
 
 // Search inside the open book, shown in the side panel.

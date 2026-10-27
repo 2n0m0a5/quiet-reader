@@ -32,6 +32,11 @@ import {
 } from './app/native'
 import { SettingsScreen } from './settings-screen'
 import { NotesScreen } from './notes-screen'
+import { StatsScreen } from './stats-screen'
+import { ReadingTracker, dayKey } from './stats/tracker'
+import { computeStats, readingTime } from './stats/stats'
+import { listBooks, listReading } from './library/db'
+import { greet } from './app/onboarding'
 
 createIcons({
   icons: {
@@ -228,6 +233,7 @@ function setChrome(shown: boolean) {
 }
 
 function onTap(zone: TapZone) {
+  tracker?.activity()
   // A tap while the selection menu is open just closes it.
   if (document.querySelector('.selection-menu')) { hideSelectionMenu(); return }
   const paged = settings.flow === 'paginated' || reader?.view.isFixedLayout
@@ -307,6 +313,8 @@ const library = new LibraryView($('library'), {
     changed: () => library.refresh(),
   }),
   remove: removeBooks,
+  summary: readingSummary,
+  stats: () => { location.hash = '#/stats' },
 })
 
 function openBook(id: string) {
@@ -324,6 +332,7 @@ function route() {
   if (match) showReader(decodeURIComponent(match[1]))
   else if (location.hash === '#/settings') showSettings()
   else if (location.hash === '#/notes') showNotes()
+  else if (location.hash === '#/stats') showStats()
   else showLibrary()
 }
 
@@ -371,6 +380,71 @@ function showNotes() {
 }
 
 $('openNotes').addEventListener('click', () => { location.hash = '#/notes' })
+
+// ---------- Reading time, goals and stats ----------
+
+let tracker: ReadingTracker | null = null
+const GOAL_KEY = 'quiet:goal-done'   // the day the daily goal was last celebrated
+
+// Closing a book says how long you read, if it was more than a minute.
+function endReadingSession() {
+  if (!tracker) return
+  const { seconds, pages } = tracker.stop()
+  tracker = null
+  if (seconds >= 60) toast(`You read for ${readingTime(seconds)}${pages > 1 ? ` · ${pages} pages` : ''}.`, 4000)
+}
+
+// Once a day, when today's reading reaches the daily goal.
+async function checkDailyGoal() {
+  if (!settings.dailyGoal) return
+  const today = dayKey()
+  try { if (localStorage.getItem(GOAL_KEY) === today) return } catch { /* storage unavailable */ }
+  const days = await listReading()
+  const stats = computeStats(days, [], settings.dailyGoal)
+  if (stats.today < settings.dailyGoal * 60) return
+  try { localStorage.setItem(GOAL_KEY, today) } catch { /* storage unavailable */ }
+  haptic('confirm')
+  toast(stats.streak > 1 ? `Daily goal reached. ${stats.streak} days in a row.` : 'Daily goal reached. Well read.', 5000)
+}
+
+// The line at the top of the library: today's reading and the streak. Opens the stats.
+async function readingSummary() {
+  const days = await listReading()
+  if (!days.length && !settings.dailyGoal) return null
+  const stats = computeStats(days, [], settings.dailyGoal)
+  const strip = document.createElement('button')
+  strip.className = 'reading-strip'
+  const goal = settings.dailyGoal * 60
+  const done = goal ? Math.min(1, stats.today / goal) : 0
+  strip.style.setProperty('--done', String(done))
+  const today = goal ? `${readingTime(stats.today)} of ${readingTime(goal)} today` : `${readingTime(stats.today)} today`
+  strip.innerHTML = '<span class="strip-ring" aria-hidden="true"></span>'
+  const text = document.createElement('span')
+  text.className = 'strip-text'
+  text.textContent = stats.streak > 1 ? `${today} · ${stats.streak} days in a row` : today
+  const more = document.createElement('span')
+  more.className = 'strip-more'
+  more.textContent = 'Stats'
+  strip.append(text, more)
+  strip.addEventListener('click', () => { location.hash = '#/stats' })
+  return strip
+}
+
+const statsScreen = new StatsScreen($('statsScreen'), {
+  get: () => settings,
+  update,
+  open: openBook,
+})
+
+function showStats() {
+  closeReader()
+  library.closeSelection()
+  setSystemBarsHidden(false)
+  ui.app.dataset.view = 'stats'
+  document.title = 'Reading · Quiet'
+  statsScreen.render()
+  statsScreen.reset()
+}
 $('moreSettings').addEventListener('click', () => { setSettingsOpen(false); location.hash = '#/settings' })
 
 function showLibrary() {
@@ -446,6 +520,7 @@ async function removeBooks(books: BookRecord[]) {
 
 function closeReader() {
   openToken++
+  endReadingSession()
   bookSearch?.clear()
   bookSearch = null
   notes = null
@@ -495,7 +570,7 @@ async function showReader(id: string) {
     onRelocate,
     onSavePosition: (cfi, progress) => { updateBook(id, { cfi, progress }) },
     onTap,
-    onUserMove: () => { setChrome(false); hideSelectionMenu() },
+    onUserMove: () => { setChrome(false); hideSelectionMenu(); tracker?.activity() },
     onSelection: selection => notes?.onSelection(selection),
     onHighlightTap: (value, rect) => notes?.onHighlightTap(value, rect),
     onImage: (src, alt) => showImage(src, alt),
@@ -517,6 +592,7 @@ async function showReader(id: string) {
   }
   if (token !== openToken) { next.close(); return }
   reader = next
+  tracker = new ReadingTracker(id, checkDailyGoal)
   ui.app.toggleAttribute('data-fxl', next.view.isFixedLayout)
   notes = new BookNotes(next, id, { bookmarkList: $('bookmarkList'), noteList: $('noteList'), bookmarkButton: ui.bookmarkToggle }, goToFromPanel)
   notes.load()
@@ -558,6 +634,7 @@ function setProgress(fraction: number) {
 }
 
 function onRelocate(location: Location) {
+  tracker?.page(location.location?.current)
   setProgress(location.fraction ?? 0)
   if (location.tocItem?.label) ui.chapterLabel.textContent = location.tocItem.label.trim()
   toc.setCurrent(location.tocItem?.href)
@@ -639,10 +716,11 @@ $('next').addEventListener('click', () => reader?.next())
 document.addEventListener('keydown', e => {
   if ((e.target as HTMLElement).matches('input, textarea')) return
   if (e.key === 'Escape') { setSettingsOpen(false); setSidebar(false); library.closeSelection(); return }
+  tracker?.activity()
   reader?.handleKey(e)
 })
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') reader?.save()
+  if (document.visibilityState === 'hidden') { reader?.save(); tracker?.save() }
 })
 
 // The website keeps itself offline with a service worker. The Android app doesn't need one:
@@ -669,3 +747,4 @@ onBackButton(() => {
 
 render()
 route()
+listBooks().then(books => greet(books.length > 0, chooseFiles))
