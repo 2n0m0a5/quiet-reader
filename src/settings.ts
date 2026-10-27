@@ -1,6 +1,6 @@
 // Reading preferences, remembered between visits.
 
-export type Theme = 'light' | 'sepia' | 'dark' | 'black' | 'custom'
+export type Theme = 'light' | 'sepia' | 'dark' | 'black' | 'custom' | 'system'
 export type Flow = 'scrolled' | 'paginated'
 export type FontChoice = 'original' | 'serif' | 'sans'
 export type Margins = 'narrow' | 'normal' | 'wide'
@@ -10,8 +10,6 @@ export type Orientation = 'auto' | 'portrait' | 'landscape'
 
 export interface Settings {
   theme: Theme
-  autoNight: boolean      // follow the system's dark mode
-  nightTheme: 'dark' | 'black'
   customBg: string        // colours for the Custom theme
   customText: string
   flow: Flow
@@ -41,8 +39,6 @@ export interface Settings {
 
 export const defaults: Settings = {
   theme: 'light',
-  autoNight: false,
-  nightTheme: 'dark',
   customBg: '#f3efe6',
   customText: '#2b2a26',
   flow: 'scrolled',
@@ -85,7 +81,10 @@ const KEY = 'quiet:settings'
 
 export function loadSettings(): Settings {
   try {
-    const saved = JSON.parse(localStorage.getItem(KEY) ?? '{}')
+    const { autoNight, nightTheme, ...saved } = JSON.parse(localStorage.getItem(KEY) ?? '{}')
+    // Before 0.3.0-dev.4 there was a "follow the system's dark mode" switch; it's now the System theme.
+    if (autoNight) saved.theme = 'system'
+    void nightTheme
     return { ...defaults, ...saved }
   } catch {
     return { ...defaults }

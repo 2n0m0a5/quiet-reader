@@ -8,8 +8,10 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.BatteryManager;
 import android.os.Build;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
+import android.os.VibratorManager;
 import android.provider.OpenableColumns;
-import android.view.HapticFeedbackConstants;
 import android.view.KeyEvent;
 import android.view.WindowManager;
 import com.getcapacitor.JSObject;
@@ -179,12 +181,26 @@ public class QuietNativePlugin extends Plugin {
 
     // ---------- Haptics ----------
 
+    // Uses the vibration motor directly: the WebView's own haptic feedback is skipped by some
+    // phones (Xiaomi's HyperOS among them). Quiet's Vibration setting turns this off.
     @PluginMethod
+    @SuppressWarnings("deprecation")
     public void haptic(PluginCall call) {
-        String kind = call.getString("kind", "tick");
-        int feedback = "confirm".equals(kind) && Build.VERSION.SDK_INT >= 30
-            ? HapticFeedbackConstants.CONFIRM : HapticFeedbackConstants.CLOCK_TICK;
-        getActivity().runOnUiThread(() -> getBridge().getWebView().performHapticFeedback(feedback));
+        boolean confirm = "confirm".equals(call.getString("kind", "tick"));
+        Vibrator vibrator = Build.VERSION.SDK_INT >= 31
+            ? ((VibratorManager) getContext().getSystemService(android.content.Context.VIBRATOR_MANAGER_SERVICE)).getDefaultVibrator()
+            : (Vibrator) getContext().getSystemService(android.content.Context.VIBRATOR_SERVICE);
+        if (vibrator == null || !vibrator.hasVibrator()) {
+            call.resolve();
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= 29) {
+            vibrator.vibrate(VibrationEffect.createPredefined(confirm ? VibrationEffect.EFFECT_HEAVY_CLICK : VibrationEffect.EFFECT_CLICK));
+        } else if (Build.VERSION.SDK_INT >= 26) {
+            vibrator.vibrate(VibrationEffect.createOneShot(confirm ? 20 : 10, VibrationEffect.DEFAULT_AMPLITUDE));
+        } else {
+            vibrator.vibrate(confirm ? 20 : 10);
+        }
         call.resolve();
     }
 

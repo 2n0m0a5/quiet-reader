@@ -30,7 +30,7 @@ export interface LibraryActions {
   remove(books: BookRecord[]): Promise<void>   // to Recently deleted, with Undo
 }
 
-interface Prefs { sort: SortKey; reversed: boolean; view: View; groupByAuthor: boolean }
+interface Prefs { sort: SortKey; reversed: boolean; view: View; groupByAuthor: boolean; shelfSize: number | null }
 
 // The library screen: "Continue reading", then every book, with search, sorting, filters,
 // collections and tags; several books can be selected at once.
@@ -63,7 +63,7 @@ export class LibraryView {
 
   constructor(root: HTMLElement, actions: LibraryActions) {
     this.#actions = actions
-    this.#prefs = { sort: 'recent', reversed: false, view: 'grid', groupByAuthor: false, ...readPrefs() }
+    this.#prefs = { sort: 'recent', reversed: false, view: 'grid', groupByAuthor: false, shelfSize: null, ...readPrefs() }
     this.#buildWelcome()
     this.#buildSkeleton()
     this.#buildSelectBar()
@@ -145,6 +145,43 @@ export class LibraryView {
     const all = h('section', 'shelf')
     all.append(head, this.#chips, this.#results)
     this.#inner.append(this.#continue, all)
+    this.#pinchShelves()
+  }
+
+  // Shelf view: pinch with two fingers (or Ctrl + scroll) to make the books bigger or smaller.
+  #pinchShelves() {
+    const MIN = 64, MAX = 260
+    const shelves = () => this.#results.querySelectorAll<HTMLElement>('.book-shelf')
+    const current = () => {
+      const first = shelves()[0]
+      return first ? parseFloat(getComputedStyle(first).getPropertyValue('--col')) || 110 : 110
+    }
+    const resize = (size: number) => {
+      size = Math.round(Math.min(MAX, Math.max(MIN, size)))
+      shelves().forEach(el => el.style.setProperty('--col', `${size}px`))
+      return size
+    }
+    let start: { distance: number; size: number } | null = null
+    const distance = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY)
+    this.#results.addEventListener('touchstart', e => {
+      if (this.#prefs.view === 'shelf' && e.touches.length === 2) start = { distance: distance(e.touches), size: current() }
+    }, { passive: true })
+    this.#results.addEventListener('touchmove', e => {
+      if (!start || e.touches.length !== 2) return
+      e.preventDefault()   // the page itself doesn't zoom
+      resize(start.size * distance(e.touches) / start.distance)
+    }, { passive: false })
+    this.#results.addEventListener('touchend', e => {
+      if (!start || e.touches.length) return
+      start = null
+      this.#savePrefs({ shelfSize: current() })
+      haptic()
+    })
+    this.#results.addEventListener('wheel', e => {
+      if (this.#prefs.view !== 'shelf' || !e.ctrlKey) return
+      e.preventDefault()
+      this.#savePrefs({ shelfSize: resize(current() * Math.exp(-e.deltaY / 200)) })
+    }, { passive: false })
   }
 
   #renderControls() {
@@ -235,6 +272,7 @@ export class LibraryView {
   #bookList(books: BookRecord[]) {
     const view = this.#prefs.view
     const list = h('div', view === 'grid' ? 'book-grid' : view === 'list' ? 'book-list' : 'book-shelf')
+    if (view === 'shelf' && this.#prefs.shelfSize) list.style.setProperty('--col', `${this.#prefs.shelfSize}px`)
     list.classList.toggle('selecting', !!this.#selection)
     for (const book of books) list.append(view === 'grid' ? this.#tile(book) : view === 'list' ? this.#row(book) : this.#shelfBook(book))
     return list
@@ -583,19 +621,29 @@ export class LibraryView {
     return slot
   }
 
-  // Press and hold a book (or right-click it) to see its details.
+  // Press and hold a book (or right-click it) to see its details. Android sends both a long touch
+  // and a "contextmenu" for the same press, so whichever comes first opens the details, once.
   #onLongPress(el: HTMLElement, book: BookRecord) {
     let timer = 0
     let fired = false
+    let shownAt = 0
+    const show = (byTouch: boolean) => {
+      // A held finger's release can count as a tap; that tap mustn't also open the book.
+      if (byTouch) fired = true
+      if (Date.now() - shownAt < 1000) return
+      shownAt = Date.now()
+      haptic()
+      this.#actions.info(book)
+    }
     const cancel = () => window.clearTimeout(timer)
     el.addEventListener('touchstart', () => {
       fired = false
-      timer = window.setTimeout(() => { fired = true; haptic(); this.#actions.info(book) }, 500)
+      timer = window.setTimeout(() => show(true), 500)
     }, { passive: true })
     el.addEventListener('touchmove', cancel, { passive: true })
     el.addEventListener('touchend', cancel)
     el.addEventListener('click', e => { if (fired) { e.stopImmediatePropagation(); fired = false } }, true)
-    el.addEventListener('contextmenu', e => { e.preventDefault(); this.#actions.info(book) })
+    el.addEventListener('contextmenu', e => { e.preventDefault(); cancel(); show(e.pointerType === 'touch' || fired) })
   }
 
   #cover(book: BookRecord, urls = this.#coverUrls) {

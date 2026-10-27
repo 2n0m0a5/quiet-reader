@@ -681,9 +681,9 @@ dialog.dialog-image .dialog-body { padding: 0; height: 100%; max-height: none; o
 /* Shelf view: covers standing on wooden shelves. The planks are painted behind the rows,
    so every shelf runs the full width, even when the last row isn't full. */
 .book-shelf {
-  --col: 112px; --row: calc((var(--col) - 20px) * 1.5 + 14px); --gap: 36px;
+  --col: 140px; --row: calc((var(--col) - 20px) * 1.5 + 14px); --gap: 40px;
   --wood-1: #c09468; --wood-2: #9c6f45; --wood-3: #7a5432;
-  display: grid; grid-template-columns: repeat(auto-fill, var(--col)); grid-auto-rows: var(--row);
+  display: grid; grid-template-columns: repeat(auto-fill, var(--col)); grid-auto-rows: var(--row); touch-action: pan-x pan-y;
   row-gap: var(--gap); column-gap: 10px; padding-bottom: var(--gap);
   background: repeating-linear-gradient(to bottom,
     transparent 0 var(--row),
@@ -698,9 +698,9 @@ dialog.dialog-image .dialog-body { padding: 0; height: 100%; max-height: none; o
 .shelf-book:hover { transform: translateY(-4px); }
 .shelf-book:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 @media (max-width: 600px) {
-  .book-shelf { --col: 80px; --gap: 30px; column-gap: 8px; justify-content: center; }
-  .shelf-slot { padding: 14px 6px 0; }
-  .book-shelf { --row: calc((var(--col) - 12px) * 1.5 + 14px); }
+  .book-shelf { --col: 108px; --gap: 34px; column-gap: 8px; justify-content: center; }
+  .shelf-slot { padding: 14px 8px 0; }
+  .book-shelf { --row: calc((var(--col) - 16px) * 1.5 + 14px); }
 }
 
 /* Selecting several books */
@@ -750,3 +750,11 @@ dialog.dialog-image .dialog-body { padding: 0; height: 100%; max-height: none; o
 .tool-buttons { display: flex; gap: 6px; }
 .trash-link { display: block; margin: 18px auto 0; }
 .select-bar .btn.small { width: auto; height: auto; padding: 6px 16px; border-radius: 99px; }
+
+/* Rows with many choices (the themes) wrap into two lines on phones. */
+@media (max-width: 480px) {
+  .choice-row.many { flex-wrap: wrap; }
+  .choice-row.many .choice { flex: 1 1 calc(33.333% - 6px); }
+}
+/* The browser outlines a dialog it just focused; the dialog's own edge is enough. */
+dialog.dialog:focus, dialog.dialog:focus-visible { outline: none; }

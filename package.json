@@ -1,6 +1,6 @@
 {
   "name": "quiet",
-  "version": "0.3.0-dev.3",
+  "version": "0.3.0-dev.4",
   "private": true,
   "description": "Quiet — a calm, distraction-free e-book reader.",
   "type": "module",

@@ -7,7 +7,7 @@ import {
   ChevronLeft, ChevronRight, ChevronUp, Download, Library, List, Moon, Plus, Settings2, Sun, Sunset,
   Bookmark, BookmarkCheck, Search, Settings as SettingsIcon, Undo2, X, ZoomIn, ZoomOut,
 } from 'lucide'
-import { Reader, ZOOMS, type TapZone } from './reader/reader'
+import { Reader, ZOOM_STEPS, type TapZone } from './reader/reader'
 import { effectiveTheme, onSystemThemeChange, paletteOf } from './reader/themes'
 import { ReadingOverlays } from './reader/overlays'
 import { showFootnote } from './reader/footnotes'
@@ -167,17 +167,17 @@ ui.warmRange.addEventListener('input', () => update({ warmth: Number(ui.warmRang
 ui.weightRange.addEventListener('input', () => update({ fontWeight: Number(ui.weightRange.value) }))
 $('smaller').addEventListener('click', () => setFont(settings.fontSize - limits.fontSize.step))
 $('larger').addEventListener('click', () => setFont(settings.fontSize + limits.fontSize.step))
-// The moon/sun button: switch between night and the day theme used last.
-const DAY_KEY = 'quiet:day-theme'
+// The moon/sun button: switch between the day and night themes used last (Day and Night at first).
+const LAST_KEY = (night: boolean) => night ? 'quiet:night-theme' : 'quiet:day-theme'
 $('themeQuick').addEventListener('click', () => {
   const night = paletteOf(settings).dark
-  if (!night) try { localStorage.setItem(DAY_KEY, settings.theme) } catch { /* storage unavailable */ }
-  let day: Settings['theme'] = 'light'
-  try { day = (localStorage.getItem(DAY_KEY) as Settings['theme']) || 'light' } catch { /* storage unavailable */ }
-  // With "Follow system dark mode" on, a dark phone would keep the page dark, so that's paused.
-  const following = settings.autoNight && effectiveTheme(settings) !== settings.theme
-  update({ theme: night ? day : settings.nightTheme, autoNight: following ? false : settings.autoNight })
-  if (following) toast('Stopped following the system’s dark mode. Turn it back on in Settings.', 5000)
+  try {
+    if (settings.theme !== 'system') localStorage.setItem(LAST_KEY(night), settings.theme)
+    const other = localStorage.getItem(LAST_KEY(!night)) as Settings['theme'] | null
+    update({ theme: other ?? (night ? 'light' : 'dark') })
+  } catch {
+    update({ theme: night ? 'light' : 'dark' })   // storage unavailable
+  }
 })
 onSystemThemeChange(() => { render(); reader?.apply(settings) })
 
@@ -478,6 +478,7 @@ async function showReader(id: string) {
     onSelection: selection => notes?.onSelection(selection),
     onHighlightTap: (value, rect) => notes?.onHighlightTap(value, rect),
     onImage: (src, alt) => showImage(src, alt),
+    onZoom: factor => { haptic(); toast(factor <= next.zoomFactor('fit-page') + 0.001 ? 'Whole page' : zoomLabel(factor), 1000) },
     onLink: e => {
       if (showFootnote(next.book, e, settings, href => { rememberJump(); reader?.goTo(href) })) return
       rememberJump()
@@ -591,15 +592,19 @@ ui.progressText.addEventListener('click', async () => {
   reader?.goToFraction(Math.min(100, Math.max(0, value)) / 100)
 })
 
-// Zoom for PDFs and comics.
+// Zoom for PDFs and comics: the buttons step through whole page, page width, 1.5×, 2×, 3×
+// (from wherever pinching left it).
+const zoomLabel = (factor: number) => Math.abs(factor - 1) < 0.01 ? 'Page width' : `${Math.round(factor * 10) / 10}× width`
 function zoomBy(step: 1 | -1) {
   if (!reader) return
-  const i = ZOOMS.indexOf(reader.zoom)
-  const next = ZOOMS[Math.min(ZOOMS.length - 1, Math.max(0, i + step))]
-  if (next === reader.zoom) return
-  reader.setZoom(next)
+  const now = reader.zoomFactor()
+  const fit = reader.zoomFactor('fit-page')
+  const levels = [fit, ...ZOOM_STEPS.filter(z => z > fit + 0.01)]
+  const next = step > 0 ? levels.find(z => z > now + 0.01) : levels.findLast(z => z < now - 0.01)
+  if (next == null) return
+  reader.setZoom(next === fit ? 'fit-page' : next)
   haptic()
-  toast(next === 'fit-page' ? 'Whole page' : next === 'fit-width' ? 'Page width' : `${next}× width`, 1200)
+  toast(next === fit ? 'Whole page' : zoomLabel(next), 1200)
 }
 $('zoomIn').addEventListener('click', () => zoomBy(1))
 $('zoomOut').addEventListener('click', () => zoomBy(-1))

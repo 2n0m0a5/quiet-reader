@@ -37,11 +37,15 @@ export interface ReaderEvents {
   onImage(src: string, alt: string): void
   // A link inside the book was followed. Call preventDefault() on the event to handle it yourself.
   onLink(e: CustomEvent<{ a: HTMLAnchorElement; href: string }>): void
+  // A PDF or comic was zoomed by pinching (times the screen width).
+  onZoom?(factor: number): void
 }
 
-// Zoom for PDFs and comics: fit the page, fit the width, then larger (times the width).
-export const ZOOMS = ['fit-page', 'fit-width', 1.5, 2, 3] as const
-export type Zoom = typeof ZOOMS[number]
+// Zoom for PDFs and comics: the whole page, or a number of times the screen's width
+// (1 is the page's width; pinching can choose anything in between, up to 4).
+export type Zoom = 'fit-page' | number
+export const ZOOM_STEPS = [1, 1.5, 2, 3]
+const MAX_ZOOM = 4
 
 // A highlight drawn on the page.
 export interface Mark { value: string; color: string }
@@ -146,19 +150,98 @@ export class Reader {
 
   get zoom() { return this.#zoom }
 
-  setZoom(zoom: Zoom) {
+  // The page's size (from its viewport tag), and how many pages are on screen side by side.
+  #page() {
+    const pages = (this.view.renderer?.getContents?.() ?? []).flatMap(c => {
+      const meta = c.doc?.querySelector('meta[name="viewport"]')?.getAttribute('content') ?? ''
+      const width = parseFloat(meta.match(/width=([\d.]+)/)?.[1] ?? '')
+      const height = parseFloat(meta.match(/height=([\d.]+)/)?.[1] ?? '')
+      const shown = (c.doc?.defaultView?.frameElement?.getBoundingClientRect().width ?? 0) > 0
+      return width && height && shown ? [{ width, height }] : []
+    })
+    return pages.length ? { ...pages[0], count: pages.length } : null
+  }
+
+  // How wide one page is, in screen widths: 1 is the page's width. For "whole page" it's 1 or less.
+  zoomFactor(zoom: Zoom = this.#zoom) {
+    if (zoom !== 'fit-page') return zoom
+    const page = this.#page()
+    const box = this.view.renderer?.getBoundingClientRect()
+    if (!page || !box?.width) return 1
+    const scale = Math.min(box.width / (page.width * page.count), box.height / page.height)
+    return scale * page.width / box.width
+  }
+
+  // Sets the zoom. With a point on screen, what's under it stays in place (like pinching).
+  setZoom(zoom: Zoom, around?: { x: number; y: number }) {
     const { renderer } = this.view
     if (!this.view.isFixedLayout || !renderer) return
+    const before = this.zoomFactor()
+    const page = this.#page()
+    const box = renderer.getBoundingClientRect()
     this.#zoom = zoom
-    if (typeof zoom === 'string') return renderer.setAttribute('zoom', zoom)
-    // Numbers are times the width of the screen, so 2 means a page twice as wide as the screen.
-    // The page's own width is in its viewport tag (a blank frame beside a single page has none).
-    // Two pages side by side (a blank one beside the first page counts) share the width.
-    const contents = renderer.getContents?.() ?? []
-    const meta = contents.map(c => c.doc?.querySelector('meta[name="viewport"]')).find(Boolean)
-    const width = parseFloat(meta?.getAttribute('content')?.match(/width=([\d.]+)/)?.[1] ?? '') * Math.max(1, contents.length)
-    const scale = width ? zoom * renderer.getBoundingClientRect().width / width : zoom
-    renderer.setAttribute('zoom', String(scale))
+    if (zoom === 'fit-page' || !page) renderer.setAttribute('zoom', 'fit-page')
+    else renderer.setAttribute('zoom', String(zoom * box.width / page.width))
+    if (around) {
+      const ratio = this.zoomFactor() / before
+      const x = around.x - box.left, y = around.y - box.top
+      renderer.scrollLeft = (renderer.scrollLeft + x) * ratio - x
+      renderer.scrollTop = (renderer.scrollTop + y) * ratio - y
+    }
+  }
+
+  // Two fingers on a PDF or comic page zoom it. While pinching, the page is only stretched
+  // (fast); when the fingers lift, it's drawn again sharp at the new size.
+  #pinch: { distance: number; factor: number; ratio: number; x: number; y: number } | null = null
+
+  #listenForPinch(target: Document | HTMLElement, doc: Document | null) {
+    // Finger positions inside a page are in the page's own (possibly scaled) coordinates.
+    const toScreen = (t: Touch) => {
+      const frame = doc?.defaultView?.frameElement as HTMLElement | null | undefined
+      if (!frame) return { x: t.clientX, y: t.clientY }
+      const rect = frame.getBoundingClientRect()
+      const scale = frame.offsetWidth ? rect.width / frame.offsetWidth : 1
+      return { x: rect.left + t.clientX * scale, y: rect.top + t.clientY * scale }
+    }
+    const fingers = (list: TouchList) => {
+      const a = toScreen(list[0]), b = toScreen(list[1])
+      return { distance: Math.hypot(a.x - b.x, a.y - b.y), x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+    }
+    target.addEventListener('touchstart', e => {
+      const touches = (e as TouchEvent).touches
+      if (!this.view.isFixedLayout || touches.length !== 2) return
+      const f = fingers(touches)
+      this.#pinch = { distance: f.distance, factor: this.zoomFactor(), ratio: 1, x: f.x, y: f.y }
+    }, { passive: true })
+    target.addEventListener('touchmove', e => {
+      const touches = (e as TouchEvent).touches
+      const pinch = this.#pinch
+      if (!pinch || touches.length !== 2) return
+      e.preventDefault()
+      const f = fingers(touches)
+      const min = this.zoomFactor('fit-page')
+      const factor = Math.min(MAX_ZOOM, Math.max(min, pinch.factor * f.distance / pinch.distance))
+      pinch.ratio = factor / pinch.factor
+      const renderer = this.view.renderer
+      const box = renderer.getBoundingClientRect()
+      renderer.style.transformOrigin = `${pinch.x - box.left}px ${pinch.y - box.top}px`
+      renderer.style.transform = `scale(${pinch.ratio})`
+    }, { passive: false })
+    const end = (e: Event) => {
+      const pinch = this.#pinch
+      if (!pinch || (e as TouchEvent).touches.length >= 2) return
+      this.#pinch = null
+      const renderer = this.view.renderer
+      renderer.style.transform = ''
+      const factor = pinch.factor * pinch.ratio
+      // Close to the whole page or the page's width: snap to it.
+      const fit = this.zoomFactor('fit-page')
+      const zoom: Zoom = factor <= fit * 1.04 ? 'fit-page' : Math.abs(factor - 1) < 0.04 ? 1 : factor
+      this.setZoom(zoom, { x: pinch.x, y: pinch.y })
+      this.#events.onZoom?.(this.zoomFactor())
+    }
+    target.addEventListener('touchend', end)
+    target.addEventListener('touchcancel', end)
   }
 
   get flow(): Flow {
@@ -315,6 +398,7 @@ export class Reader {
     if (doc) doc.addEventListener('keydown', e => this.handleKey(e as KeyboardEvent))
     target.addEventListener('click', e => this.#onClick(e as MouseEvent, doc))
     target.addEventListener('touchmove', () => this.#events.onUserMove(), { passive: true })
+    this.#listenForPinch(target, doc)
 
     target.addEventListener('wheel', e => {
       this.#events.onUserMove()

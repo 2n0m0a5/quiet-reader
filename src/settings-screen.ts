@@ -3,7 +3,7 @@ import { limits, type Settings } from './settings'
 import { confirmDialog, h } from './ui/dialog'
 import { fileSize } from './ui/format'
 import { toast } from './ui/toast'
-import { isNativeApp, openExternal } from './app/native'
+import { haptic, isNativeApp, openExternal } from './app/native'
 
 export interface SettingsScreenActions {
   get(): Settings
@@ -26,11 +26,9 @@ export class SettingsScreen {
   render() {
     const inner = h('div', 'settings-inner')
     inner.append(
-      this.#section('Appearance', '', [
-        this.#choices('Theme', 'theme', [['light', 'Day'], ['sepia', 'Sepia'], ['dark', 'Night'], ['black', 'Black'], ['custom', 'Custom']]),
+      this.#section('Appearance', 'System follows your device: Day while it’s light, Night while it’s in dark mode.', [
+        this.#choices('Theme', 'theme', [['system', 'System'], ['light', 'Day'], ['sepia', 'Sepia'], ['dark', 'Night'], ['black', 'Black'], ['custom', 'Custom']]),
         this.#customColours(),
-        this.#toggle('Follow the system’s dark mode', 'Switch to the night theme below while your device is in dark mode.', 'autoNight'),
-        this.#choices('Night theme', 'nightTheme', [['dark', 'Night'], ['black', 'Black']]),
       ]),
       this.#section('Reading', 'These are also in the reading settings while a book is open.', [
         this.#choices('Reading mode', 'flow', [['scrolled', 'Scroll'], ['paginated', 'Pages']]),
@@ -83,13 +81,14 @@ export class SettingsScreen {
 
   #choices<K extends keyof Settings>(label: string, key: K, options: Choice<K>) {
     const row = h('div', 'settings-row stacked')
-    const group = h('div', 'choice-row')
+    const group = h('div', `choice-row${options.length > 4 ? ' many' : ''}`)
     for (const [value, text] of options) {
       const b = h('button', 'choice', text)
       b.dataset.key = key
       b.dataset.value = String(value)
       b.addEventListener('click', () => {
         this.#actions.update({ [key]: value } as Partial<Settings>)
+        haptic()
         this.#refresh()
       })
       group.append(b)
@@ -153,14 +152,15 @@ export class SettingsScreen {
     return row
   }
 
-  #toggle(label: string, hint: string, key: 'tapZones' | 'scrollPastEnd' | 'keepAwake' | 'volumeKeys' | 'autoNight' | 'bionic' | 'showClock' | 'haptics') {
+  #toggle(label: string, hint: string, key: 'tapZones' | 'scrollPastEnd' | 'keepAwake' | 'volumeKeys' | 'bionic' | 'showClock' | 'haptics') {
     const row = h('label', 'settings-row toggle-row')
     const text = h('div')
     text.append(h('div', 'settings-label', label), h('div', 'settings-hint', hint))
     const input = h('input', 'switch')
     input.type = 'checkbox'
     input.checked = this.#actions.get()[key]
-    input.addEventListener('change', () => this.#actions.update({ [key]: input.checked }))
+    // (Turning Vibration on gives a small vibration, so you know it works.)
+    input.addEventListener('change', () => { this.#actions.update({ [key]: input.checked }); haptic() })
     row.append(text, input)
     return row
   }

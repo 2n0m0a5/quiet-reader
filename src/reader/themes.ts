@@ -4,7 +4,7 @@ import type { Settings, Theme } from '../settings'
 export interface Palette { bg: string; text: string; link: string; dark: boolean }
 
 // Colours used inside the book itself. They mirror the reader tokens in tokens.css.
-const PALETTES: Record<Exclude<Theme, 'custom'>, Palette> = {
+const PALETTES: Record<Exclude<Theme, 'custom' | 'system'>, Palette> = {
   light: { bg: '#fffdf9', text: '#292923', link: '#55704f', dark: false },
   sepia: { bg: '#f6eddc', text: '#43382b', link: '#85623d', dark: false },
   dark: { bg: '#1d201d', text: '#e5e4dc', link: '#b4c8aa', dark: true },
@@ -13,9 +13,10 @@ const PALETTES: Record<Exclude<Theme, 'custom'>, Palette> = {
 
 const systemDark = matchMedia('(prefers-color-scheme: dark)')
 
-// The theme shown now: with "Follow system dark mode", the night theme while the phone is dark.
-export function effectiveTheme(s: Settings): Theme {
-  return s.autoNight && systemDark.matches ? s.nightTheme : s.theme
+// The theme shown now. System is Day while the phone is light and Night while it's dark.
+export function effectiveTheme(s: Settings): Exclude<Theme, 'system'> {
+  if (s.theme === 'system') return systemDark.matches ? 'dark' : 'light'
+  return s.theme
 }
 
 export function onSystemThemeChange(fn: () => void) {

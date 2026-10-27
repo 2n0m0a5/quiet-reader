@@ -77,4 +77,6 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Light vibrations when bookmarking, highlighting and changing settings (can be turned off in Settings). -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 </manifest>
