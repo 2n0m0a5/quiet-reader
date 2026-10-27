@@ -83,6 +83,27 @@ svg.lucide { width: 16px; height: 16px; stroke-width: 1.8; flex-shrink: 0; }
   display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 24px;
 }
 .location-label { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* The Contents button: a list icon and the chapter you're in. */
+.chapter-button {
+  display: inline-flex; align-items: center; gap: 8px; min-width: 0; flex: 0 1 auto;
+  border: 1px solid var(--line); background: transparent; border-radius: var(--radius-m);
+  padding: 6px 12px 6px 10px; color: var(--muted); transition: background .15s;
+}
+.chapter-button:hover { background: color-mix(in srgb, var(--accent) 9%, transparent); color: var(--text); }
+.chapter-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.chapter-button .location-label { color: inherit; }
+
+/* Wide screens: the side panel can be hidden with the Contents button. */
+@media (min-width: 851px) {
+  .workspace.sidebar-hidden { grid-template-columns: minmax(0, 1fr); }
+  .workspace.sidebar-hidden .sidebar { display: none; }
+}
+
+/* App text size: Quiet's own text and controls, never the book. Applied to the outermost
+   parts only, because zoom multiplies when nested. */
+.topbar, .reader-toolbar, .reader-footer, .sidebar, .library, .settings-screen,
+.app > .settings-pop, dialog.dialog, .toast, .selection-menu { zoom: var(--ui-zoom, 1); }
 .tool-group { display: flex; align-items: center; gap: 7px; position: relative; }
 .divider { height: 20px; width: 1px; background: var(--line); margin: 0 4px; }
 
@@ -134,7 +155,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .sheet-handle, .sheet-scrim, .top-title, .mini-progress { display: none; }
 
 .scrim { display: none; }
-.app[data-view="reader"] .mobile-toc { display: none; }
 
 @media (max-width: 850px) {
   .workspace { grid-template-columns: 1fr; }
@@ -145,7 +165,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   .sidebar.open { transform: none; box-shadow: var(--shadow); }
   .scrim { display: block; position: absolute; inset: 0; z-index: 25; background: #0003; opacity: 0; pointer-events: none; transition: opacity .22s; }
   .scrim.open { opacity: 1; pointer-events: auto; }
-  .app[data-view="reader"] .mobile-toc { display: inline-flex; }
   .topbar { height: calc(54px + env(safe-area-inset-top)); padding: env(safe-area-inset-top) 14px 0; }
   .reader-toolbar { height: 48px; padding: 0 12px; }
   .reader-footer { height: 52px; padding: 0 12px; }
@@ -153,7 +172,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 @media (max-width: 480px) {
   .brand-sub { display: none; }
   .app[data-view="reader"] .brand { display: none; }
-  .mobile-toc .label, #openFile .label { display: none; }
+  #openFile .label { display: none; }
 }
 
 /* ---------- Library ---------- */
@@ -238,7 +257,7 @@ h2 .count { color: var(--muted); font-weight: 400; font-size: 14px; letter-spaci
 @media (max-width: 850px) {
   .app[data-view="reader"] .brand,
   .app[data-view="reader"] #openFile { display: none; }
-  .app[data-view="reader"] .top-title {
+  .app[data-view="reader"] #topTitle {
     display: block; min-width: 0; font-size: 14px; font-weight: 600;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }

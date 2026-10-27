@@ -72,6 +72,8 @@ export function showSelectionMenu(rect: DOMRect, actions: SelectionActions, curr
   let top = rect.bottom + margin
   if (top + height > window.innerHeight - margin) top = Math.max(margin, rect.top - height - margin)
   const left = Math.min(Math.max(margin, rect.left + rect.width / 2 - width / 2), window.innerWidth - width - margin)
-  menu.style.top = `${top}px`
-  menu.style.left = `${left}px`
+  // The menu is scaled by the app text size (CSS zoom), which also scales its top/left.
+  const zoom = Number(getComputedStyle(document.documentElement).getPropertyValue('--ui-zoom')) || 1
+  menu.style.top = `${top / zoom}px`
+  menu.style.left = `${left / zoom}px`
 }

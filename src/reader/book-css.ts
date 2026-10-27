@@ -15,7 +15,7 @@ const fontRule = (stack: string) => `
     }`
 
 // CSS injected into every chapter of the book.
-export function bookCSS({ theme, font, fontSize, lineHeight, align }: Settings) {
+export function bookCSS({ theme, font, fontSize, lineHeight, align, hyphenate }: Settings) {
   const c = palettes[theme]
   return `
     @namespace epub "http://www.idpf.org/2007/ops";
@@ -29,8 +29,8 @@ export function bookCSS({ theme, font, fontSize, lineHeight, align }: Settings) 
     body { background: transparent !important; color: inherit !important; }
     p, li, blockquote, dd {
       line-height: ${lineHeight} !important;
-      hyphens: auto;
-      -webkit-hyphens: auto;
+      hyphens: ${hyphenate ? 'auto' : 'manual'} !important;
+      -webkit-hyphens: ${hyphenate ? 'auto' : 'manual'} !important;
       widows: 2;
       orphans: 2;
     }

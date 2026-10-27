@@ -20,7 +20,6 @@
       <div class="top-title settings-only">Settings</div>
     </div>
     <div class="top-actions">
-      <button class="btn mobile-toc reader-only" id="tocToggle" title="Contents"><i data-lucide="list"></i><span class="label">Contents</span></button>
       <button class="btn library-only" id="installApp" hidden><i data-lucide="download"></i><span class="label">Install</span></button>
       <button class="btn primary" id="openFile"><i data-lucide="plus"></i><span class="label">Add books</span></button>
       <input id="fileInput" type="file" multiple accept=".epub,.mobi,.azw3,.azw,.fb2,.fbz,.cbz,application/epub+zip,application/x-mobipocket-ebook,application/x-fictionbook+xml,application/vnd.comicbook+zip" hidden>
@@ -64,7 +63,7 @@
 
     <main class="main">
       <div class="reader-toolbar">
-        <div class="location-label" id="chapterLabel"></div>
+        <button class="chapter-button" id="tocToggle" title="Contents" aria-label="Contents"><i data-lucide="list"></i><span class="location-label" id="chapterLabel"></span></button>
         <div class="tool-group">
           <button class="btn icon" id="bookmarkToggle" title="Bookmark this page" aria-pressed="false"><i data-lucide="bookmark" class="when-unmarked"></i><i data-lucide="bookmark-check" class="when-marked"></i></button>
           <button class="btn icon" id="searchToggle" title="Search in book"><i data-lucide="search"></i></button>
@@ -97,6 +96,13 @@
                 <button class="choice" data-value="narrow">Narrow</button>
                 <button class="choice" data-value="normal">Normal</button>
                 <button class="choice" data-value="wide">Wide</button>
+              </div>
+            </div>
+            <div class="setting">
+              <div class="setting-head"><span>Word breaks</span></div>
+              <div class="choice-row" data-setting="hyphenate">
+                <button class="choice" data-value="false">Whole words</button>
+                <button class="choice" data-value="true">Hyphenate</button>
               </div>
             </div>
             <div class="setting">

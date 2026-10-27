@@ -113,7 +113,10 @@ function render() {
   ui.brightValue.textContent = `${settings.brightness}%`
   ui.stage.style.filter = settings.brightness < 100 ? `brightness(${settings.brightness / 100})` : ''
 
-  document.querySelectorAll<HTMLElement>('.choice-row').forEach(row => {
+  // App text size: scales Quiet's own text and controls, not the book (see app.css, --ui-zoom).
+  root.style.setProperty('--ui-zoom', String(settings.uiScale / 100))
+
+  ui.settings.querySelectorAll<HTMLElement>('.choice-row').forEach(row => {
     const current = String(settings[row.dataset.setting as keyof Settings])
     row.querySelectorAll<HTMLButtonElement>('.choice').forEach(b =>
       b.classList.toggle('selected', b.dataset.value === current))
@@ -129,10 +132,13 @@ $('smaller').addEventListener('click', () => setFont(settings.fontSize - limits.
 $('larger').addEventListener('click', () => setFont(settings.fontSize + limits.fontSize.step))
 $('themeQuick').addEventListener('click', () => update({ theme: settings.theme === 'dark' ? 'light' : 'dark' }))
 
-document.querySelectorAll<HTMLElement>('.choice-row').forEach(row => {
+ui.settings.querySelectorAll<HTMLElement>('.choice-row').forEach(row => {
   row.addEventListener('click', e => {
     const button = (e.target as HTMLElement).closest<HTMLButtonElement>('.choice')
-    if (button) update({ [row.dataset.setting!]: button.dataset.value } as Partial<Settings>)
+    if (!button) return
+    const raw = button.dataset.value!
+    const value = raw === 'true' ? true : raw === 'false' ? false : raw
+    update({ [row.dataset.setting!]: value } as Partial<Settings>)
   })
 })
 
@@ -189,7 +195,16 @@ const setSidebar = (open: boolean) => {
   ui.sidebar.classList.toggle('open', open)
   ui.scrim.classList.toggle('open', open)
 }
-$('tocToggle').addEventListener('click', () => setSidebar(true))
+// The Contents button (the chapter name in the reading toolbar): opens the contents drawer on
+// phones; on wider screens it shows or hides the side panel, for more room to read.
+const SIDEBAR_KEY = 'quiet:sidebar-hidden'
+const workspace = document.querySelector<HTMLElement>('.workspace')!
+try { workspace.classList.toggle('sidebar-hidden', localStorage.getItem(SIDEBAR_KEY) === '1') } catch { /* storage unavailable */ }
+$('tocToggle').addEventListener('click', () => {
+  if (compact.matches) return setSidebar(true)
+  const hidden = workspace.classList.toggle('sidebar-hidden')
+  try { localStorage.setItem(SIDEBAR_KEY, hidden ? '1' : '0') } catch { /* storage unavailable */ }
+})
 ui.scrim.addEventListener('click', () => setSidebar(false))
 
 // ---------- Side panel: contents, bookmarks, notes, search ----------

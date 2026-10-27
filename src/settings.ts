@@ -14,11 +14,13 @@ export interface Settings {
   lineHeight: number
   margins: Margins
   align: Align
+  hyphenate: boolean // split words at line ends with a hyphen (off: whole words move down)
   brightness: number // percent
   tapZones: boolean       // tap the left/right side to turn pages (page mode)
   scrollPastEnd: boolean  // keep scrolling at a chapter's end to go on (scroll mode)
   keepAwake: boolean      // keep the screen on while reading
   volumeKeys: boolean     // volume keys turn pages (Android app)
+  uiScale: number         // percent: size of the app's own text and controls (not the book)
 }
 
 export const defaults: Settings = {
@@ -29,11 +31,13 @@ export const defaults: Settings = {
   lineHeight: 1.7,
   margins: 'normal',
   align: 'start',
+  hyphenate: false,
   brightness: 100,
   tapZones: true,
   scrollPastEnd: true,
   keepAwake: true,
   volumeKeys: true,
+  uiScale: 100,
 }
 
 export const limits = {

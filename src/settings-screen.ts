@@ -34,6 +34,10 @@ export class SettingsScreen {
         this.#slider('Line spacing', 'lineHeight', limits.lineHeight, v => v.toFixed(1)),
         this.#choices('Margins', 'margins', [['narrow', 'Narrow'], ['normal', 'Normal'], ['wide', 'Wide']]),
         this.#choices('Text alignment', 'align', [['start', 'Left'], ['justify', 'Justified']]),
+        this.#choices('Word breaks', 'hyphenate', [[false, 'Whole words'], [true, 'Hyphenate']]),
+      ]),
+      this.#section('App', '', [
+        this.#choices('Text size', 'uiScale', [[90, 'Small'], [100, 'Default'], [115, 'Large'], [130, 'Larger']]),
       ]),
       this.#section('Behaviour', '', [
         this.#toggle('Tap the sides to turn pages', 'In page mode, tap the left or right edge of the screen.', 'tapZones'),
@@ -59,7 +63,7 @@ export class SettingsScreen {
     return section
   }
 
-  #choices<K extends 'theme' | 'flow' | 'font' | 'margins' | 'align'>(label: string, key: K, options: Choice<K>) {
+  #choices<K extends 'theme' | 'flow' | 'font' | 'margins' | 'align' | 'hyphenate' | 'uiScale'>(label: string, key: K, options: Choice<K>) {
     const row = h('div', 'settings-row stacked')
     const group = h('div', 'choice-row')
     for (const [value, text] of options) {
