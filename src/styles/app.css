@@ -643,3 +643,110 @@ dialog.dialog-image .dialog-body { padding: 0; height: 100%; max-height: none; o
   .colour-row { flex-direction: column; align-items: stretch; }
   .colour-pickers { justify-content: flex-start; }
 }
+
+/* ---------- Library, version 3 ---------- */
+
+/* Book details */
+.details-series { font-size: 13px; color: var(--accent-strong); margin: -6px 0 10px; }
+.status-pill.want { background: color-mix(in srgb, #d9a441 20%, var(--panel)); color: var(--text); border-color: transparent; }
+.details-actions .icon-label { flex: 1 1 calc(25% - 6px); min-width: 0; }
+.stars { display: flex; gap: 2px; margin: 10px 0 2px -4px; }
+.star { border: 0; background: transparent; padding: 4px; color: var(--line); border-radius: 6px; }
+.star svg.lucide { width: 20px; height: 20px; stroke-width: 1.6; }
+.star.on { color: #d9a441; }
+.star.on svg.lucide { fill: currentColor; }
+.star:hover { color: color-mix(in srgb, #d9a441 60%, var(--line)); }
+.details-heading-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.details-heading-row .details-heading { margin-bottom: 8px; }
+.details-review { white-space: pre-line; }
+.tag-chip { font-variant-ligatures: none; }
+.chip.tag-chip svg.lucide { width: 12px; height: 12px; margin-left: 2px; }
+.tag-editor, .tag-suggestions { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag-editor { margin-bottom: 12px; }
+.tag-editor .dialog-text { margin: 0; }
+.tag-form { display: flex; gap: 8px; margin-bottom: 14px; }
+.tag-form .search-input { padding-left: 12px; flex: 1; }
+.tag-suggestions .settings-hint { flex-basis: 100%; margin-bottom: 2px; }
+.field textarea {
+  width: 100%; border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--bg);
+  color: var(--text); padding: 10px 12px; outline: none; font: inherit; resize: vertical; line-height: 1.5;
+}
+.field textarea:focus { border-color: var(--accent); }
+
+/* Grouped by author */
+.group-heading { font-size: 14px; font-weight: 650; margin: 28px 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.group-heading:first-child, .collection-bar + .group-heading { margin-top: 4px; }
+.group-heading .count { color: var(--muted); font-weight: 400; font-size: 12px; }
+
+/* Shelf view: covers standing on wooden shelves. The planks are painted behind the rows,
+   so every shelf runs the full width, even when the last row isn't full. */
+.book-shelf {
+  --col: 112px; --row: calc((var(--col) - 20px) * 1.5 + 14px); --gap: 36px;
+  --wood-1: #c09468; --wood-2: #9c6f45; --wood-3: #7a5432;
+  display: grid; grid-template-columns: repeat(auto-fill, var(--col)); grid-auto-rows: var(--row);
+  row-gap: var(--gap); column-gap: 10px; padding-bottom: var(--gap);
+  background: repeating-linear-gradient(to bottom,
+    transparent 0 var(--row),
+    var(--wood-1) var(--row), var(--wood-2) calc(var(--row) + 5px), var(--wood-3) calc(var(--row) + 14px),
+    #0000002e calc(var(--row) + 14px), transparent calc(var(--row) + 24px),
+    transparent calc(var(--row) + var(--gap)));
+}
+[data-dark] .book-shelf { --wood-1: #7a5b40; --wood-2: #5e4430; --wood-3: #45321f; }
+.shelf-slot { display: flex; align-items: flex-end; justify-content: center; padding: 14px 10px 0; min-width: 0; }
+.shelf-book { position: relative; z-index: 1; border: 0; background: transparent; padding: 0; width: 100%; display: block; transition: transform .2s ease; }
+.shelf-book .book-cover { border-radius: 2px 4px 4px 2px; box-shadow: 4px 0 8px -2px #0004, 0 2px 3px #0003, inset 3px 0 4px -2px #0003; }
+.shelf-book:hover { transform: translateY(-4px); }
+.shelf-book:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+@media (max-width: 600px) {
+  .book-shelf { --col: 80px; --gap: 30px; column-gap: 8px; justify-content: center; }
+  .shelf-slot { padding: 14px 6px 0; }
+  .book-shelf { --row: calc((var(--col) - 12px) * 1.5 + 14px); }
+}
+
+/* Selecting several books */
+.check-mark {
+  position: absolute; top: 8px; right: 8px; z-index: 2; width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center; background: #fffc; border: 1.5px solid #0003; color: transparent;
+  box-shadow: 0 1px 3px #0003; transition: background .15s, transform .15s;
+}
+.check-mark svg.lucide { width: 14px; height: 14px; stroke-width: 3; }
+.checked .check-mark { background: var(--accent); border-color: var(--accent); color: var(--on-accent); transform: scale(1.05); }
+.tile-open, .row-open { position: relative; }
+.row-open .check-mark { top: 50%; right: 4px; transform: translateY(-50%); }
+.checked.row-open .check-mark { transform: translateY(-50%) scale(1.05); }
+.selecting .book-cover { transition: transform .15s, opacity .15s; }
+.selecting .checked .book-cover { transform: scale(.94); }
+.selecting .row-open.checked .book-cover { transform: none; }
+
+.select-bar {
+  position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 50;
+  width: min(560px, calc(100% - 24px)); padding: 10px 12px; border-radius: 18px;
+  background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow);
+  transform: translate(-50%, calc(100% + 40px)); visibility: hidden;
+  transition: transform .28s cubic-bezier(.2, .9, .3, 1.1), visibility .28s;
+}
+.select-bar.open { transform: translate(-50%, 0); visibility: visible; }
+.app:not([data-view="library"]) .select-bar { display: none; }
+.select-top { display: flex; align-items: center; gap: 14px; padding: 0 2px 8px; border-bottom: 1px solid var(--line); }
+.select-count { flex: 1; font-weight: 650; font-size: 13px; }
+.select-tools { display: flex; gap: 4px; padding-top: 6px; }
+.select-tool {
+  flex: 1; border: 0; background: transparent; border-radius: 10px; padding: 8px 4px; font-size: 11px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.select-tool:hover:not(:disabled) { background: var(--bg); }
+.select-tool:disabled { opacity: .4; cursor: default; }
+.app[data-selecting] .library-inner { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
+.app[data-selecting] .tile-menu, .app[data-selecting] .row-menu { display: none; }
+
+/* Recently deleted and duplicates */
+.tool-list { display: flex; flex-direction: column; gap: 4px; }
+.dup-group { border: 1px solid var(--line); border-radius: var(--radius-l); padding: 4px 10px; margin-bottom: 10px; }
+.tool-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.tool-row:last-child { border-bottom: 0; }
+.tool-row .row-text { flex: 1; min-width: 0; }
+.tool-row .tile-title { margin-top: 0; }
+.tool-cover { width: 40px; flex-shrink: 0; }
+.tool-buttons { display: flex; gap: 6px; }
+.trash-link { display: block; margin: 18px auto 0; }
+.select-bar .btn.small { width: auto; height: auto; padding: 6px 16px; border-radius: 99px; }

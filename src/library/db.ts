@@ -24,6 +24,15 @@ export interface BookRecord {
   published?: string
   description?: string
   subjects?: string[]
+
+  // Added in version 3.
+  tags?: string[]
+  wantToRead?: boolean
+  rating?: number             // 1–5 stars, 0 or missing for none
+  review?: string
+  series?: string
+  seriesIndex?: number | null // the book's number in the series
+  deletedAt?: number | null   // in Recently deleted since then
 }
 
 export interface Collection {
@@ -47,13 +56,17 @@ export interface Annotation {
 
 export const FINISHED = 0.995
 
-export type Status = 'new' | 'reading' | 'finished'
+export type Status = 'want' | 'new' | 'reading' | 'finished'
 
 export function statusOf(book: BookRecord): Status {
   if (book.finished === true) return 'finished'
   if (book.finished !== false && book.progress >= FINISHED) return 'finished'
+  if (book.wantToRead) return 'want'
   return book.lastOpenedAt ? 'reading' : 'new'
 }
+
+// Books stay in Recently deleted for 30 days, then they're deleted for good.
+export const TRASH_DAYS = 30
 
 const DB_NAME = 'quiet'
 const DB_VERSION = 2
@@ -99,8 +112,35 @@ export const newId = () => crypto.randomUUID?.() ?? `${Date.now()}-${Math.random
 
 // ---------- Books ----------
 
+// Books in the library (not the ones in Recently deleted).
 export async function listBooks(): Promise<BookRecord[]> {
+  return (await listAllBooks()).filter(b => !b.deletedAt)
+}
+
+export async function listAllBooks(): Promise<BookRecord[]> {
   return done((await store('books')).getAll())
+}
+
+// ---------- Recently deleted ----------
+
+export async function listTrash(): Promise<BookRecord[]> {
+  const all = await listAllBooks()
+  return all.filter(b => b.deletedAt).sort((a, b) => b.deletedAt! - a.deletedAt!)
+}
+
+export async function moveToTrash(ids: string[]) {
+  const now = Date.now()
+  for (const id of ids) await updateBook(id, { deletedAt: now })
+}
+
+export async function restoreBooks(ids: string[]) {
+  for (const id of ids) await updateBook(id, { deletedAt: null })
+}
+
+// Deletes books that have been in Recently deleted for longer than 30 days.
+export async function purgeTrash() {
+  const limit = Date.now() - TRASH_DAYS * 86_400_000
+  for (const book of await listTrash()) if (book.deletedAt! < limit) await deleteBook(book.id)
 }
 
 export async function getBook(id: string): Promise<BookRecord | undefined> {

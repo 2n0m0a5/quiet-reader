@@ -11,7 +11,9 @@ export class ImportError extends Error {}
 export async function importBook(file: File): Promise<BookRecord> {
   const id = await fingerprint(file)
   const existing = await getBook(id)
-  if (existing) return existing
+  // Adding a book that's in Recently deleted brings it back, with its notes and place.
+  if (existing?.deletedAt) await updateBook(id, { deletedAt: null })
+  if (existing) return { ...existing, deletedAt: null }
 
   let book: Book
   try {
@@ -114,13 +116,32 @@ async function fingerprint(file: File): Promise<string> {
 async function coverThumbnail(book: Book): Promise<Blob | null> {
   try {
     const blob = await book.getCover?.()
-    if (!blob) return null
+    return blob ? await thumbnail(blob) : null
+  } catch {
+    return null
+  }
+}
+
+// The book's own cover again, read from its file (after a custom one was chosen).
+export async function originalCover(record: BookRecord): Promise<Blob | null> {
+  const blob = await getFile(record.id)
+  if (!blob) return null
+  try { return await coverThumbnail(await loadBook(asFile(record, blob))) } catch { return null }
+}
+
+// A small JPEG of a picture, for covers.
+export async function thumbnail(blob: Blob): Promise<Blob | null> {
+  try {
     const bitmap = await createImageBitmap(blob)
     const scale = Math.min(1, COVER_WIDTH / bitmap.width)
     const canvas = document.createElement('canvas')
     canvas.width = Math.round(bitmap.width * scale)
     canvas.height = Math.round(bitmap.height * scale)
-    canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    const ctx = canvas.getContext('2d')!
+    // JPEG has no transparency: see-through pictures go on white, not black.
+    ctx.fillStyle = '#fff'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
     bitmap.close()
     return await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85))
   } catch {

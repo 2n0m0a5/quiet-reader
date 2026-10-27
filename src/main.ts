@@ -16,11 +16,11 @@ import type { Location } from './reader/foliate'
 import { TocView } from './ui/toc'
 import { toast } from './ui/toast'
 import { clamp, limits, loadSettings, saveSettings, type Settings } from './settings'
-import { deleteBook, getBook, getFile, updateBook, type BookRecord } from './library/db'
+import { getBook, getFile, moveToTrash, restoreBooks, updateBook, type BookRecord } from './library/db'
 import { asFile, importBook, ImportError } from './library/import'
 import { LibraryView } from './library/library-view'
 import { showBookDetails } from './library/details'
-import { closeTopDialog, confirmDialog, formDialog } from './ui/dialog'
+import { closeTopDialog, formDialog } from './ui/dialog'
 import { BookNotes, BookSearch } from './reader/notes'
 import { hideSelectionMenu } from './reader/selection-menu'
 import { duration, percent } from './ui/format'
@@ -302,9 +302,10 @@ const library = new LibraryView($('library'), {
   add: chooseFiles,
   info: record => showBookDetails(record, {
     read: openBook,
-    remove: removeBook,
+    remove: book => removeBooks([book]),
     changed: () => library.refresh(),
   }),
+  remove: removeBooks,
 })
 
 function openBook(id: string) {
@@ -340,6 +341,7 @@ const settingsScreen = new SettingsScreen($('settingsScreen'), {
 
 function showSettings() {
   closeReader()
+  library.closeSelection()
   setSystemBarsHidden(false)
   ui.app.dataset.view = 'settings'
   document.title = 'Settings · Quiet'
@@ -407,17 +409,16 @@ async function addFiles(files: File[]) {
   else toast(`Added ${added.length} books.`)
 }
 
-async function removeBook(record: BookRecord) {
-  const ok = await confirmDialog({
-    title: 'Remove this book?',
-    message: `“${record.title}” will be removed from your library, with its reading position, bookmarks and highlights. The original file on your device isn’t touched.`,
-    confirm: 'Remove',
-    danger: true,
-  })
-  if (!ok) return
-  await deleteBook(record.id)
+// Removed books go to Recently deleted for 30 days, so there's no need to ask first; Undo brings them back.
+async function removeBooks(books: BookRecord[]) {
+  if (!books.length) return
+  await moveToTrash(books.map(b => b.id))
+  haptic()
   library.refresh()
-  toast(`Removed “${record.title}”.`)
+  toast(books.length === 1 ? `Removed “${books[0].title}”.` : `Removed ${books.length} books.`, 6000, {
+    label: 'Undo',
+    run: async () => { await restoreBooks(books.map(b => b.id)); library.refresh() },
+  })
 }
 
 // ---------- Reading ----------
@@ -443,6 +444,7 @@ function closeReader() {
 
 async function showReader(id: string) {
   closeReader()
+  library.closeSelection()
   const token = openToken
   ui.app.dataset.view = 'reader'
   ui.app.dataset.chrome = 'shown'
@@ -456,7 +458,7 @@ async function showReader(id: string) {
   const record = await getBook(id)
   const blob = record && await getFile(id)
   if (token !== openToken) return
-  if (!record || !blob) {
+  if (!record || !blob || record.deletedAt) {
     showReaderError('This book is no longer in your library.')
     return
   }
@@ -496,7 +498,8 @@ async function showReader(id: string) {
   notes.load()
   bookSearch = new BookSearch(next, { status: $('searchStatus'), results: $('searchResults') }, goToFromPanel)
   applyReadingSession()
-  updateBook(id, { lastOpenedAt: Date.now() })
+  // Opening a book takes it off "Want to read".
+  updateBook(id, { lastOpenedAt: Date.now(), wantToRead: false })
   ui.progress.disabled = false
 
   const count = toc.render(next.book.toc ?? [], href => {
@@ -607,7 +610,7 @@ $('prev').addEventListener('click', () => reader?.prev())
 $('next').addEventListener('click', () => reader?.next())
 document.addEventListener('keydown', e => {
   if ((e.target as HTMLElement).matches('input, textarea')) return
-  if (e.key === 'Escape') { setSettingsOpen(false); setSidebar(false); return }
+  if (e.key === 'Escape') { setSettingsOpen(false); setSidebar(false); library.closeSelection(); return }
   reader?.handleKey(e)
 })
 document.addEventListener('visibilitychange', () => {
@@ -631,6 +634,7 @@ onBackButton(() => {
   if (closeTopDialog()) return true
   if (ui.settings.classList.contains('open')) { setSettingsOpen(false); return true }
   if (ui.sidebar.classList.contains('open')) { setSidebar(false); return true }
+  if (ui.app.dataset.view === 'library' && library.closeSelection()) return true
   if (ui.app.dataset.view !== 'library') { goToLibrary(); return true }
   return false
 })
