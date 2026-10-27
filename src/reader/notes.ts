@@ -6,7 +6,7 @@ import { HIGHLIGHT_COLORS, hideSelectionMenu, showSelectionMenu } from './select
 import { confirmDialog, formDialog, h, icon } from '../ui/dialog'
 import { date, percent } from '../ui/format'
 import { toast } from '../ui/toast'
-import { openExternal } from '../app/native'
+import { haptic, openExternal } from '../app/native'
 
 interface NotesUI {
   bookmarkList: HTMLElement
@@ -67,6 +67,7 @@ export class BookNotes {
       id: newId(), bookId: this.#bookId, type: 'bookmark', cfi: here.cfi,
       text: here.text, label: here.label, progress: here.progress, createdAt: Date.now(),
     })
+    haptic('confirm')
     toast('Page bookmarked.')
   }
 
@@ -116,6 +117,7 @@ export class BookNotes {
     }
     await this.#save(a)
     this.#reader.addMark({ value: a.cfi, color })
+    haptic('confirm')
     if (announce) toast('Highlighted.')
     return a
   }

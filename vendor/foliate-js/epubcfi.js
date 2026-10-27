@@ -285,7 +285,12 @@ const nodeToParts = (node, offset, filter) => {
         .filter(x => x.index !== -1)
 }
 
-export const fromRange = (range, filter) => {
+// Quiet: elements Quiet adds to a chapter (marked data-quiet) are skipped, so CFIs are the
+// same with or without them.
+const skipQuiet = node => node.nodeType === 1 && node.hasAttribute('data-quiet')
+    ? NodeFilter.FILTER_SKIP : NodeFilter.FILTER_ACCEPT
+
+export const fromRange = (range, filter = skipQuiet) => {
     const { startContainer, startOffset, endContainer, endOffset } = range
     const start = nodeToParts(startContainer, startOffset, filter)
     if (range.collapsed) return toString([start])
@@ -293,7 +298,7 @@ export const fromRange = (range, filter) => {
     return buildRange([start], [end])
 }
 
-export const toRange = (doc, parts, filter) => {
+export const toRange = (doc, parts, filter = skipQuiet) => {
     const startParts = collapse(parts)
     const endParts = collapse(parts, true)
 

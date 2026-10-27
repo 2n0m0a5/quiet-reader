@@ -5,9 +5,13 @@ import './styles/app.css'
 import {
   createIcons, AArrowDown, AArrowUp, AlignJustify, AlignLeft, ArrowLeft, BookOpen, ChevronDown,
   ChevronLeft, ChevronRight, ChevronUp, Download, Library, List, Moon, Plus, Settings2, Sun, Sunset,
-  Bookmark, BookmarkCheck, Search, Settings as SettingsIcon,
+  Bookmark, BookmarkCheck, Search, Settings as SettingsIcon, Undo2, X, ZoomIn, ZoomOut,
 } from 'lucide'
-import { Reader, type TapZone } from './reader/reader'
+import { Reader, ZOOMS, type TapZone } from './reader/reader'
+import { effectiveTheme, onSystemThemeChange, paletteOf } from './reader/themes'
+import { ReadingOverlays } from './reader/overlays'
+import { showFootnote } from './reader/footnotes'
+import { showImage } from './ui/image-viewer'
 import type { Location } from './reader/foliate'
 import { TocView } from './ui/toc'
 import { toast } from './ui/toast'
@@ -16,14 +20,15 @@ import { deleteBook, getBook, getFile, updateBook, type BookRecord } from './lib
 import { asFile, importBook, ImportError } from './library/import'
 import { LibraryView } from './library/library-view'
 import { showBookDetails } from './library/details'
-import { closeTopDialog, confirmDialog } from './ui/dialog'
+import { closeTopDialog, confirmDialog, formDialog } from './ui/dialog'
 import { BookNotes, BookSearch } from './reader/notes'
 import { hideSelectionMenu } from './reader/selection-menu'
-import { duration } from './ui/format'
+import { duration, percent } from './ui/format'
 import { setUpInstallButton, setUpOffline } from './app/install'
 import { ACCEPTED } from './formats/load'
 import {
-  isNativeApp, keepScreenOn, onBackButton, onIncomingFile, setSystemBarsHidden, setSystemBarsTheme, setVolumeKeys,
+  haptic, isNativeApp, keepScreenOn, onBackButton, onIncomingFile, setHaptics, setOrientation,
+  setSystemBarsHidden, setSystemBarsTheme, setVolumeKeys,
 } from './app/native'
 import { SettingsScreen } from './settings-screen'
 
@@ -31,7 +36,7 @@ createIcons({
   icons: {
     AArrowDown, AArrowUp, AlignJustify, AlignLeft, ArrowLeft, BookOpen, ChevronDown,
     ChevronLeft, ChevronRight, ChevronUp, Download, Library, List, Moon, Plus, Settings2, Sun, Sunset,
-    Bookmark, BookmarkCheck, Search, Settings: SettingsIcon,
+    Bookmark, BookmarkCheck, Search, Settings: SettingsIcon, Undo2, X, ZoomIn, ZoomOut,
   },
 })
 
@@ -64,6 +69,12 @@ const ui = {
   lineValue: $('lineValue'),
   brightRange: $<HTMLInputElement>('brightRange'),
   brightValue: $('brightValue'),
+  warmRange: $<HTMLInputElement>('warmRange'),
+  warmValue: $('warmValue'),
+  weightRange: $<HTMLInputElement>('weightRange'),
+  weightValue: $('weightValue'),
+  backChip: $('backChip'),
+  backChipLabel: $('backChipLabel'),
   progress: $<HTMLInputElement>('progress'),
   progressText: $('progressText'),
   timeLeft: $('timeLeft'),
@@ -77,6 +88,12 @@ let notes: BookNotes | null = null
 let bookSearch: BookSearch | null = null
 let coverUrl = ''
 let openToken = 0
+let appliedOrientation = ''
+// Warm light, reading ruler, clock: drawn over the page (moving the ruler saves its place).
+const overlays = new ReadingOverlays(ui.stage, settings, rulerY => {
+  settings = { ...settings, rulerY }
+  saveSettings(settings)
+})
 
 // ---------- Settings ----------
 
@@ -99,11 +116,24 @@ function applyReadingSession() {
 
 function render() {
   const root = document.documentElement
-  root.dataset.theme = settings.theme
+  const palette = paletteOf(settings)
+  root.dataset.theme = effectiveTheme(settings)
   root.dataset.flow = settings.flow
+  root.toggleAttribute('data-dark', palette.dark)
+  // The Custom theme: the app's colours are mixed from the two the reader picked.
+  const custom = root.dataset.theme === 'custom'
+  for (const [name, value] of [
+    ['--reader-bg', palette.bg], ['--reader-text', palette.text], ['--reader-link', palette.link],
+    ['--panel', palette.bg], ['--text', palette.text],
+    ['--bg', `color-mix(in srgb, ${palette.bg} 94%, ${palette.text})`],
+    ['--line', `color-mix(in srgb, ${palette.bg} 85%, ${palette.text})`],
+    ['--muted', `color-mix(in srgb, ${palette.text} 60%, ${palette.bg})`],
+  ]) custom ? root.style.setProperty(name, value) : root.style.removeProperty(name)
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content',
     getComputedStyle(root).getPropertyValue('--panel').trim())
-  setSystemBarsTheme(settings.theme)
+  setSystemBarsTheme(palette.dark)
+  setHaptics(settings.haptics)
+  if (appliedOrientation !== settings.orientation) setOrientation(appliedOrientation = settings.orientation)
 
   ui.fontRange.value = String(settings.fontSize)
   ui.fontValue.textContent = `${settings.fontSize}%`
@@ -112,6 +142,11 @@ function render() {
   ui.brightRange.value = String(settings.brightness)
   ui.brightValue.textContent = `${settings.brightness}%`
   ui.stage.style.filter = settings.brightness < 100 ? `brightness(${settings.brightness / 100})` : ''
+  ui.warmRange.value = String(settings.warmth)
+  ui.warmValue.textContent = settings.warmth ? `${settings.warmth}%` : 'Off'
+  ui.weightRange.value = String(settings.fontWeight)
+  ui.weightValue.textContent = settings.fontWeight === 400 ? 'Regular' : settings.fontWeight < 400 ? 'Lighter' : 'Bolder'
+  overlays.apply(settings)
 
   // App text size: scales Quiet's own text and controls, not the book (see app.css, --ui-zoom).
   root.style.setProperty('--ui-zoom', String(settings.uiScale / 100))
@@ -128,16 +163,31 @@ const setFont = (v: number) => update({ fontSize: clamp(v, limits.fontSize) })
 ui.fontRange.addEventListener('input', () => setFont(Number(ui.fontRange.value)))
 ui.lineRange.addEventListener('input', () => update({ lineHeight: Number(ui.lineRange.value) }))
 ui.brightRange.addEventListener('input', () => update({ brightness: Number(ui.brightRange.value) }))
+ui.warmRange.addEventListener('input', () => update({ warmth: Number(ui.warmRange.value) }))
+ui.weightRange.addEventListener('input', () => update({ fontWeight: Number(ui.weightRange.value) }))
 $('smaller').addEventListener('click', () => setFont(settings.fontSize - limits.fontSize.step))
 $('larger').addEventListener('click', () => setFont(settings.fontSize + limits.fontSize.step))
-$('themeQuick').addEventListener('click', () => update({ theme: settings.theme === 'dark' ? 'light' : 'dark' }))
+// The moon/sun button: switch between night and the day theme used last.
+const DAY_KEY = 'quiet:day-theme'
+$('themeQuick').addEventListener('click', () => {
+  const night = paletteOf(settings).dark
+  if (!night) try { localStorage.setItem(DAY_KEY, settings.theme) } catch { /* storage unavailable */ }
+  let day: Settings['theme'] = 'light'
+  try { day = (localStorage.getItem(DAY_KEY) as Settings['theme']) || 'light' } catch { /* storage unavailable */ }
+  // With "Follow system dark mode" on, a dark phone would keep the page dark, so that's paused.
+  const following = settings.autoNight && effectiveTheme(settings) !== settings.theme
+  update({ theme: night ? day : settings.nightTheme, autoNight: following ? false : settings.autoNight })
+  if (following) toast('Stopped following the system’s dark mode. Turn it back on in Settings.', 5000)
+})
+onSystemThemeChange(() => { render(); reader?.apply(settings) })
 
 ui.settings.querySelectorAll<HTMLElement>('.choice-row').forEach(row => {
   row.addEventListener('click', e => {
     const button = (e.target as HTMLElement).closest<HTMLButtonElement>('.choice')
     if (!button) return
     const raw = button.dataset.value!
-    const value = raw === 'true' ? true : raw === 'false' ? false : raw
+    const value = raw === 'true' ? true : raw === 'false' ? false : /^-?[\d.]+$/.test(raw) ? Number(raw) : raw
+    haptic()
     update({ [row.dataset.setting!]: value } as Partial<Settings>)
   })
 })
@@ -224,6 +274,7 @@ document.querySelectorAll<HTMLElement>('.panel-tab').forEach(t =>
 
 // Jump to a place from the side panel; on phones the panel closes so the page is visible.
 function goToFromPanel(cfi: string) {
+  rememberJump()
   reader?.goTo(cfi)
   if (compact.matches) setSidebar(false)
 }
@@ -379,6 +430,8 @@ function closeReader() {
   hideSelectionMenu()
   reader?.close()
   reader = null
+  clearJump()
+  delete ui.app.dataset.fxl
   applyReadingSession()
   setSidebar(false)
   showPanel('contents')
@@ -422,6 +475,11 @@ async function showReader(id: string) {
     onUserMove: () => { setChrome(false); hideSelectionMenu() },
     onSelection: selection => notes?.onSelection(selection),
     onHighlightTap: (value, rect) => notes?.onHighlightTap(value, rect),
+    onImage: (src, alt) => showImage(src, alt),
+    onLink: e => {
+      if (showFootnote(next.book, e, settings, href => { rememberJump(); reader?.goTo(href) })) return
+      rememberJump()
+    },
   })
   try {
     await next.open(asFile(record, blob), settings, record.cfi)
@@ -433,6 +491,7 @@ async function showReader(id: string) {
   }
   if (token !== openToken) { next.close(); return }
   reader = next
+  ui.app.toggleAttribute('data-fxl', next.view.isFixedLayout)
   notes = new BookNotes(next, id, { bookmarkList: $('bookmarkList'), noteList: $('noteList'), bookmarkButton: ui.bookmarkToggle }, goToFromPanel)
   notes.load()
   bookSearch = new BookSearch(next, { status: $('searchStatus'), results: $('searchResults') }, goToFromPanel)
@@ -441,6 +500,7 @@ async function showReader(id: string) {
   ui.progress.disabled = false
 
   const count = toc.render(next.book.toc ?? [], href => {
+    rememberJump()
     reader?.goTo(href)
     setSidebar(false)
   })
@@ -486,6 +546,60 @@ function onRelocate(location: Location) {
 }
 
 ui.progress.addEventListener('input', () => reader?.goToFraction(Number(ui.progress.value)))
+ui.progress.addEventListener('pointerdown', () => rememberJump())
+ui.progress.addEventListener('keydown', () => rememberJump())
+
+// ---------- Jumps: a "Back" chip to return after following a link or jumping elsewhere ----------
+
+let jumpFrom: { cfi: string; fraction: number } | null = null
+
+function rememberJump() {
+  const here = reader?.view.lastLocation
+  if (!here?.cfi || jumpFrom) return
+  jumpFrom = { cfi: here.cfi, fraction: here.fraction ?? 0 }
+  const chapter = here.tocItem?.label?.trim()
+  ui.backChipLabel.textContent = chapter ? `Back to ${chapter.length > 28 ? chapter.slice(0, 27) + '…' : chapter}` : `Back to ${percent(jumpFrom.fraction)}`
+  ui.backChip.hidden = false
+}
+
+function clearJump() {
+  jumpFrom = null
+  ui.backChip.hidden = true
+}
+
+$('backChipGo').addEventListener('click', () => {
+  if (jumpFrom) reader?.goTo(jumpFrom.cfi)
+  haptic()
+  clearJump()
+})
+$('backChipClose').addEventListener('click', clearJump)
+
+// Tap the percentage to go to any place in the book.
+ui.progressText.addEventListener('click', async () => {
+  if (!reader) return
+  const values = await formDialog({
+    title: 'Go to',
+    fields: [{ label: 'Percent of the book (0–100)', value: String(Math.round(Number(ui.progress.value) * 100)) }],
+    confirm: 'Go',
+  })
+  const value = values && parseFloat(values[0].replace(',', '.'))
+  if (value == null || Number.isNaN(value)) return
+  rememberJump()
+  reader?.goToFraction(Math.min(100, Math.max(0, value)) / 100)
+})
+
+// Zoom for PDFs and comics.
+function zoomBy(step: 1 | -1) {
+  if (!reader) return
+  const i = ZOOMS.indexOf(reader.zoom)
+  const next = ZOOMS[Math.min(ZOOMS.length - 1, Math.max(0, i + step))]
+  if (next === reader.zoom) return
+  reader.setZoom(next)
+  haptic()
+  toast(next === 'fit-page' ? 'Whole page' : next === 'fit-width' ? 'Page width' : `${next}× width`, 1200)
+}
+$('zoomIn').addEventListener('click', () => zoomBy(1))
+$('zoomOut').addEventListener('click', () => zoomBy(-1))
 
 // ---------- Navigation ----------
 

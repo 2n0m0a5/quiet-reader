@@ -26,18 +26,36 @@ export class SettingsScreen {
   render() {
     const inner = h('div', 'settings-inner')
     inner.append(
+      this.#section('Appearance', '', [
+        this.#choices('Theme', 'theme', [['light', 'Day'], ['sepia', 'Sepia'], ['dark', 'Night'], ['black', 'Black'], ['custom', 'Custom']]),
+        this.#customColours(),
+        this.#toggle('Follow the system’s dark mode', 'Switch to the night theme below while your device is in dark mode.', 'autoNight'),
+        this.#choices('Night theme', 'nightTheme', [['dark', 'Night'], ['black', 'Black']]),
+      ]),
       this.#section('Reading', 'These are also in the reading settings while a book is open.', [
-        this.#choices('Appearance', 'theme', [['light', 'Day'], ['sepia', 'Sepia'], ['dark', 'Night']]),
         this.#choices('Reading mode', 'flow', [['scrolled', 'Scroll'], ['paginated', 'Pages']]),
         this.#choices('Font', 'font', [['serif', 'Serif'], ['sans', 'Sans'], ['original', 'Book’s own']]),
         this.#slider('Font size', 'fontSize', limits.fontSize, v => `${v}%`),
+        this.#slider('Weight', 'fontWeight', limits.fontWeight, v => v === 400 ? 'Regular' : v < 400 ? 'Lighter' : 'Bolder'),
         this.#slider('Line spacing', 'lineHeight', limits.lineHeight, v => v.toFixed(1)),
         this.#choices('Margins', 'margins', [['narrow', 'Narrow'], ['normal', 'Normal'], ['wide', 'Wide']]),
         this.#choices('Text alignment', 'align', [['start', 'Left'], ['justify', 'Justified']]),
+        this.#choices('Space between paragraphs', 'paragraphSpacing', [[-1, 'Book’s own'], [0, 'None'], [0.6, 'Some'], [1.2, 'More']]),
+        this.#choices('First-line indent', 'indent', [[-1, 'Book’s own'], [0, 'None'], [1.5, 'Indent']]),
         this.#choices('Word breaks', 'hyphenate', [[false, 'Whole words'], [true, 'Hyphenate']]),
+      ]),
+      this.#section('Reading aids', '', [
+        this.#slider('Warm light', 'warmth', limits.warmth, v => v ? `${v}%` : 'Off'),
+        this.#choices('Reading ruler', 'ruler', [['off', 'Off'], ['line', 'Line'], ['focus', 'Focus']]),
+        this.#toggle('Bold word starts', 'Bionic reading: the first letters of each word are bold, to help the eye along the line.', 'bionic'),
+        this.#toggle('Clock and battery', 'Shown in the corner while reading with the controls hidden.', 'showClock'),
       ]),
       this.#section('App', '', [
         this.#choices('Text size', 'uiScale', [[90, 'Small'], [100, 'Default'], [115, 'Large'], [130, 'Larger']]),
+        ...(isNativeApp ? [
+          this.#choices('Screen rotation', 'orientation', [['auto', 'Automatic'], ['portrait', 'Portrait'], ['landscape', 'Landscape']]),
+          this.#toggle('Vibration', 'A light tap when you bookmark, highlight or change a setting.', 'haptics'),
+        ] : []),
       ]),
       this.#section('Behaviour', '', [
         this.#toggle('Tap the sides to turn pages', 'In page mode, tap the left or right edge of the screen.', 'tapZones'),
@@ -63,22 +81,60 @@ export class SettingsScreen {
     return section
   }
 
-  #choices<K extends 'theme' | 'flow' | 'font' | 'margins' | 'align' | 'hyphenate' | 'uiScale'>(label: string, key: K, options: Choice<K>) {
+  #choices<K extends keyof Settings>(label: string, key: K, options: Choice<K>) {
     const row = h('div', 'settings-row stacked')
     const group = h('div', 'choice-row')
     for (const [value, text] of options) {
-      const b = h('button', `choice${this.#actions.get()[key] === value ? ' selected' : ''}`, text)
+      const b = h('button', 'choice', text)
+      b.dataset.key = key
+      b.dataset.value = String(value)
       b.addEventListener('click', () => {
         this.#actions.update({ [key]: value } as Partial<Settings>)
-        group.querySelectorAll('.choice').forEach(c => c.classList.toggle('selected', c === b))
+        this.#refresh()
       })
       group.append(b)
     }
     row.append(h('div', 'settings-label', label), group)
+    this.#refresh(row)
     return row
   }
 
-  #slider(label: string, key: 'fontSize' | 'lineHeight', range: { min: number; max: number; step: number }, format: (v: number) => string) {
+  // Marks the chosen option in every row, after a change (one setting can change another).
+  #refresh(root: HTMLElement = this.#root) {
+    const settings = this.#actions.get()
+    root.querySelectorAll<HTMLElement>('.choice[data-key]').forEach(c =>
+      c.classList.toggle('selected', String(settings[c.dataset.key as keyof Settings]) === c.dataset.value))
+  }
+
+  // Two colour pickers for the Custom theme. Picking a colour switches to it.
+  #customColours() {
+    const row = h('div', 'settings-row colour-row')
+    const settings = this.#actions.get()
+    const picker = (label: string, key: 'customBg' | 'customText') => {
+      const field = h('label', 'colour-field')
+      const input = h('input')
+      input.type = 'color'
+      input.value = settings[key]
+      input.addEventListener('input', () => {
+        this.#actions.update({ [key]: input.value, theme: 'custom' })
+        this.#refresh()
+        sample.style.setProperty(key === 'customBg' ? '--swatch' : '--ink', input.value)
+      })
+      field.append(input, h('span', '', label))
+      return field
+    }
+    const sample = h('div', 'colour-sample', 'Aa')
+    sample.style.setProperty('--swatch', settings.customBg)
+    sample.style.setProperty('--ink', settings.customText)
+    const text = h('div')
+    text.append(h('div', 'settings-label', 'Custom colours'), h('div', 'settings-hint', 'Your own page and text colours.'))
+    const pickers = h('div', 'colour-pickers')
+    pickers.append(sample, picker('Page', 'customBg'), picker('Text', 'customText'))
+    row.append(text, pickers)
+    return row
+  }
+
+  #slider(label: string, key: 'fontSize' | 'lineHeight' | 'fontWeight' | 'warmth', range: { min: number; max: number; step: number }, format: (v: number) => string) {
     const row = h('div', 'settings-row stacked')
     const head = h('div', 'setting-head')
     const value = h('span', '', format(this.#actions.get()[key]))
@@ -97,7 +153,7 @@ export class SettingsScreen {
     return row
   }
 
-  #toggle(label: string, hint: string, key: 'tapZones' | 'scrollPastEnd' | 'keepAwake' | 'volumeKeys') {
+  #toggle(label: string, hint: string, key: 'tapZones' | 'scrollPastEnd' | 'keepAwake' | 'volumeKeys' | 'autoNight' | 'bionic' | 'showClock' | 'haptics') {
     const row = h('label', 'settings-row toggle-row')
     const text = h('div')
     text.append(h('div', 'settings-label', label), h('div', 'settings-hint', hint))

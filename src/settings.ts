@@ -1,13 +1,19 @@
 // Reading preferences, remembered between visits.
 
-export type Theme = 'light' | 'sepia' | 'dark'
+export type Theme = 'light' | 'sepia' | 'dark' | 'black' | 'custom'
 export type Flow = 'scrolled' | 'paginated'
 export type FontChoice = 'original' | 'serif' | 'sans'
 export type Margins = 'narrow' | 'normal' | 'wide'
 export type Align = 'start' | 'justify'
+export type Ruler = 'off' | 'line' | 'focus'
+export type Orientation = 'auto' | 'portrait' | 'landscape'
 
 export interface Settings {
   theme: Theme
+  autoNight: boolean      // follow the system's dark mode
+  nightTheme: 'dark' | 'black'
+  customBg: string        // colours for the Custom theme
+  customText: string
   flow: Flow
   font: FontChoice   // 'original' keeps the book's own fonts
   fontSize: number   // percent
@@ -15,16 +21,30 @@ export interface Settings {
   margins: Margins
   align: Align
   hyphenate: boolean // split words at line ends with a hyphen (off: whole words move down)
+  fontWeight: number      // 300–700
+  paragraphSpacing: number // em; -1 keeps the book's own
+  indent: number          // em; -1 keeps the book's own
+  bionic: boolean         // bold the start of each word
+  warmth: number          // 0–100: warm amber light over the page
+  ruler: Ruler            // reading ruler / focus band
+  rulerY: number          // where it sits, as a fraction of the screen height
+  showClock: boolean      // time and battery while reading
   brightness: number // percent
   tapZones: boolean       // tap the left/right side to turn pages (page mode)
   scrollPastEnd: boolean  // keep scrolling at a chapter's end to go on (scroll mode)
   keepAwake: boolean      // keep the screen on while reading
   volumeKeys: boolean     // volume keys turn pages (Android app)
   uiScale: number         // percent: size of the app's own text and controls (not the book)
+  orientation: Orientation // Android app
+  haptics: boolean        // Android app
 }
 
 export const defaults: Settings = {
   theme: 'light',
+  autoNight: false,
+  nightTheme: 'dark',
+  customBg: '#f3efe6',
+  customText: '#2b2a26',
   flow: 'scrolled',
   font: 'serif',
   fontSize: 100,
@@ -32,18 +52,30 @@ export const defaults: Settings = {
   margins: 'normal',
   align: 'start',
   hyphenate: false,
+  fontWeight: 400,
+  paragraphSpacing: -1,
+  indent: -1,
+  bionic: false,
+  warmth: 0,
+  ruler: 'off',
+  rulerY: 0.4,
+  showClock: true,
   brightness: 100,
   tapZones: true,
   scrollPastEnd: true,
   keepAwake: true,
   volumeKeys: true,
   uiScale: 100,
+  orientation: 'auto',
+  haptics: true,
 }
 
 export const limits = {
   fontSize: { min: 80, max: 180, step: 5 },
   lineHeight: { min: 1.2, max: 2.2, step: 0.1 },
   brightness: { min: 50, max: 100, step: 5 },
+  fontWeight: { min: 300, max: 700, step: 50 },
+  warmth: { min: 0, max: 100, step: 5 },
 }
 
 export const clamp = (value: number, { min, max }: { min: number; max: number }) =>

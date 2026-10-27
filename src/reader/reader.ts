@@ -4,6 +4,7 @@ import * as CFI from '../../vendor/foliate-js/epubcfi.js'
 import type { Book, FoliateView, Location } from './foliate'
 import type { Flow, Margins, Settings } from '../settings'
 import { bookCSS } from './book-css'
+import { addBionic, removeBionic } from './bionic'
 import { loadBook } from '../formats/load'
 
 // How far past the end (or start) of a chapter you have to keep scrolling
@@ -32,7 +33,15 @@ export interface ReaderEvents {
   onSelection(selection: { text: string; cfi: string; rect: DOMRect } | null): void
   // A highlight was tapped.
   onHighlightTap(value: string, rect: DOMRect): void
+  // A picture in the book was tapped.
+  onImage(src: string, alt: string): void
+  // A link inside the book was followed. Call preventDefault() on the event to handle it yourself.
+  onLink(e: CustomEvent<{ a: HTMLAnchorElement; href: string }>): void
 }
+
+// Zoom for PDFs and comics: fit the page, fit the width, then larger (times the width).
+export const ZOOMS = ['fit-page', 'fit-width', 1.5, 2, 3] as const
+export type Zoom = typeof ZOOMS[number]
 
 // A highlight drawn on the page.
 export interface Mark { value: string; color: string }
@@ -49,6 +58,8 @@ export class Reader {
   #marks = new Map<string, Mark & { index: number }>()
   #selectionTimer = 0
   #scrollPastEnd = true
+  #bionic = false
+  #zoom: Zoom = 'fit-page'
 
   constructor(container: HTMLElement, events: ReaderEvents) {
     this.#events = events
@@ -87,11 +98,14 @@ export class Reader {
     })
     view.addEventListener('load', e => {
       const { doc, index } = (e as CustomEvent<{ doc: Document; index: number }>).detail
+      if (this.#bionic && !view.isFixedLayout) addBionic(doc)
       this.#listenTo(doc)
       this.#watchSelection(doc, () => index)
     })
+    view.addEventListener('link', e => this.#events.onLink(e as CustomEvent<{ a: HTMLAnchorElement; href: string }>))
     this.#listenTo(view)
 
+    this.#bionic = settings.bionic
     this.apply(settings)
     await view.init({ lastLocation: lastPosition ?? undefined })
   }
@@ -101,6 +115,7 @@ export class Reader {
     if (!renderer) return
     renderer.setStyles?.(bookCSS(settings))
     this.#scrollPastEnd = settings.scrollPastEnd
+    if (settings.bionic !== this.#bionic) this.#setBionic(settings.bionic)
     if (!this.view.isFixedLayout) {
       const { gap, maxWidth } = MARGINS[settings.margins] ?? MARGINS.normal
       renderer.setAttribute('flow', settings.flow)
@@ -108,6 +123,42 @@ export class Reader {
       renderer.setAttribute('margin', settings.flow === 'paginated' ? '44px' : '28px')
       renderer.setAttribute('gap', gap)
     }
+  }
+
+  // Turns bionic reading on or off in the chapter on screen, keeping the place and the highlights.
+  #setBionic(on: boolean) {
+    this.#bionic = on
+    if (this.view.isFixedLayout) return
+    const cfi = this.view.lastLocation?.cfi
+    for (const { doc, index } of this.view.renderer.getContents?.() ?? []) {
+      if (!doc) continue
+      on ? addBionic(doc) : removeBionic(doc)
+      // The text was re-split, so highlights are found again from their saved positions.
+      for (const mark of this.#marks.values()) if (mark.index === index) {
+        this.view.deleteAnnotation(mark)
+        this.view.addAnnotation(mark)
+      }
+    }
+    if (cfi) requestAnimationFrame(() => this.view.goTo(cfi))
+  }
+
+  // ---------- Zoom (PDFs and comics) ----------
+
+  get zoom() { return this.#zoom }
+
+  setZoom(zoom: Zoom) {
+    const { renderer } = this.view
+    if (!this.view.isFixedLayout || !renderer) return
+    this.#zoom = zoom
+    if (typeof zoom === 'string') return renderer.setAttribute('zoom', zoom)
+    // Numbers are times the width of the screen, so 2 means a page twice as wide as the screen.
+    // The page's own width is in its viewport tag (a blank frame beside a single page has none).
+    // Two pages side by side (a blank one beside the first page counts) share the width.
+    const contents = renderer.getContents?.() ?? []
+    const meta = contents.map(c => c.doc?.querySelector('meta[name="viewport"]')).find(Boolean)
+    const width = parseFloat(meta?.getAttribute('content')?.match(/width=([\d.]+)/)?.[1] ?? '') * Math.max(1, contents.length)
+    const scale = width ? zoom * renderer.getBoundingClientRect().width / width : zoom
+    renderer.setAttribute('zoom', String(scale))
   }
 
   get flow(): Flow {
@@ -243,7 +294,15 @@ export class Reader {
   #onClick(e: MouseEvent, doc: Document | null) {
     if (e.defaultPrevented || e.button !== 0) return                 // a link handled it
     if (doc?.getSelection()?.toString()) return                     // finished selecting text
-    if ((e.target as Element | null)?.closest?.('a, button, input, audio, video')) return
+    const target = e.target as Element | null
+    if (target?.closest?.('a, button, input, audio, video')) return
+    const img = target?.closest?.('img, image')
+    if (img && doc && !this.view.isFixedLayout) {
+      // (instanceof doesn't work here: the picture belongs to the chapter's own window.)
+      const src = img.localName === 'img' ? (img as HTMLImageElement).currentSrc || (img as HTMLImageElement).src
+        : img.getAttribute('href') ?? img.getAttribute('xlink:href') ?? ''
+      if (src) return this.#events.onImage(src, img.getAttribute('alt') ?? '')
+    }
     const frame = doc?.defaultView?.frameElement
     const x = (frame?.getBoundingClientRect().left ?? 0) + e.clientX
     const third = window.innerWidth / 3

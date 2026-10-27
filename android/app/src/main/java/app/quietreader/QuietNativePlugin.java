@@ -2,10 +2,14 @@ package app.quietreader;
 
 import android.content.ContentResolver;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.pm.ActivityInfo;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.BatteryManager;
 import android.os.Build;
 import android.provider.OpenableColumns;
+import android.view.HapticFeedbackConstants;
 import android.view.KeyEvent;
 import android.view.WindowManager;
 import com.getcapacitor.JSObject;
@@ -26,6 +30,7 @@ import java.util.List;
  *    cache and announced to the web app with an "incomingFile" event.
  *  - Turning pages with the volume keys ("volumeKey" events), when the web app asks for it.
  *  - Keeping the screen on while reading.
+ *  - Screen rotation lock, small vibrations (haptics), and the battery level for the reading clock.
  */
 @CapacitorPlugin(name = "QuietNative")
 public class QuietNativePlugin extends Plugin {
@@ -158,5 +163,46 @@ public class QuietNativePlugin extends Plugin {
             else getActivity().getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         });
         call.resolve();
+    }
+
+    // ---------- Screen rotation ----------
+
+    @PluginMethod
+    public void setOrientation(PluginCall call) {
+        String value = call.getString("value", "auto");
+        int orientation = "portrait".equals(value) ? ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT
+            : "landscape".equals(value) ? ActivityInfo.SCREEN_ORIENTATION_USER_LANDSCAPE
+            : ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
+        getActivity().runOnUiThread(() -> getActivity().setRequestedOrientation(orientation));
+        call.resolve();
+    }
+
+    // ---------- Haptics ----------
+
+    @PluginMethod
+    public void haptic(PluginCall call) {
+        String kind = call.getString("kind", "tick");
+        int feedback = "confirm".equals(kind) && Build.VERSION.SDK_INT >= 30
+            ? HapticFeedbackConstants.CONFIRM : HapticFeedbackConstants.CLOCK_TICK;
+        getActivity().runOnUiThread(() -> getBridge().getWebView().performHapticFeedback(feedback));
+        call.resolve();
+    }
+
+    // ---------- Battery ----------
+
+    @PluginMethod
+    public void battery(PluginCall call) {
+        Intent status = getContext().registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        JSObject data = new JSObject();
+        if (status == null) {
+            call.reject("Battery level unavailable");
+            return;
+        }
+        int level = status.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+        int scale = status.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
+        int plugged = status.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0);
+        data.put("level", level < 0 || scale <= 0 ? 1.0 : level / (double) scale);
+        data.put("charging", plugged != 0);
+        call.resolve(data);
     }
 }

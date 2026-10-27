@@ -67,21 +67,27 @@
         <div class="tool-group">
           <button class="btn icon" id="bookmarkToggle" title="Bookmark this page" aria-pressed="false"><i data-lucide="bookmark" class="when-unmarked"></i><i data-lucide="bookmark-check" class="when-marked"></i></button>
           <button class="btn icon" id="searchToggle" title="Search in book"><i data-lucide="search"></i></button>
-          <button class="btn icon" id="smaller" title="Smaller text"><i data-lucide="a-arrow-down"></i></button>
-          <button class="btn icon" id="larger" title="Larger text"><i data-lucide="a-arrow-up"></i></button>
+          <button class="btn icon reflow-only" id="smaller" title="Smaller text"><i data-lucide="a-arrow-down"></i></button>
+          <button class="btn icon reflow-only" id="larger" title="Larger text"><i data-lucide="a-arrow-up"></i></button>
+          <button class="btn icon fxl-only" id="zoomOut" title="Zoom out"><i data-lucide="zoom-out"></i></button>
+          <button class="btn icon fxl-only" id="zoomIn" title="Zoom in"><i data-lucide="zoom-in"></i></button>
           <div class="divider"></div>
           <button class="btn icon" id="settingsToggle" title="Reading settings"><i data-lucide="settings-2"></i></button>
           <div class="settings-pop" id="settings" role="dialog" aria-label="Reading settings">
             <div class="sheet-handle" aria-hidden="true"></div>
             <div class="setting">
-              <div class="setting-head"><span>Reading mode</span></div>
-              <div class="choice-row" data-setting="flow">
-                <button class="choice" data-value="scrolled">Scroll</button>
-                <button class="choice" data-value="paginated">Pages</button>
+              <div class="choice-row theme-row" data-setting="theme">
+                <button class="choice theme-choice" data-value="light" style="--swatch:#fffdf9;--ink:#292923">Day</button>
+                <button class="choice theme-choice" data-value="sepia" style="--swatch:#f6eddc;--ink:#43382b">Sepia</button>
+                <button class="choice theme-choice" data-value="dark" style="--swatch:#1d201d;--ink:#e5e4dc">Night</button>
+                <button class="choice theme-choice" data-value="black" style="--swatch:#000;--ink:#cfcfc8">Black</button>
               </div>
             </div>
+            <div class="setting"><div class="setting-head"><span>Brightness</span><span id="brightValue"></span></div><input type="range" id="brightRange" min="50" max="100" step="5"></div>
+            <div class="setting"><div class="setting-head"><span>Warm light</span><span id="warmValue"></span></div><input type="range" id="warmRange" min="0" max="100" step="5" class="warm-range"></div>
+
+            <div class="sheet-group">Text</div>
             <div class="setting">
-              <div class="setting-head"><span>Font</span></div>
               <div class="choice-row" data-setting="font">
                 <button class="choice font-serif" data-value="serif">Serif</button>
                 <button class="choice font-sans" data-value="sans">Sans</button>
@@ -89,7 +95,17 @@
               </div>
             </div>
             <div class="setting"><div class="setting-head"><span>Font size</span><span id="fontValue"></span></div><input type="range" id="fontRange" min="80" max="180" step="5"></div>
+            <div class="setting"><div class="setting-head"><span>Weight</span><span id="weightValue"></span></div><input type="range" id="weightRange" min="300" max="700" step="50"></div>
             <div class="setting"><div class="setting-head"><span>Line spacing</span><span id="lineValue"></span></div><input type="range" id="lineRange" min="1.2" max="2.2" step="0.1"></div>
+
+            <div class="sheet-group">Layout</div>
+            <div class="setting">
+              <div class="setting-head"><span>Reading mode</span></div>
+              <div class="choice-row" data-setting="flow">
+                <button class="choice" data-value="scrolled">Scroll</button>
+                <button class="choice" data-value="paginated">Pages</button>
+              </div>
+            </div>
             <div class="setting">
               <div class="setting-head"><span>Margins</span></div>
               <div class="choice-row" data-setting="margins">
@@ -99,26 +115,51 @@
               </div>
             </div>
             <div class="setting">
-              <div class="setting-head"><span>Word breaks</span></div>
-              <div class="choice-row" data-setting="hyphenate">
-                <button class="choice" data-value="false">Whole words</button>
-                <button class="choice" data-value="true">Hyphenate</button>
-              </div>
-            </div>
-            <div class="setting">
               <div class="setting-head"><span>Text alignment</span></div>
               <div class="choice-row" data-setting="align">
                 <button class="choice" data-value="start"><i data-lucide="align-left"></i> Left</button>
                 <button class="choice" data-value="justify"><i data-lucide="align-justify"></i> Justified</button>
               </div>
             </div>
-            <div class="setting"><div class="setting-head"><span>Brightness</span><span id="brightValue"></span></div><input type="range" id="brightRange" min="50" max="100" step="5"></div>
             <div class="setting">
-              <div class="setting-head"><span>Appearance</span></div>
-              <div class="choice-row" data-setting="theme">
-                <button class="choice" data-value="light"><i data-lucide="sun"></i> Day</button>
-                <button class="choice" data-value="sepia"><i data-lucide="sunset"></i> Sepia</button>
-                <button class="choice" data-value="dark"><i data-lucide="moon"></i> Night</button>
+              <div class="setting-head"><span>Space between paragraphs</span></div>
+              <div class="choice-row" data-setting="paragraphSpacing">
+                <button class="choice" data-value="-1">Book’s own</button>
+                <button class="choice" data-value="0">None</button>
+                <button class="choice" data-value="0.6">Some</button>
+                <button class="choice" data-value="1.2">More</button>
+              </div>
+            </div>
+            <div class="setting">
+              <div class="setting-head"><span>First-line indent</span></div>
+              <div class="choice-row" data-setting="indent">
+                <button class="choice" data-value="-1">Book’s own</button>
+                <button class="choice" data-value="0">None</button>
+                <button class="choice" data-value="1.5">Indent</button>
+              </div>
+            </div>
+            <div class="setting">
+              <div class="setting-head"><span>Word breaks</span></div>
+              <div class="choice-row" data-setting="hyphenate">
+                <button class="choice" data-value="false">Whole words</button>
+                <button class="choice" data-value="true">Hyphenate</button>
+              </div>
+            </div>
+
+            <div class="sheet-group">Reading aids</div>
+            <div class="setting">
+              <div class="setting-head"><span>Reading ruler</span></div>
+              <div class="choice-row" data-setting="ruler">
+                <button class="choice" data-value="off">Off</button>
+                <button class="choice" data-value="line">Line</button>
+                <button class="choice" data-value="focus">Focus</button>
+              </div>
+            </div>
+            <div class="setting">
+              <div class="setting-head"><span>Bold word starts</span><span>Bionic reading</span></div>
+              <div class="choice-row" data-setting="bionic">
+                <button class="choice" data-value="false">Off</button>
+                <button class="choice" data-value="true"><b>On</b></button>
               </div>
             </div>
             <button class="link-button more-settings" id="moreSettings">More settings</button>
@@ -129,6 +170,10 @@
       <section class="reader-stage" id="readerStage">
         <div class="viewer" id="viewer"></div>
         <div class="mini-progress" id="miniProgress" aria-hidden="true"></div>
+        <div class="back-chip" id="backChip" hidden>
+          <button class="back-chip-go" id="backChipGo"><i data-lucide="undo-2"></i><span id="backChipLabel">Back</span></button>
+          <button class="back-chip-close" id="backChipClose" aria-label="Dismiss"><i data-lucide="x"></i></button>
+        </div>
         <div class="empty-state" id="readerError" hidden>
           <div class="empty-inner">
             <div class="empty-icon"><i data-lucide="book-open"></i></div>
@@ -142,7 +187,7 @@
       <footer class="reader-footer">
         <div class="progress-wrap">
           <input type="range" class="progress" id="progress" min="0" max="1" step="0.001" value="0" disabled aria-label="Reading progress">
-          <div class="percent" id="progressText">0%</div>
+          <button class="percent" id="progressText" title="Go to a place in the book">0%</button>
           <div class="time-left" id="timeLeft"></div>
         </div>
         <div class="page-nav">

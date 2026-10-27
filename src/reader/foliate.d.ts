@@ -45,6 +45,7 @@ export interface Paginator extends HTMLElement {
   size: number
   viewSize: number
   setStyles(css: string | [string, string]): void
+  getContents?(): { doc?: Document; index?: number }[]
   prev(distance?: number): Promise<void>
   next(distance?: number): Promise<void>
 }

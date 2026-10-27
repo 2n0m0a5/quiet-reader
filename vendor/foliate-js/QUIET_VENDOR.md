@@ -8,7 +8,11 @@ Copied as-is, except:
 - `pdf.js` loads PDF.js from the `pdfjs-dist` package and its data files from
   `public/pdfjs/` (copied by `scripts/copy-pdfjs.mjs`); the rendering code is upstream's.
 - `vendor/pdfjs/` contains only upstream's two text/annotation layer stylesheets.
-- `view.d.ts`, `overlayer.d.ts`, `epubcfi.d.ts` are added (TypeScript types, written for Quiet).
+- `epubcfi.js`: `fromRange` and `toRange` skip elements marked `data-quiet` by default
+  (Quiet's bionic reading wraps word starts in them).
+- `fixed-layout.js`: pages are centred with `safe center`, so a zoomed-in page can be
+  scrolled to its left and top edges.
+- `view.d.ts`, `overlayer.d.ts`, `epubcfi.d.ts`, `footnotes.d.ts` are added (TypeScript types, written for Quiet).
 - the rest of `vendor/pdfjs`, `reader.html`, `reader.js`, `ui/`, `opds.js`, `dict.js`,
   `quote-image.js`, `uri-template.js`, tests and build files are left out.
 

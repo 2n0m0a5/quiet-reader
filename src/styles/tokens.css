@@ -36,7 +36,8 @@
   --reader-link: #85623d;
 }
 
-[data-theme="dark"] {
+/* Night, and a dark Custom theme (whose page colours main.ts sets itself). */
+[data-theme="dark"], [data-theme="black"], [data-theme="custom"][data-dark] {
   --bg: #181a18;
   --panel: #202320;
   --text: #e8e8e0;
@@ -50,4 +51,18 @@
   --reader-text: #e5e4dc;
   --reader-link: #b4c8aa;
   --shadow: 0 12px 35px #0006;
+}
+
+/* Black: true black for OLED screens, so the pixels are off. */
+[data-theme="black"] {
+  --bg: #000000;
+  --panel: #0b0b0b;
+  --text: #d9d9d2;
+  --muted: #8b8f87;
+  --line: #222522;
+  --accent-soft: #1b211b;
+  --reader-bg: #000000;
+  --reader-text: #cfcfc8;
+  --reader-link: #a9c39f;
+  --on-accent: #000000;
 }

@@ -2,7 +2,7 @@
 // On the website every function here does nothing.
 import { Capacitor, registerPlugin, SystemBars, SystemBarsStyle, type PluginListenerHandle } from '@capacitor/core'
 import { App } from '@capacitor/app'
-import type { Theme } from '../settings'
+import type { Orientation } from '../settings'
 
 export const isNativeApp = Capacitor.isNativePlatform()
 
@@ -17,10 +17,10 @@ export function onBackButton(handle: () => boolean) {
   }))
 }
 
-// Status bar and navigation bar icons: light on the Night theme, dark otherwise.
-export function setSystemBarsTheme(theme: Theme) {
+// Status bar and navigation bar icons: light on dark themes, dark otherwise.
+export function setSystemBarsTheme(dark: boolean) {
   if (!isNativeApp) return
-  quietly(SystemBars.setStyle({ style: theme === 'dark' ? SystemBarsStyle.Dark : SystemBarsStyle.Light }))
+  quietly(SystemBars.setStyle({ style: dark ? SystemBarsStyle.Dark : SystemBarsStyle.Light }))
 }
 
 // Hide the status and navigation bars while reading with the controls hidden.
@@ -37,6 +37,9 @@ interface QuietNativePlugin {
   release(options: { path: string }): Promise<void>
   setVolumeKeys(options: { enabled: boolean }): Promise<void>
   keepAwake(options: { enabled: boolean }): Promise<void>
+  setOrientation(options: { value: Orientation }): Promise<void>
+  haptic(options: { kind: 'tick' | 'confirm' }): Promise<void>
+  battery(): Promise<{ level: number; charging: boolean }>
 }
 
 const QuietNative = registerPlugin<QuietNativePlugin>('QuietNative')
@@ -77,6 +80,30 @@ export function keepScreenOn(enabled: boolean) {
   } else if (!enabled && wakeLock) {
     quietly(wakeLock.release())
     wakeLock = null
+  }
+}
+
+// Screen rotation: follow the phone, or stay in portrait or landscape (Android app).
+export function setOrientation(value: Orientation) {
+  if (isNativeApp) quietly(QuietNative.setOrientation({ value }))
+}
+
+// A small vibration to confirm an action. 'tick' for small things, 'confirm' for saving something.
+let hapticsOn = true
+export function setHaptics(enabled: boolean) { hapticsOn = enabled }
+export function haptic(kind: 'tick' | 'confirm' = 'tick') {
+  if (isNativeApp && hapticsOn) quietly(QuietNative.haptic({ kind }))
+}
+
+// Battery charge from 0 to 1, or null when it can't be read (most desktop browsers).
+type BatteryManager = { level: number }
+export async function batteryLevel(): Promise<number | null> {
+  try {
+    if (isNativeApp) return (await QuietNative.battery()).level
+    const nav = navigator as Navigator & { getBattery?: () => Promise<BatteryManager> }
+    return nav.getBattery ? (await nav.getBattery()).level : null
+  } catch {
+    return null
   }
 }
 
