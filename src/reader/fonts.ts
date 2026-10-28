@@ -1,5 +1,5 @@
 // Reading fonts bundled with Quiet (all SIL Open Font License). Each design style has its own
-// serif and sans; the ones without Cyrillic (Newsreader, Figtree, Atkinson) fall back to Literata and
+// serif and sans; the ones without Cyrillic (Newsreader, Figtree) fall back to Literata and
 // Source Sans 3, which have it, so Russian books look right in every style.
 // The book is shown in its own frame, so the page's fonts aren't visible there; instead the
 // @font-face rules are injected into the book with absolute URLs. Thanks to unicode-range,
@@ -16,8 +16,8 @@ import newsreader from '@fontsource-variable/newsreader/index.css?raw'
 import newsreaderItalic from '@fontsource-variable/newsreader/wght-italic.css?raw'
 import franklin from '@fontsource-variable/libre-franklin/index.css?raw'
 import franklinItalic from '@fontsource-variable/libre-franklin/wght-italic.css?raw'
-import atkinson from '@fontsource-variable/atkinson-hyperlegible-next/index.css?raw'
-import atkinsonItalic from '@fontsource-variable/atkinson-hyperlegible-next/wght-italic.css?raw'
+import lora from '@fontsource-variable/lora/index.css?raw'
+import loraItalic from '@fontsource-variable/lora/wght-italic.css?raw'
 import type { DesignStyle } from '../settings'
 
 const files = import.meta.glob([
@@ -27,7 +27,7 @@ const files = import.meta.glob([
   '/node_modules/@fontsource-variable/figtree/files/*-wght-*.woff2',
   '/node_modules/@fontsource-variable/newsreader/files/*-wght-*.woff2',
   '/node_modules/@fontsource-variable/libre-franklin/files/*-wght-*.woff2',
-  '/node_modules/@fontsource-variable/atkinson-hyperlegible-next/files/*-wght-*.woff2',
+  '/node_modules/@fontsource-variable/lora/files/*-wght-*.woff2',
 ], { eager: true, query: '?url', import: 'default' }) as Record<string, string>
 
 const urlFor = new Map(Object.entries(files).map(([path, url]) =>
@@ -41,7 +41,7 @@ const fallback = [literata, literataItalic, sourceSans, sourceSansItalic]
 const faces: Record<DesignStyle, string> = {
   star: withAbsoluteUrls([sourceSerif, sourceSerifItalic, figtree, figtreeItalic, ...fallback].join('\n')),
   paper: withAbsoluteUrls([newsreader, newsreaderItalic, franklin, franklinItalic, ...fallback].join('\n')),
-  lamp: withAbsoluteUrls([atkinson, atkinsonItalic, ...fallback].join('\n')),
+  tashkent: withAbsoluteUrls([lora, loraItalic, ...fallback].join('\n')),
 }
 
 export const fontFaceCSS = (style: DesignStyle) => faces[style] ?? faces.star
@@ -55,11 +55,10 @@ const stacks: Record<DesignStyle, { serif: string; sans: string }> = {
     serif: `'Newsreader Variable', 'Literata Variable', Georgia, serif`,
     sans: `'Libre Franklin Variable', 'Source Sans 3 Variable', system-ui, sans-serif`,
   },
-  // Lamplight: Literata, made for reading books on screens, and Atkinson Hyperlegible Next,
-  // whose letters are drawn to be hard to mistake for each other.
-  lamp: {
-    serif: `'Literata Variable', Georgia, serif`,
-    sans: `'Atkinson Hyperlegible Next Variable', 'Source Sans 3 Variable', system-ui, sans-serif`,
+  // Old Tashkent: Lora, a calligraphic serif with Cyrillic (Marcellus is only for titles in the app).
+  tashkent: {
+    serif: `'Lora Variable', 'Literata Variable', Georgia, serif`,
+    sans: `'Source Sans 3 Variable', system-ui, sans-serif`,
   },
 }
 

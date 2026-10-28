@@ -15,21 +15,41 @@ They're on the **Reading** tab.
 Touch any bar or square to see its value. Every chart can also show its numbers as a table.
 
 ## Motion, like iOS
-- Every movement uses Apple's own spring model: smooth, no bouncing, and it can be interrupted.
-- **Drag sheets down to close:** book details, menus and the reading settings. The contents panel closes by dragging it left. A quick flick closes a sheet; a small drag springs back.
-- **Books slide in** from the right and go back the way they came. The tabs cross-fade.
-- **Pages slide** as they turn in page mode.
-- Buttons, covers and tabs **press in** under your finger and spring back.
-- In choices like Scroll / Pages, the selection **slides** to the new option.
-- Charts grow into place, toasts and menus spring in, and a new theme or style cross-fades.
-- If your phone is set to **reduce motion**, all of this becomes instant.
+- **Lists stretch past their ends.** Pull past the top or bottom of the library, settings, notes, stats, the contents panel or any sheet. The content keeps following your finger, less and less, and when you let go it eases back. It never jumps. A fast flick into an end bounces softly.
+- **Chapters in scroll mode.** At the end of a chapter, keep pulling: the page stretches and a sign says "Pull for the next chapter". Pull far enough and it changes to "Release for the next chapter" (with a light tap). The chapter turns only when you let go. Let go before that and the page eases back to the end of the chapter. It works at the start of a chapter too, and with a mouse wheel.
+- **Drag sheets down to close:** book details, menus and the reading settings. Drag the contents panel left. A quick flick closes; a small drag springs back.
+- **Books slide in** and go back the way they came; tabs cross-fade; pages slide as they turn in page mode.
+- Buttons, covers and tabs **press in** under your finger, and the chosen option in a row of choices moves to its new place.
+- Every movement uses Apple's spring model, and can be interrupted. If your phone is set to reduce motion, it all becomes instant.
 
-## A third style: Lamplight
-**Settings → Style → Lamplight.** It's warm light for long reading, made from the research:
-- Dark ink on warm paper by day. Light backgrounds read better in daylight.
-- Amber ink on warm black by night, with almost no blue light. Blue-rich screens before bed delay sleep, and yellow text on dark tires the eyes least.
-- Bright, soft, low-saturation colours, which feel calm.
-- Literata for books (made for reading on screens) and Atkinson Hyperlegible Next for the app (letters that are hard to mistake). Text is a little larger.
-- Rounded shapes lifted by soft shadows, and a small lamp's glow as its mark.
+## Each style moves its own way
+- **Quiet Star turns its star:**
+  - It turns as you pull to the next chapter, and lights up when letting go will turn the page.
+  - It turns in when you bookmark, and blooms when you rate a book.
+  - It winds as you pull the library down.
+- **Paper is ink:**
+  - The underline is drawn again under each choice.
+  - Screens fade in like a new sheet laid down.
+  - The red dot spreads when you press it.
+  - A pencil line draws as you pull to the next chapter.
+  - Nothing bounces.
+- **Old Tashkent opens doors:**
+  - A book opens through an arch that widens to fill the screen, and closes back into it.
+  - Sheets rise through an arch.
+  - A chosen niche fills with light from below.
+  - A carved rosette turns like a lock as you pull to the next chapter.
+  - A bookmark's tassel swings.
+
+## A third style: Old Tashkent
+**Settings → Style → Old Tashkent.** Ganch plaster, carved walnut and arched doorways, like a quiet courtyard in the old town:
+- Books stand in arches.
+- Choices sit in niches.
+- Bands of plaster pattern edge the screens.
+- Buttons are carved walnut.
+- Ratings are rosettes, and sliders have a lozenge handle.
+- Titles are in Marcellus, cut like an inscription; everything else is in Lora.
+- At night it's the same courtyard, lit by a lamp.
+
+It replaces Lamplight from the first 0.3.3 build: if you picked Lamplight, Quiet goes back to Quiet Star.
 
 More styles are still on the way, and building your own is coming.

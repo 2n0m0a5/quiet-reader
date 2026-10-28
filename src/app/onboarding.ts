@@ -1,5 +1,5 @@
 // The first-run welcome (three short pages), and "What's new" after an update.
-import { BookOpen, ChartColumn, FolderOpen, Highlighter, Languages, Lamp, Library, NotebookText, Palette, Quote, Sparkles } from 'lucide'
+import { BookOpen, ChartColumn, FolderOpen, Highlighter, Languages, Library, NotebookText, Palette, Quote, Sparkles } from 'lucide'
 import { button, h, icon, openDialog } from '../ui/dialog'
 import { logo as quietLogo } from '../ui/brand'
 
@@ -62,8 +62,8 @@ export function showWelcome(addBooks: () => void) {
   const pages: Page[] = [
     style === 'paper'
       ? { art: logo, title: 'A place to read. Nothing else.', text: 'EPUB, PDF, comics, FB2, MOBI and more. No account, no ads, no feed. Your books, your place in them and your notes stay on this device.' }
-      : style === 'lamp'
-      ? { art: logo, title: 'Warm light for long reading.', text: 'EPUB, PDF, comics, FB2, MOBI and more, in colours kind to your eyes by day and by night. Everything stays on this device.' }
+      : style === 'tashkent'
+      ? { art: logo, title: 'Come in, and read.', text: 'A quiet courtyard for your books: EPUB, PDF, comics, FB2, MOBI and more. Everything stays on this device. No account, no ads.' }
       : { art: logo, title: 'Just you and the book.', text: 'A calm place for your books: EPUB, PDF, comics, FB2, MOBI and more. Everything stays on this device. No account, no ads, no tracking.' },
     { art: phone, title: 'Tap to read', text: 'Tap the middle of the page to show or hide the controls. In page mode, tap the left or right edge to turn the page.' },
     { art: marks, title: 'Make it yours', text: 'Select text to highlight it, write a note, save a quote or translate it. Themes, fonts and spacing are under the sliders button while you read.' },
@@ -117,9 +117,9 @@ export function showWelcome(addBooks: () => void) {
 // `since`: the version the reader had before; what's newer than that comes first.
 export function showWhatsNew(since = '0.3.2') {
   const latest: [typeof BookOpen, string, string][] = [
-    [Lamp, 'A third style: Lamplight', 'Warm light for long reading, made from research on reading and the eyes: warm paper by day, amber ink on warm black at night, and type made for screens. Settings → Style.'],
+    [Palette, 'A third style: Old Tashkent', 'Ganch plaster, carved walnut and arched doorways. Books sit in arches, and screens open like a door into a courtyard. Settings → Style.'],
     [ChartColumn, 'Five new reading stats', 'Your reading year as a calendar, when you read, your pace, finished books by month, and book by book with time left to finish.'],
-    [Sparkles, 'Smoother everything', 'Springy, interruptible motion: drag sheets down to close, books slide in and back out, pages slide as they turn, and buttons press under your finger.'],
+    [Sparkles, 'Motion like iOS', 'Lists stretch past their ends and ease back. In scroll mode, keep pulling at the end of a chapter and let go to turn it. Drag sheets down to close. And each style moves in its own way.'],
   ]
   const v032: [typeof BookOpen, string, string][] = [
     [Palette, 'Two design styles', 'Quiet Star: almost nothing, and one small star. Paper: black ink on white paper, nothing else. Pick one in Settings → Style.'],

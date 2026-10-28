@@ -1,7 +1,8 @@
 // Reading preferences, remembered between visits.
 
 // The design style: how the whole app looks (fonts, colours, shapes, controls).
-export type DesignStyle = 'star' | 'paper' | 'lamp'
+export type DesignStyle = 'star' | 'paper' | 'tashkent'
+export const DESIGN_STYLES: DesignStyle[] = ['star', 'paper', 'tashkent']
 
 export type Theme = 'light' | 'sepia' | 'dark' | 'black' | 'custom' | 'system'
 export type Flow = 'scrolled' | 'paginated'
@@ -94,6 +95,8 @@ export function loadSettings(): Settings {
     // Before 0.3.0-dev.4 there was a "follow the system's dark mode" switch; it's now the System theme.
     if (autoNight) saved.theme = 'system'
     void nightTheme
+    // A style that's no longer offered (Lamplight, in an early 0.3.3) falls back to the default.
+    if (saved.style && !DESIGN_STYLES.includes(saved.style)) delete saved.style
     return { ...defaults, ...saved }
   } catch {
     return { ...defaults }

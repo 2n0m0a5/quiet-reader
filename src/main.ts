@@ -6,8 +6,9 @@ import '@fontsource-variable/figtree'
 import '@fontsource-variable/newsreader'
 import '@fontsource-variable/newsreader/wght-italic.css'
 import '@fontsource-variable/libre-franklin'
-import '@fontsource-variable/literata/wght-italic.css'
-import '@fontsource-variable/atkinson-hyperlegible-next'
+import '@fontsource/marcellus'
+import '@fontsource-variable/lora'
+import '@fontsource-variable/lora/wght-italic.css'
 import './styles/tokens.css'
 import './styles/app.css'
 import './styles/styles.css'
@@ -50,7 +51,7 @@ import { computeStats, readingTime } from './stats/stats'
 import { listBooks, listReading } from './library/db'
 import { greet } from './app/onboarding'
 import { fillRange } from './ui/range'
-import { draggableSheet, installSprings, pop, transition, watchMarks, type Navigation } from './ui/motion'
+import { draggableSheet, installSprings, pop, rubberBand, transition, watchMarks, type Navigation } from './ui/motion'
 
 createIcons({
   icons: {
@@ -539,6 +540,15 @@ const placeTabbar = () => compact.matches
 compact.addEventListener('change', placeTabbar)
 placeTabbar()
 
+// ---------- Scrolling ----------
+// Every list stretches past its ends and eases back, as on iOS (ui/motion.ts). In the library,
+// Quiet Star's star turns as you pull the list down.
+rubberBand($('library'), { onPull: px => document.documentElement.style.setProperty('--top-pull', px > 0 ? px.toFixed(1) : '0') })
+for (const id of ['settingsScreen', 'notesScreen', 'statsScreen']) rubberBand($(id))
+document.querySelectorAll<HTMLElement>('.sidebar .panel').forEach(panel => rubberBand(panel))
+// In sheets, the top edge drags the sheet itself down to close it; only the bottom stretches.
+rubberBand(ui.settings, { edges: 'bottom' })
+
 $('backToLibrary').addEventListener('click', goToLibrary)
 $('errorBack').addEventListener('click', goToLibrary)
 
@@ -678,6 +688,7 @@ async function showReader(id: string) {
     onSelection: selection => notes?.onSelection(selection),
     onHighlightTap: (value, rect) => notes?.onHighlightTap(value, rect),
     onImage: (src, alt) => showImage(src, alt),
+    onPullArmed: () => haptic(),
     onZoom: factor => { haptic(); toast(factor <= next.zoomFactor('fit-page') + 0.001 ? 'Whole page' : zoomLabel(factor), 1000) },
     onLink: e => {
       if (showFootnote(next.book, e, settings, href => { rememberJump(); reader?.goTo(href) })) return

@@ -21,10 +21,10 @@ const STYLE_PALETTES: Record<DesignStyle, Partial<Record<Theme, Palette>>> = {
     light: { bg: '#fafaf7', text: '#111111', link: '#111111', dark: false },
     dark: { bg: '#161513', text: '#e8e4da', link: '#e8e4da', dark: true },
   },
-  // Lamplight: warm paper by day; by night amber ink on warm black, with almost no blue light.
-  lamp: {
-    light: { bg: '#f7efe0', text: '#2a2017', link: '#8c4a1f', dark: false },
-    dark: { bg: '#15110c', text: '#e6c690', link: '#f0b066', dark: true },
+  // Old Tashkent: ganch plaster by day; at night, a courtyard lit by a lamp.
+  tashkent: {
+    light: { bg: '#f6f1e8', text: '#2e2620', link: '#8a4b2a', dark: false },
+    dark: { bg: '#1c1814', text: '#e6daca', link: '#d49a6a', dark: true },
   },
 }
 

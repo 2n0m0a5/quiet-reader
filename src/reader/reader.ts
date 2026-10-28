@@ -8,11 +8,8 @@ import { bookCSS } from './book-css'
 import { addBionic, removeBionic } from './bionic'
 import { inkOf } from './selection-menu'
 import { loadBook } from '../formats/load'
+import { ChapterPull } from './chapter-pull'
 
-// How far past the end (or start) of a chapter you have to keep scrolling
-// before Quiet moves to the next (or previous) chapter.
-const WHEEL_PULL = 140
-const TOUCH_PULL = 70
 
 // Side margin (percent of the page) and widest text column (px) for each margin setting.
 const MARGINS: Record<Margins, { gap: string; maxWidth: string }> = {
@@ -41,6 +38,8 @@ export interface ReaderEvents {
   onLink(e: CustomEvent<{ a: HTMLAnchorElement; href: string }>): void
   // A PDF or comic was zoomed by pinching (times the screen width).
   onZoom?(factor: number): void
+  // Pulling past the end of a chapter reached the point where letting go turns it.
+  onPullArmed?(): void
 }
 
 // Zoom for PDFs and comics: the whole page, or a number of times the screen's width
@@ -60,10 +59,7 @@ export class Reader {
   readonly view: FoliateView
   #events: ReaderEvents
   #saveTimer = 0
-  #wheelPull = 0
-  #wheelReset = 0
-  #turning = false
-  #touch: { y: number; atStart: boolean; atEnd: boolean } | null = null
+  #pull: ChapterPull
   #marks = new Map<string, Mark & { index: number }>()
   #selectionTimer = 0
   #scrollPastEnd = true
@@ -74,6 +70,16 @@ export class Reader {
     this.#events = events
     this.view = document.createElement('foliate-view') as FoliateView
     container.replaceChildren(this.view)
+    this.#pull = new ChapterPull(this.view, container, {
+      edges: () => this.#edges(),
+      turn: dir => dir > 0 ? this.view.next() : this.view.prev(),
+      hasMore: dir => {
+        const section = this.view.lastLocation?.section
+        return !section || (dir > 0 ? section.current < section.total - 1 : section.current > 0)
+      },
+      onArm: () => this.#events.onPullArmed?.(),
+    })
+    this.#pull.listen(this.view)
   }
 
   get book(): Book {
@@ -121,6 +127,7 @@ export class Reader {
     this.#bionic = settings.bionic
     this.apply(settings)
     await view.init({ lastLocation: lastPosition ?? undefined })
+    this.#watchScroll()
   }
 
   apply(settings: Settings) {
@@ -375,12 +382,20 @@ export class Reader {
     }
   }
 
-  async #turn(dir: 1 | -1) {
-    if (this.#turning) return
-    this.#turning = true
-    this.#wheelPull = 0
-    try { await (dir > 0 ? this.view.next() : this.view.prev()) }
-    finally { window.setTimeout(() => (this.#turning = false), 500) }
+  // A flick into the end of a chapter bounces the page (chapter-pull.ts). Watches the scroll speed.
+  #watchScroll() {
+    const r = this.view.renderer
+    if (!r) return
+    let last = r.start, lastT = performance.now(), speed = 0
+    r.addEventListener('scroll', () => {
+      const now = performance.now()
+      speed = 0.6 * ((r.start - last) / Math.max(1, now - lastT)) + 0.4 * speed
+      last = r.start
+      lastT = now
+      const { atStart, atEnd } = this.#edges()
+      if (atEnd && speed > 0.4) { this.#pull.bounce(1, speed); speed = 0 }
+      else if (atStart && speed < -0.4) { this.#pull.bounce(-1, speed); speed = 0 }
+    })
   }
 
   // Which third of the screen a click landed in. Clicks inside a chapter are measured
@@ -411,34 +426,8 @@ export class Reader {
     target.addEventListener('touchmove', () => this.#events.onUserMove(), { passive: true })
     this.#listenForPinch(target, doc)
 
-    target.addEventListener('wheel', e => {
-      this.#events.onUserMove()
-      const { deltaY } = e as WheelEvent
-      const { active, atStart, atEnd } = this.#edges()
-      if (!active) return
-      const pushing = (deltaY > 0 && atEnd) || (deltaY < 0 && atStart)
-      if (!pushing) { this.#wheelPull = 0; return }
-      this.#wheelPull += Math.abs(deltaY)
-      window.clearTimeout(this.#wheelReset)
-      this.#wheelReset = window.setTimeout(() => (this.#wheelPull = 0), 300)
-      if (this.#wheelPull > WHEEL_PULL) this.#turn(deltaY > 0 ? 1 : -1)
-    }, { passive: true })
-
-    target.addEventListener('touchstart', e => {
-      const { active, atStart, atEnd } = this.#edges()
-      const t = (e as TouchEvent).touches[0]
-      this.#touch = active && t ? { y: t.clientY, atStart, atEnd } : null
-    }, { passive: true })
-
-    target.addEventListener('touchend', e => {
-      const start = this.#touch
-      this.#touch = null
-      const t = (e as TouchEvent).changedTouches[0]
-      if (!start || !t) return
-      const { atStart, atEnd } = this.#edges()
-      const dy = start.y - t.clientY
-      if (dy > TOUCH_PULL && start.atEnd && atEnd) this.#turn(1)
-      else if (dy < -TOUCH_PULL && start.atStart && atStart) this.#turn(-1)
-    }, { passive: true })
+    target.addEventListener('wheel', () => this.#events.onUserMove(), { passive: true })
+    // Past the end of a chapter in scroll mode: pull on to the next one (chapter-pull.ts).
+    if (doc) this.#pull.listen(doc)
   }
 }

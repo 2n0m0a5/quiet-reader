@@ -30,12 +30,18 @@ Bounce 0 "feels like a smooth, gradual change". About 0.15 feels brisk, and abov
 **Response-time thresholds (Nielsen Norman Group, after Card, Moran & Newell).** About 100 ms feels instant, and about 1 s is the limit for keeping a train of thought. Small feedback (a toggle, a check) should take around 100 ms. Moving a whole screen takes a few hundred milliseconds; longer feels slow. [Summary](https://valhead.com/?p=2978)
 
 **What Quiet does:**
-- Every movement uses Apple's own spring formula, worked out ahead of time into CSS (`src/ui/motion.ts`). Bounce is 0 almost everywhere. A sheet thrown down with speed gets 0.15.
-- Sheets and dialogs can be dragged down to close. Past about 10 px the drag starts and follows the finger. A quick flick closes even a short drag (projection). Dragging up gives way softly (rubber band). Letting go springs back from where the finger left it.
-- Screens slide in from the right and leave to the right. A swipe from the left edge goes back.
+- Every movement uses Apple's own spring formula, worked out ahead of time into CSS (`src/ui/motion.ts`). Bounce is 0 almost everywhere.
+- **Scrolling past the ends, like iOS.** Every list and screen keeps following the finger past its end, less and less the further you pull. It uses UIScrollView's rubber-band curve: offset = (1 − 1 / (x·0.55 / d + 1))·d. Let go and it eases back on a critically damped spring from where it was, at the speed it was moving; it never jumps. A fast flick into an end carries the content a little past it and back. Grabbing it while it eases back holds it where it is.
+- **Chapters in scroll mode.** At the end of a chapter the page stretches the same way, and a sign shows in the space it leaves: "Pull for the next chapter". Past about 88 px it changes to "Release for the next chapter", with a light tap. Only when the finger lets go does the next chapter come in. Let go earlier and the page eases back. The same works at the start of a chapter, and with a mouse wheel (the chapter turns when the wheel stops).
+- Sheets and dialogs can be dragged down to close. The drag waits for about 10 px (hysteresis), follows the finger, and a quick flick closes even a short drag (projection).
+- Screens: a book slides in from the right and leaves to the right. Tabs cross-fade.
 - Buttons, tiles and tabs press in on touch-down (about 100 ms) and spring back on release.
 - Charts grow into place, staged: bars rise one after another.
-- Reduce Motion on the device turns all of this into short fades.
+- **Each style moves its own way**, as Apple's own apps differ in character while sharing the same physics:
+  - *Quiet Star turns its star.* It turns as you pull a chapter and fills when letting go will turn the page. It turns in when you bookmark, blooms when you rate, and winds as you pull the library down.
+  - *Paper is ink.* The underline is drawn again under each choice rather than sliding. Screens are laid down like a new sheet, fading in as ink settles. The red dot spreads when pressed. A pencil line draws as you pull a chapter, and nothing bounces.
+  - *Old Tashkent opens doors.* A book opens through an arch that widens to fill the screen, and closes back into it. Sheets rise through an arch. A chosen niche fills with light from below. A carved rosette turns like a lock as you pull a chapter. A bookmark's tassel swings.
+- Reduce Motion on the device turns all of this into near-instant changes.
 
 ## Colour, contrast and reading on screens
 
@@ -48,13 +54,14 @@ Bounce 0 "feels like a smooth, gradual change". About 0.15 feels brisk, and abov
 - **Typefaces built for this.** Literata was commissioned by Google for reading books on screens. Atkinson Hyperlegible, from the Braille Institute, makes confusable letters (l, 1, I; 0, O) clearly different. Its benefit comes from user testing, not an independent study.
 - **Beauty and use.** Tractinsky, Katz & Ikar (2000): people rated a better-looking interface as easier to use, before and after using it. Later studies dispute how strong this is, and simplicity may be the real cause. [Paper](https://academic.oup.com/iwc/article/13/2/127/898608)
 
-**What Quiet does: a third style, Lamplight.** It is built from these findings:
-- Warm, low-blue colours, low in saturation and high in brightness.
-- Dark text on warm paper by day.
-- Amber text on warm black by night.
-- Literata for books, and Atkinson Hyperlegible Next for the app.
-- Slightly larger type.
-- Soft, rounded shapes and a calm glow for its mark.
+**What Quiet does: a third style, Old Tashkent.** It's different in kind from the other two, not just in colour:
+- *Quiet Star* is almost nothing (round pills, one lapis star).
+- *Paper* is typography alone (hairlines, words for buttons).
+- *Old Tashkent* is material and architecture: the ganch plaster, carved walnut, arched doorways and niches of the old town's courtyards.
+  - Books stand in arches, choices sit in niches, and bands of plaster pattern edge the screens.
+  - Marcellus, cut like an inscription, is used for titles, and Lora, a calligraphic serif with Cyrillic, for everything else.
+  - By day it is dark ink on warm plaster: a light background, as the polarity research recommends. At night it is the same courtyard lit by a lamp: warm, low-blue colours, with bright, low-saturation tones that feel calm.
+  - Its heatmap colours pass the dataviz palette check, by day and by night.
 
 ## Stats that help, not nag
 

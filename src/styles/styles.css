@@ -409,152 +409,160 @@ svg.khatam { width: 18px; height: 18px; fill: currentColor; flex-shrink: 0; }
   [data-style="paper"] .app:is([data-view="notes"], [data-view="stats"], [data-view="settings"]) .top-title { font-weight: 400; font-size: 24px !important; }
 }
 
-/* ==================== Lamplight ====================
-   Warm light for long reading, built from the research in docs/research-0.3.3.md:
-   - by day, dark ink on warm paper (light backgrounds read better in daylight);
-   - by night, amber ink on warm black, with almost no blue light (blue-rich screens before bed
-     delay sleep; yellow text on dark tires the eyes least);
-   - bright, low-saturation colours (they feel pleasant and calm);
-   - Literata for books and titles, Atkinson Hyperlegible Next for the app, a little larger;
-   - soft, rounded shapes lifted by shadow instead of outlined. Its mark is a small lamp's glow. */
 
-:root[data-style="lamp"] {
-  --font-ui: 'Atkinson Hyperlegible Next Variable', 'Source Sans 3 Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-reading: 'Literata Variable', Georgia, serif;
-  --primary: var(--accent-strong); --on-primary: #fffaf0;
-  --track: color-mix(in srgb, var(--text) 7%, var(--bg));
-  --seg-on: var(--panel);
-  --glow: #e9a24a;
-  --radius-s: 12px; --radius-m: 14px; --radius-l: 20px;
-  --day-bg: #f7efe0; --day-ink: #2a2017; --night-bg: #15110c; --night-ink: #e6c690;
-  --lift: 0 1px 2px #2a20170f, 0 6px 18px #2a201712;
+/* ==================== Old Tashkent ====================
+   The courtyards of the old town: ganch plaster, carved walnut, arched doorways and niches.
+   Books stand in arches, choices sit in niches, plaster patterns edge the screens. Marcellus,
+   cut like an inscription, for titles; Lora, a calligraphic serif, for everything else.
+   At night it's the same courtyard, lit by a lamp. */
+
+:root[data-style="tashkent"] {
+  --font-ui: 'Lora Variable', 'Literata Variable', Georgia, serif;
+  --font-reading: 'Lora Variable', 'Literata Variable', Georgia, serif;
+  --font-title: 'Marcellus', 'Lora Variable', Georgia, serif;
+  --primary: var(--text); --on-primary: var(--bg);
+  --radius-s: 4px; --radius-m: 6px; --radius-l: 8px;
+  --arch: 50% 50% 4px 4px / 22% 22% 4px 4px;      /* a doorway: round top, square foot */
+  --niche: 50% 50% 4px 4px / 14px 14px 4px 4px;    /* a low niche for choices and tabs */
+  --ganch: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14'%3E%3Cg fill='none' stroke='%23CDBFA8' stroke-width='1'%3E%3Ccircle cx='7' cy='7' r='6'/%3E%3Ccircle cx='0' cy='7' r='6'/%3E%3Ccircle cx='14' cy='7' r='6'/%3E%3C/g%3E%3C/svg%3E");
+  --rosette: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg%3E%3Cpath d='M12 1.5C14.6 5 14.6 8.6 12 12 9.4 8.6 9.4 5 12 1.5Z' transform='rotate%280 12 12%29'/%3E%3Cpath d='M12 1.5C14.6 5 14.6 8.6 12 12 9.4 8.6 9.4 5 12 1.5Z' transform='rotate%2845 12 12%29'/%3E%3Cpath d='M12 1.5C14.6 5 14.6 8.6 12 12 9.4 8.6 9.4 5 12 1.5Z' transform='rotate%2890 12 12%29'/%3E%3Cpath d='M12 1.5C14.6 5 14.6 8.6 12 12 9.4 8.6 9.4 5 12 1.5Z' transform='rotate%28135 12 12%29'/%3E%3Cpath d='M12 1.5C14.6 5 14.6 8.6 12 12 9.4 8.6 9.4 5 12 1.5Z' transform='rotate%28180 12 12%29'/%3E%3Cpath d='M12 1.5C14.6 5 14.6 8.6 12 12 9.4 8.6 9.4 5 12 1.5Z' transform='rotate%28225 12 12%29'/%3E%3Cpath d='M12 1.5C14.6 5 14.6 8.6 12 12 9.4 8.6 9.4 5 12 1.5Z' transform='rotate%28270 12 12%29'/%3E%3Cpath d='M12 1.5C14.6 5 14.6 8.6 12 12 9.4 8.6 9.4 5 12 1.5Z' transform='rotate%28315 12 12%29'/%3E%3C/g%3E%3Ccircle cx='12' cy='12' r='2.2'/%3E%3C/svg%3E");
+  --handle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.5 21.5 12 12 21.5 2.5 12Z' fill='%238A4B2A' stroke='%23F8F4EC' stroke-width='1.6' stroke-linejoin='round'/%3E%3Ccircle cx='12' cy='12' r='2.4' fill='%23F8F4EC'/%3E%3C/svg%3E");
+  --walnut: #6f3f24; --sage: #4f6b5d;
+  --day-bg: #f6f1e8; --day-ink: #2e2620; --night-bg: #1c1814; --night-ink: #e6daca;
 }
-:root[data-style="lamp"][data-theme="light"] {
-  --bg: #f7efe0; --panel: #fdf8ee; --text: #2a2017; --muted: #6a5b49; --line: #e6dac5;
-  --accent: #b8692e; --accent-soft: #f2e2c9; --accent-strong: #8c4a1f; --on-accent: #fffaf0;
-  --reader-bg: #f7efe0; --reader-text: #2a2017; --reader-link: #8c4a1f;
-  --track: #ede2cf; --seg-on: #fdf8ee; --shadow: 0 16px 40px #2a20171f;
-  --chart: #8c4a1f;   /* amber is too pale on warm paper for the lightest chart step */
+:root[data-style="tashkent"][data-dark] { --ganch: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14'%3E%3Cg fill='none' stroke='%233A3129' stroke-width='1'%3E%3Ccircle cx='7' cy='7' r='6'/%3E%3Ccircle cx='0' cy='7' r='6'/%3E%3Ccircle cx='14' cy='7' r='6'/%3E%3C/g%3E%3C/svg%3E"); --handle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.5 21.5 12 12 21.5 2.5 12Z' fill='%23D49A6A' stroke='%23241F1A' stroke-width='1.6' stroke-linejoin='round'/%3E%3Ccircle cx='12' cy='12' r='2.4' fill='%23241F1A'/%3E%3C/svg%3E"); }
+:root[data-style="tashkent"][data-theme="light"] {
+  --bg: #f3eee6; --panel: #f8f4ec; --text: #2e2620; --muted: #6e5e50; --line: #d6c9b4;
+  --accent: #8a4b2a; --accent-soft: #ecdfcd; --accent-strong: #6b3820; --on-accent: #f8f4ec;
+  --reader-bg: #f6f1e8; --reader-text: #2e2620; --reader-link: #8a4b2a; --shadow: 0 14px 36px #2e26201f;
 }
-:root[data-style="lamp"][data-theme="dark"] {
-  --bg: #15110c; --panel: #1f1912; --text: #e6c690; --muted: #a8906c; --line: #33291d;
-  --accent: #e9a24a; --accent-soft: #3a2a17; --accent-strong: #f0b066; --on-accent: #15110c;
-  --reader-bg: #15110c; --reader-text: #e6c690; --reader-link: #f0b066;
-  --primary: #e9a24a; --on-primary: #15110c;
-  --track: #241d15; --seg-on: #362b1f; --shadow: 0 16px 40px #000a;
-  --lift: 0 1px 2px #0006, 0 6px 18px #0005;
+:root[data-style="tashkent"][data-theme="dark"] {
+  --bg: #1c1814; --panel: #241f1a; --text: #eadfcc; --muted: #a8998a; --line: #3a3129;
+  --accent: #d49a6a; --accent-soft: #3a2c21; --accent-strong: #e6b48a; --on-accent: #1c1814;
+  --reader-bg: #1c1814; --reader-text: #e6daca; --reader-link: #d49a6a; --shadow: 0 14px 36px #000a;
 }
 
-[data-style="lamp"] body { font-size: 15px; }
-[data-style="lamp"] h1, [data-style="lamp"] h2, [data-style="lamp"] .dialog-title,
-[data-style="lamp"] .details-title, [data-style="lamp"] .welcome-title, [data-style="lamp"] .style-name { font-weight: 600; letter-spacing: -.01em; }
-[data-style="lamp"] h2 { font-size: 20px; }
-
-/* The mark: a small warm glow, and "Quiet" in Literata. */
-[data-style="lamp"] .brand-star { display: none; }
-[data-style="lamp"] .brand::before {
-  content: ''; width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; margin-right: 3px;
-  background: radial-gradient(circle at 40% 38%, #fff3d6, var(--glow) 60%);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--glow) 18%, transparent), 0 0 14px 3px color-mix(in srgb, var(--glow) 45%, transparent);
+[data-style="tashkent"] h1, [data-style="tashkent"] h2, [data-style="tashkent"] .dialog-title,
+[data-style="tashkent"] .details-title, [data-style="tashkent"] .welcome-title, [data-style="tashkent"] .style-name {
+  font-weight: 400; letter-spacing: .03em;
 }
-[data-style="lamp"] .brand-name { text-transform: capitalize; font-size: 20px; font-weight: 600; letter-spacing: -.01em; }
-[data-style="lamp"] .brand-dot { display: none; }
-[data-style="lamp"] .logo { background: radial-gradient(circle at 50% 45%, #3a2814, #15110c 70%); position: relative; }
-[data-style="lamp"] .logo .khatam, [data-style="lamp"] .logo-q { display: none; }
-[data-style="lamp"] .logo::after {
-  content: ''; position: absolute; inset: 34%; border-radius: 50%;
-  background: radial-gradient(circle at 42% 38%, #fff3d6, #e9a24a 62%);
-  box-shadow: 0 0 18px 6px #e9a24a88;
-}
+[data-style="tashkent"] h2 { font-size: 20px; }
+/* Marcellus's zero looks like a letter o: numbers stay in Lora. */
+[data-style="tashkent"] h2 .count { font-family: var(--font-ui); letter-spacing: 0; }
+[data-style="tashkent"] .section-label, [data-style="tashkent"] .sheet-group, [data-style="tashkent"] .details-heading,
+[data-style="tashkent"] .chart-table thead th { font-family: var(--font-title); font-weight: 400; letter-spacing: .18em; }
 
-/* Soft, lifted shapes: cards float on the page instead of being outlined. */
-[data-style="lamp"] .settings-card, [data-style="lamp"] .continue-card, [data-style="lamp"] .reading-strip,
-[data-style="lamp"] .stats-tile, [data-style="lamp"] .style-card { border-color: transparent; box-shadow: var(--lift); border-radius: 20px; }
-[data-style="lamp"] .stats-tile { background: var(--panel); }
-[data-style="lamp"] .stats-card .stats-tile { background: color-mix(in srgb, var(--text) 4%, var(--panel)); box-shadow: none; border-radius: 14px; }
-[data-style="lamp"] .style-card.selected { box-shadow: var(--lift), inset 0 0 0 2px var(--accent); }
-[data-style="lamp"] dialog.dialog { border: 0; border-radius: 26px; }
-[data-style="lamp"] .settings-pop { border: 0; border-radius: 22px; }
-@media (max-width: 850px) { [data-style="lamp"] .settings-pop { border-radius: 26px 26px 0 0; } }
+/* A band of ganch plaster along the top of the screen, and between groups of settings. */
+[data-style="tashkent"] .topbar { background: var(--ganch) 0 calc(env(safe-area-inset-top) + 0px) / 14px 14px repeat-x, var(--bg); padding-top: calc(env(safe-area-inset-top) + 10px); }
+[data-style="tashkent"] .app[data-view="reader"] .topbar { background: var(--reader-bg); padding-top: env(safe-area-inset-top); }
+[data-style="tashkent"] .sheet-group { border-top: 0; padding-top: 20px; background: var(--ganch) 0 0 / 14px 14px repeat-x; }
+
+/* The wordmark: "Quiet" cut in Marcellus, and "mutolaa" (reading) in italic. */
+[data-style="tashkent"] .brand { gap: 0; align-items: baseline; }
+[data-style="tashkent"] .brand-star, [data-style="tashkent"] .brand-dot { display: none; }
+[data-style="tashkent"] .brand-name { text-transform: capitalize; font-size: 23px; letter-spacing: .05em; }
+[data-style="tashkent"] .brand::after { content: 'mutolaa'; font-style: italic; font-size: 14px; color: var(--muted); margin-left: 9px; }
+@media (max-width: 380px) { [data-style="tashkent"] .brand::after { display: none; } }
+[data-style="tashkent"] .logo { background: var(--walnut); border-radius: 50% 50% 6px 6px / 42% 42% 6px 6px; position: relative; box-shadow: inset 0 0 0 4px var(--walnut), inset 0 0 0 5px #a9744f; }
+[data-style="tashkent"] .logo .khatam, [data-style="tashkent"] .logo-q { display: none; }
+[data-style="tashkent"] .logo::after { content: ''; position: absolute; inset: 26% 24% 20%; background: #f3e7d3; -webkit-mask: var(--rosette) center / contain no-repeat; mask: var(--rosette) center / contain no-repeat; }
+
+/* Books stand in arches. */
+[data-style="tashkent"] .book-cover { border-radius: var(--arch); box-shadow: 0 1px 2px #0001, 0 6px 14px #2e262014; }
+[data-style="tashkent"] .shelf-book .book-cover { border-radius: var(--arch); }
+[data-style="tashkent"] .generated-cover {
+  background: var(--tone, #6f3f24); color: #f3e7d3; justify-content: flex-end; align-items: center; text-align: center;
+  padding: 0 12% 14%; box-shadow: inset 0 0 0 5px var(--tone, #6f3f24), inset 0 0 0 6px color-mix(in srgb, var(--tone, #6f3f24) 55%, #f3e7d3);
+  border-radius: var(--arch);
+}
+[data-style="tashkent"] .gc-title { font-weight: 400; letter-spacing: .02em; font-size: 11cqi; }
+[data-style="tashkent"] .gc-author { font-family: var(--font-ui); font-style: italic; margin-top: 6%; }
+[data-style="tashkent"] [data-tone="0"] { --tone: #6f3f24; }
+[data-style="tashkent"] [data-tone="1"] { --tone: #4f6b5d; }
+[data-style="tashkent"] [data-tone="2"] { --tone: #7e2f2f; }
+[data-style="tashkent"] [data-tone="3"] { --tone: #3e4a6b; }
+[data-style="tashkent"] [data-tone="4"] { --tone: #2e2620; }
+[data-style="tashkent"] [data-tone="5"] { --tone: #8a6a2e; }
+[data-style="tashkent"] [data-tone="6"] { --tone: #5b4a3a; }
+
+/* Carved panels: a plaster face with a fine inner line, like a frame cut into wood. */
+[data-style="tashkent"] .settings-card, [data-style="tashkent"] .stats-tile, [data-style="tashkent"] .reading-strip, [data-style="tashkent"] .note-item {
+  border-color: var(--line); border-radius: 6px; box-shadow: inset 0 0 0 3px var(--panel), inset 0 0 0 4px color-mix(in srgb, var(--line) 60%, transparent);
+}
+[data-style="tashkent"] .stats-tile { background: var(--panel); }
+[data-style="tashkent"] .continue-card {
+  border-radius: 160px 160px 6px 6px / 56px 56px 6px 6px; padding-top: 30px; background: var(--panel);
+  box-shadow: inset 0 0 0 3px var(--panel), inset 0 0 0 4px color-mix(in srgb, var(--line) 60%, transparent);
+}
+[data-style="tashkent"] .style-card { border-radius: 8px; }
+
+/* Buttons: carved walnut, the inscription in Marcellus. */
+[data-style="tashkent"] .btn { border-radius: 6px; font-family: var(--font-title); letter-spacing: .05em; }
+[data-style="tashkent"] .btn.icon { border-radius: 50%; }
+[data-style="tashkent"] .btn.primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+[data-style="tashkent"] .btn.primary:hover { background: color-mix(in srgb, var(--primary) 85%, var(--accent)); }
+[data-style="tashkent"] .details-read { font-size: 15px; padding: 13px; }
+[data-style="tashkent"] .icon-label { font-family: var(--font-ui); letter-spacing: 0; }
+
+/* Choices sit in niches: the chosen one is lit (and fills from below, see motion.css). */
+[data-style="tashkent"] .choice-row:not(.theme-row) { gap: 4px; }
+[data-style="tashkent"] .choice-row:not(.theme-row) .choice {
+  border: 1px solid var(--line); border-radius: var(--niche); padding-top: 11px; color: var(--muted); background: transparent;
+}
+[data-style="tashkent"] .choice-row:not(.theme-row) .choice.selected { background: var(--accent-soft); border-color: var(--accent); box-shadow: none; color: var(--text); }
+[data-style="tashkent"] .choice-row:not(.theme-row)[data-marked]::before { background: var(--accent-soft); border-radius: var(--niche); box-shadow: inset 0 0 0 1px var(--accent); }
+[data-style="tashkent"] .choice-row[data-marked]:not(.theme-row) .choice.selected { background: transparent; border-color: transparent; }
+[data-style="tashkent"] .theme-choice { border-color: transparent; }
+[data-style="tashkent"] .theme-choice::before { border-radius: var(--niche); }
+[data-style="tashkent"] .theme-choice.selected { box-shadow: none; border-color: transparent; color: var(--accent-strong); }
+[data-style="tashkent"] .theme-choice.selected::before { box-shadow: 0 0 0 2px var(--accent); }
+[data-style="tashkent"] .chip { border-radius: 14px 14px 4px 4px; background: transparent; }
+[data-style="tashkent"] .chip.selected { background: var(--text); border-color: var(--text); color: var(--bg); }
+
+/* Fields, sliders, switches, ratings */
+[data-style="tashkent"] .field input, [data-style="tashkent"] .field textarea, [data-style="tashkent"] .search-input { border-radius: 4px; background: var(--panel); }
+[data-style="tashkent"] input[type=range] { --range-track: 2px; }
+[data-style="tashkent"] input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; margin-top: -11px; border: 0; background: var(--handle) center / contain no-repeat; }
+[data-style="tashkent"] input[type=range]::-moz-range-thumb { width: 24px; height: 24px; border: 0; background: var(--handle) center / contain no-repeat; }
+[data-style="tashkent"] .switch { border-radius: 6px; }
+[data-style="tashkent"] .switch::after { border-radius: 4px; }
+[data-style="tashkent"] .star svg { display: none; }
+[data-style="tashkent"] .star::before { content: ''; display: block; width: 22px; height: 22px; background: currentColor; -webkit-mask: var(--rosette) center / contain no-repeat; mask: var(--rosette) center / contain no-repeat; }
+[data-style="tashkent"] .star { color: var(--line); }
+[data-style="tashkent"] .star.on { color: var(--accent); }
+
+/* Sheets: a doorway's arch at the top, under a band of plaster. */
+[data-style="tashkent"] dialog.dialog { border-radius: 10px; background: var(--ganch) 0 0 / 14px 14px repeat-x, var(--panel); padding-top: 6px; }
+[data-style="tashkent"] .settings-pop { border-radius: 10px; }
+@media (max-width: 850px) { [data-style="tashkent"] .settings-pop { border-radius: 26px 26px 0 0; } }
 @media (max-width: 600px) {
-  [data-style="lamp"] dialog.dialog, [data-style="lamp"] dialog.dialog.dialog-small, [data-style="lamp"] dialog.dialog.dialog-details { border-radius: 26px 26px 0 0; }
+  [data-style="tashkent"] dialog.dialog, [data-style="tashkent"] dialog.dialog.dialog-small, [data-style="tashkent"] dialog.dialog.dialog-details { border-radius: 26px 26px 0 0; }
 }
-[data-style="lamp"] .select-bar { border: 0; border-radius: 24px; }
-[data-style="lamp"] .toast { border-radius: 16px; }
+[data-style="tashkent"] .toast { border-radius: 6px; font-family: var(--font-ui); }
 
-/* Buttons: soft rounded, the main one filled with warm ink. */
-[data-style="lamp"] .btn { border-radius: 14px; padding-inline: 14px; }
-[data-style="lamp"] .btn.icon { border-radius: 50%; padding: 0; }
-[data-style="lamp"] .btn.primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); font-weight: 700; }
-[data-style="lamp"] .btn.primary:hover { background: color-mix(in srgb, var(--primary) 88%, var(--text)); }
-[data-style="lamp"] .chapter-button, [data-style="lamp"] .back-chip { border-radius: 14px; }
+[data-style="tashkent"] .quotes-list .note-item::before { color: var(--accent); }
+[data-style="tashkent"] .quote-owner.character { color: var(--accent-strong); font-family: var(--font-title); letter-spacing: .04em; font-weight: 400; }
+[data-style="tashkent"] .stats-streak.on svg.lucide { color: var(--accent); fill: color-mix(in srgb, var(--accent) 25%, transparent); }
 
-/* Choices: a warm track, the chosen one lifted (it slides, see motion.css). */
-[data-style="lamp"] .choice-row:not(.theme-row) { background: var(--track); border-radius: 14px; padding: 3px; gap: 2px; }
-[data-style="lamp"] .choice-row:not(.theme-row) .choice { border: 0; border-radius: 11px; color: var(--muted); }
-[data-style="lamp"] .choice-row:not(.theme-row) .choice.selected { background: var(--seg-on); color: var(--text); font-weight: 700; box-shadow: 0 1px 3px #2a20171f; }
-[data-style="lamp"] .choice-row:not(.theme-row)[data-marked]::before { background: var(--seg-on); border-radius: 11px; box-shadow: 0 1px 3px #2a201726, 0 0 0 .5px #2a201710; }
-[data-style="lamp"] .choice-row[data-marked]:not(.theme-row) .choice.selected { background: transparent; box-shadow: none; }
-[data-style="lamp"] .theme-choice { border-color: transparent; border-radius: 14px; }
-[data-style="lamp"] .theme-choice::before { border-radius: 10px; }
-[data-style="lamp"] .theme-choice.selected { box-shadow: none; border-color: transparent; color: var(--accent-strong); font-weight: 700; }
-[data-style="lamp"] .theme-choice.selected::before { box-shadow: 0 0 0 2px var(--accent); }
-
-/* Filters: soft pills, the chosen one warm. */
-[data-style="lamp"] .chips { gap: 8px; }
-[data-style="lamp"] .chip { border-color: transparent; background: color-mix(in srgb, var(--text) 6%, var(--bg)); color: var(--muted); padding: 7px 14px; }
-[data-style="lamp"] .chip.selected { background: var(--accent-soft); border-color: transparent; color: var(--accent-strong); font-weight: 700; }
-[data-style="lamp"][data-theme="dark"] .chip.selected { color: var(--accent); }
-[data-style="lamp"] .chip-add { color: var(--accent-strong); }
-
-/* Inputs and sliders: round and soft, like iOS. */
-[data-style="lamp"] .field input, [data-style="lamp"] .field textarea, [data-style="lamp"] .search-input {
-  border-color: transparent; background: color-mix(in srgb, var(--text) 6%, var(--bg)); border-radius: 12px;
+/* Tab bar: the screen you're on stands in a lit niche. */
+[data-style="tashkent"] .tab { position: relative; font-family: var(--font-ui); }
+[data-style="tashkent"] .tab.selected { color: var(--accent-strong); }
+[data-style="tashkent"][data-dark] .tab.selected { color: var(--accent); }
+[data-style="tashkent"] .tab > * { position: relative; z-index: 1; }
+[data-style="tashkent"] .tab.selected::before {
+  content: ''; position: absolute; left: 50%; top: 4px; width: 46px; height: 32px; margin-left: -23px;
+  background: var(--accent-soft); border-radius: var(--niche);
 }
-[data-style="lamp"] input[type=range] { --range-track: 4px; }
-[data-style="lamp"] input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none; width: 24px; height: 24px; margin-top: -10px; border-radius: 50%; border: 0;
-  background: #fffaf0; box-shadow: 0 1px 3px #2a201740, 0 3px 10px #2a201726, inset 0 0 0 .5px #2a20171a;
-}
-[data-style="lamp"] input[type=range]::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; border: 0; background: #fffaf0; box-shadow: 0 1px 3px #2a201740, 0 3px 10px #2a201726; }
-[data-style="lamp"][data-theme="dark"] input[type=range]::-webkit-slider-thumb { background: #e6c690; }
-[data-style="lamp"] .switch { width: 50px; height: 30px; }
-[data-style="lamp"] .switch::after { width: 24px; height: 24px; box-shadow: 0 2px 6px #2a201740; }
-[data-style="lamp"] .switch:checked::after { transform: translateX(20px); }
-
-/* Rating: warm filled stars. */
-[data-style="lamp"] .star.on { color: var(--accent); }
-
-/* Books without a cover: warm, quiet tones. */
-[data-style="lamp"] .generated-cover { background: var(--tone, #8c4a1f); color: #fbf1dd; }
-[data-style="lamp"] [data-tone="0"] { --tone: #8c4a1f; }
-[data-style="lamp"] [data-tone="1"] { --tone: #5e6b45; }
-[data-style="lamp"] [data-tone="2"] { --tone: #7a3b3b; }
-[data-style="lamp"] [data-tone="3"] { --tone: #3f5a5e; }
-[data-style="lamp"] [data-tone="4"] { --tone: #4a3a2c; }
-[data-style="lamp"] [data-tone="5"] { --tone: #a0742c; }
-[data-style="lamp"] [data-tone="6"] { --tone: #5d4566; }
-
-[data-style="lamp"] .quotes-list .note-item::before { color: var(--accent); }
-[data-style="lamp"] .quote-owner.character { color: var(--accent-strong); }
-[data-style="lamp"] .stats-streak.on svg.lucide { color: var(--accent); fill: color-mix(in srgb, var(--accent) 30%, transparent); }
-[data-style="lamp"] .note-item { border-color: transparent; background: var(--panel); box-shadow: var(--lift); border-radius: 14px; }
-
-/* Tab bar: a soft glass bar; the screen you're on in warm ink. */
-[data-style="lamp"] .tab.selected { color: var(--accent-strong); font-weight: 700; }
-[data-style="lamp"][data-theme="dark"] .tab.selected { color: var(--accent); }
+@media (min-width: 851px) { [data-style="tashkent"] .tab.selected::before { top: 4px; bottom: 4px; left: 0; right: 0; width: auto; height: auto; margin: 0; } }
 @media (max-width: 850px) {
-  [data-style="lamp"] .tabbar { border-top-color: transparent; background: color-mix(in srgb, var(--bg) 82%, transparent); -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4); box-shadow: 0 -1px 0 var(--line); }
+  [data-style="tashkent"] .tabbar { border-top: 0; background: var(--ganch) 0 0 / 14px 14px repeat-x, var(--bg); padding-top: 10px; }
 }
-@media (min-width: 851px) { [data-style="lamp"] .tab { border-radius: 12px; } [data-style="lamp"] .tab.selected { background: var(--accent-soft); } }
 
-/* The Style picker's preview card. */
-[data-preview="lamp"] .style-art { background: #f7efe0; color: #2a2017; border-radius: 16px; font-family: 'Atkinson Hyperlegible Next Variable', system-ui, sans-serif; box-shadow: inset 0 0 0 1px #e6dac5; }
-[data-preview="lamp"] .khatam { display: none; }
-[data-preview="lamp"] .style-art-mark::before {
-  content: ''; width: 11px; height: 11px; border-radius: 50%; margin-right: 3px;
-  background: radial-gradient(circle at 40% 38%, #fff3d6, #e9a24a 60%); box-shadow: 0 0 10px 2px #e9a24a88;
-}
-[data-preview="lamp"] .style-art-name { font: 600 19px/1 'Literata Variable', Georgia, serif; }
-[data-preview="lamp"] .style-art-text { font: 16px/1.45 'Literata Variable', Georgia, serif; }
-[data-preview="lamp"] .style-art-action { padding: 7px 14px; border-radius: 12px; background: #8c4a1f; color: #fffaf0; font-weight: 700; }
+/* The Style picker's preview card */
+[data-preview="tashkent"] .style-art { position: relative; background: #f3eee6; color: #2e2620; border-radius: 6px; padding-top: 24px; font-family: 'Lora Variable', Georgia, serif;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14'%3E%3Cg fill='none' stroke='%23CDBFA8' stroke-width='1'%3E%3Ccircle cx='7' cy='7' r='6'/%3E%3Ccircle cx='0' cy='7' r='6'/%3E%3Ccircle cx='14' cy='7' r='6'/%3E%3C/g%3E%3C/svg%3E"); background-size: 14px 14px; background-repeat: repeat-x; box-shadow: inset 0 0 0 1px #d6c9b4; }
+[data-preview="tashkent"] .khatam { display: none; }
+[data-preview="tashkent"] .style-art-name { font: 400 21px/1 'Marcellus', Georgia, serif; letter-spacing: .05em; }
+[data-preview="tashkent"] .style-art-name::after { content: ' mutolaa'; font: italic 13px 'Lora Variable', Georgia, serif; color: #6e5e50; letter-spacing: 0; }
+[data-preview="tashkent"] .style-art-text { font: 15.5px/1.45 'Lora Variable', Georgia, serif; }
+[data-preview="tashkent"] .style-art-action { padding: 8px 18px; border-radius: 6px; background: #2e2620; color: #f3eee6; font-family: 'Marcellus', Georgia, serif; letter-spacing: .06em; }

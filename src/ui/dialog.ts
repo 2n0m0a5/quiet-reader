@@ -1,7 +1,7 @@
 // Dialogs: a sheet from the bottom on phones, a centred window on larger screens.
 // Built on <dialog>, which handles focus and the Escape key.
 import { createElement, type IconNode } from 'lucide'
-import { draggableSheet } from './motion'
+import { draggableSheet, rubberBand } from './motion'
 
 // An icon element, sized by the app's CSS (svg.lucide).
 export const icon = (node: IconNode) => createElement(node, { class: 'lucide' })
@@ -66,6 +66,7 @@ export function openDialog(options: {
   const dialog: DialogHandle = { el, body, close: () => close() }
   // On phones it's a sheet: drag it down to close.
   draggableSheet(el, { close: () => close(true), enabled: () => phone.matches, handle: [handle], scroller: body })
+  rubberBand(body, { edges: phone.matches ? 'bottom' : 'both' })
 
   el.addEventListener('cancel', e => { e.preventDefault(); close() })   // Escape
   el.addEventListener('click', e => { if (e.target === el) close() })    // backdrop

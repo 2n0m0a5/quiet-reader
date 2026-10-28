@@ -514,6 +514,8 @@ export class Paginator extends HTMLElement {
             grid-column: 1 / -1;
             grid-row: 1 / -1;
             overflow: auto;
+            /* Quiet draws its own rubber band at the ends of a chapter (chapter-pull.ts). */
+            overscroll-behavior: none;
         }
         #header {
             grid-column: 3 / 4;
