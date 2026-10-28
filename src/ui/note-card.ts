@@ -9,7 +9,11 @@ export interface NoteCardOptions {
   open(): void                   // go to the place in the book
   tools?: HTMLElement[]          // small buttons on the right
   book?: string                  // the book's title and author, on the Notes screen
+  author?: string                // the book's author: a quote nobody says in the book is theirs
 }
+
+// "— Elizabeth Bennet", or the author's name for the narrator's words.
+export const attribution = (a: Annotation, author?: string) => a.speaker || author || ''
 
 export function noteCard(a: Annotation, options: NoteCardOptions) {
   const style = a.type === 'bookmark' ? 'bookmark' : a.style ?? 'highlight'
@@ -28,6 +32,10 @@ export function noteCard(a: Annotation, options: NoteCardOptions) {
   const text = h('div', 'note-text')
   text.append(h('span', 'note-mark', a.text || 'Bookmark'))
   open.append(text)
+  if (a.quote) {
+    const owner = attribution(a, options.author)
+    if (owner) open.append(h('div', `quote-owner${a.speaker ? ' character' : ''}`, `— ${owner}`))
+  }
   if (a.note) open.append(h('div', 'note-note', a.note))
   if (a.tags?.length) {
     const tags = h('div', 'note-tags')
@@ -62,7 +70,13 @@ export async function allHighlightTags() {
   return [...counts.keys()].sort((a, b) => counts.get(b)! - counts.get(a)! || a.localeCompare(b))
 }
 
-// A passage as text to copy or share: “…” — note, chapter, book.
-export function passageText(a: Annotation, book?: string) {
-  return [`“${a.text}”`, a.note, [a.label, book].filter(Boolean).join(', ')].filter(Boolean).join('\n')
+// A passage as text to copy or share. A quote is signed by whoever says it:
+//   “…”
+//   — Elizabeth Bennet, in Pride and Prejudice by Jane Austen
+export function passageText(a: Annotation, book: { title?: string; author?: string } = {}) {
+  const work = [book.title, book.author && `by ${book.author}`].filter(Boolean).join(' ')
+  const source = a.quote
+    ? `— ${a.speaker ? `${a.speaker}${work ? `, in ${work}` : ''}` : [book.author, book.title].filter(Boolean).join(', ')}`
+    : [a.label, book.title].filter(Boolean).join(', ')
+  return [`“${a.text}”`, source !== '— ' ? source : '', a.note].filter(Boolean).join('\n')
 }

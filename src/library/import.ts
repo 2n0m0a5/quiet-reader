@@ -9,11 +9,19 @@ export class ImportError extends Error {}
 
 // Adds a book file to the library. Importing the same file again returns the existing entry.
 export async function importBook(file: File): Promise<BookRecord> {
+  return (await addToLibrary(file)).record
+}
+
+// Like importBook, and says what happened: 'added', 'existing' (already in the library), or
+// 'removed' (in Recently deleted, and left there because `restoreRemoved` is false).
+export async function addToLibrary(file: File, { restoreRemoved = true } = {}):
+  Promise<{ record: BookRecord; result: 'added' | 'existing' | 'removed' }> {
   const id = await fingerprint(file)
   const existing = await getBook(id)
+  if (existing?.deletedAt && !restoreRemoved) return { record: existing, result: 'removed' }
   // Adding a book that's in Recently deleted brings it back, with its notes and place.
   if (existing?.deletedAt) await updateBook(id, { deletedAt: null })
-  if (existing) return { ...existing, deletedAt: null }
+  if (existing) return { record: { ...existing, deletedAt: null }, result: 'existing' }
 
   let book: Book
   try {
@@ -40,7 +48,7 @@ export async function importBook(file: File): Promise<BookRecord> {
   }
   await addBook(record, file)
   requestPersistentStorage()
-  return record
+  return { record, result: 'added' }
 }
 
 // The extra information shown on a book's details page.

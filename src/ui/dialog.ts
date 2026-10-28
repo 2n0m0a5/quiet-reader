@@ -134,7 +134,7 @@ export function formDialog(options: {
 // A list of choices, like a menu. Each item runs its action and closes the menu.
 export function menuDialog(options: {
   title?: string
-  items: { label: string; icon?: SVGElement; danger?: boolean; selected?: boolean; run: () => void }[]
+  items: { label: string; hint?: string; icon?: SVGElement; danger?: boolean; selected?: boolean; run: () => void }[]
 }) {
   const list = h('div', 'menu-list')
   const d = openDialog({ title: options.title, className: 'dialog-small', content: list })
@@ -142,7 +142,13 @@ export function menuDialog(options: {
     const b = h('button', `menu-item${item.danger ? ' danger' : ''}${item.selected ? ' selected' : ''}`)
     b.type = 'button'
     if (item.icon) b.append(item.icon)
-    b.append(h('span', '', item.label))
+    if (item.hint) {
+      const text = h('span', 'menu-item-text')
+      text.append(h('span', '', item.label), h('span', 'settings-hint', item.hint))
+      b.append(text)
+    } else {
+      b.append(h('span', '', item.label))
+    }
     b.addEventListener('click', () => { d.close(); item.run() })
     list.append(b)
   }

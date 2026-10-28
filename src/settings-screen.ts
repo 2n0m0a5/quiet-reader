@@ -1,10 +1,12 @@
 import { clearLibrary, listBooks } from './library/db'
 import { limits, type Settings } from './settings'
-import { confirmDialog, h } from './ui/dialog'
-import { fileSize } from './ui/format'
+import { confirmDialog, h, icon } from './ui/dialog'
+import { fileSize, timeAgo } from './ui/format'
 import { toast } from './ui/toast'
 import { haptic, isNativeApp, openExternal } from './app/native'
 import { showWelcome, showWhatsNew } from './app/onboarding'
+import { addFolder, listFolders, removeFolder, scanFolders } from './library/folders'
+import { X } from 'lucide'
 
 export interface SettingsScreenActions {
   get(): Settings
@@ -62,6 +64,7 @@ export class SettingsScreen {
         this.#toggle('Keep the screen on while reading', 'The screen won’t dim or lock while a book is open.', 'keepAwake'),
         ...(isNativeApp ? [this.#toggle('Turn pages with the volume keys', 'Volume down for the next page, volume up for the previous one.', 'volumeKeys')] : []),
       ]),
+      this.#folders(),
       this.#storage(),
       this.#about(),
     )
@@ -167,6 +170,51 @@ export class SettingsScreen {
     return row
   }
 
+  // Book folders: the folders Quiet adds books from (and, in the app, checks for new ones).
+  #folders() {
+    const rows: HTMLElement[] = []
+    for (const folder of isNativeApp ? listFolders() : []) {
+      const row = h('div', 'settings-row folder-row')
+      const text = h('div')
+      text.append(h('div', 'settings-label', folder.name), h('div', `settings-hint${folder.error ? ' danger-text' : ''}`, folder.error
+        ?? `${folder.count} ${folder.count === 1 ? 'book' : 'books'}${folder.lastScan ? ` · checked ${timeAgo(folder.lastScan)}` : ''}`))
+      const tools = h('div', 'folder-tools')
+      const check = h('button', 'btn small', 'Check now')
+      check.addEventListener('click', async () => {
+        check.disabled = true
+        await scanFolders(() => this.#actions.libraryCleared(), { only: folder.uri, announce: true })
+        this.render()
+      })
+      const remove = h('button', 'btn icon small')
+      remove.title = `Stop using “${folder.name}”`
+      remove.setAttribute('aria-label', remove.title)
+      remove.append(icon(X))
+      remove.addEventListener('click', async () => {
+        const ok = await confirmDialog({
+          title: `Stop using “${folder.name}”?`, confirm: 'Stop using it',
+          message: 'Quiet won’t look in this folder for new books any more. Books already added stay in your library, and the files aren’t touched.',
+        })
+        if (!ok) return
+        removeFolder(folder.uri)
+        this.render()
+      })
+      tools.append(check, remove)
+      row.append(text, tools)
+      rows.push(row)
+    }
+    const add = h('div', 'settings-row')
+    const addText = h('div')
+    addText.append(h('div', 'settings-label', rows.length ? 'Add another folder' : 'Add a book folder'),
+      h('div', 'settings-hint', 'Put your books in a folder first, for example “Books” in Downloads. Folders inside it count too.'))
+    const addButton = h('button', 'btn small primary', 'Add')
+    addButton.addEventListener('click', () => addFolder(() => { this.#actions.libraryCleared(); this.render() }))
+    add.append(addText, addButton)
+    rows.push(add)
+    return this.#section('Book folders', isNativeApp
+      ? 'Quiet adds every book in these folders, and checks them for new books each time it opens.'
+      : 'Add every book in a folder at once. The Android app also keeps checking the folder for new books.', rows)
+  }
+
   #storage() {
     const usage = h('div', 'settings-hint', 'Counting…')
     Promise.all([listBooks(), navigator.storage?.estimate?.().catch(() => null)]).then(([books, estimate]) => {
@@ -229,7 +277,7 @@ export class SettingsScreen {
 
     const links = h('div', 'about-links')
     const whatsNew = h('button', 'link-button', 'What’s new in this version')
-    whatsNew.addEventListener('click', () => showWhatsNew())
+    whatsNew.addEventListener('click', () => showWhatsNew('0.2.0'))
     const welcome = h('button', 'link-button', 'Show the welcome again')
     welcome.addEventListener('click', () => showWelcome(() => document.getElementById('fileInput')?.click()))
     links.append(whatsNew, welcome)
@@ -238,7 +286,7 @@ export class SettingsScreen {
       p('A calm, distraction-free place for your books.'),
       links,
       h('h3', 'details-heading', 'Privacy'),
-      p('Quiet has no account, no ads and no tracking. Your books, reading positions, bookmarks and notes stay on this device and are never sent anywhere. The only time Quiet uses the internet is when you choose Look up or Translate on selected text. Translate sends that text to Google Translate and shows the answer inside Quiet; Look up opens a Google search in your browser.'),
+      p('Quiet has no account, no ads and no tracking. Your books, reading positions, bookmarks and notes stay on this device and are never sent anywhere. The only time Quiet uses the internet is when you choose Look up or Translate on selected text. Translate sends that text to Google Translate (or to MyMemory, when Google is busy) and shows the answer inside Quiet; Look up opens a Google search in your browser.'),
       h('h3', 'details-heading', 'Formats'),
       p('EPUB, MOBI, AZW3 and AZW (without DRM), FB2, CBZ comics, PDF, TXT and HTML.'),
       h('h3', 'details-heading', 'Made with'),

@@ -27,6 +27,7 @@ export interface LibraryActions {
   open(id: string): void
   info(record: BookRecord): void
   add(): void
+  addFolder(): void
   remove(books: BookRecord[]): Promise<void>   // to Recently deleted, with Undo
   summary?(): Promise<HTMLElement | null>       // today's reading, shown at the top
   stats?(): void
@@ -106,14 +107,18 @@ export class LibraryView {
     badge.append(icon(Library))
     const button = h('button', 'btn primary', 'Choose a book')
     button.addEventListener('click', () => this.#actions.add())
+    const folder = h('button', 'btn', 'Add a book folder')
+    folder.addEventListener('click', () => this.#actions.addFolder())
+    const buttons = h('div', 'empty-buttons')
+    buttons.append(button, folder)
     const trash = h('button', 'link-button trash-link', 'Recently deleted')
     trash.hidden = true
     trash.addEventListener('click', () => showTrash(() => this.refresh()))
     inner.append(
       badge,
       h('h1', '', 'Make yourself at home.'),
-      h('p', '', 'A quiet, distraction-free place for your books. Add an EPUB, MOBI, AZW3, FB2, CBZ, TXT or PDF file and it will wait for you here, right where you left off.'),
-      button, trash,
+      h('p', '', 'A quiet, distraction-free place for your books. Add an EPUB, MOBI, AZW3, FB2, CBZ, TXT or PDF file, or a whole folder of them, and they’ll wait for you here, right where you left off.'),
+      buttons, trash,
     )
     this.#welcome.append(inner)
   }

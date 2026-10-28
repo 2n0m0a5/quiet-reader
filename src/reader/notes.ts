@@ -1,8 +1,9 @@
-import { Copy, Pencil, Tag, Trash2, X } from 'lucide'
+import { Copy, Pencil, Tag, Trash2, UserRound, X } from 'lucide'
 import { deleteAnnotation, listAnnotations, newId, saveAnnotation, type Annotation, type MarkStyle } from '../library/db'
 import { pickTags } from '../library/details'
 import { allHighlightTags, noteCard, noteTool, passageText } from '../ui/note-card'
 import { showTranslation } from './translate'
+import { askSpeaker, knownSpeakers } from '../ui/quote-dialog'
 import type { Reader } from './reader'
 import type { SearchResult } from './foliate'
 import { HIGHLIGHT_COLORS, hideSelectionMenu, showSelectionMenu } from './selection-menu'
@@ -28,12 +29,19 @@ export class BookNotes {
   #goTo: (cfi: string) => void
   #items: Annotation[] = []
   #lastColor = HIGHLIGHT_COLORS[0].value
+  #book: { title: string; author: string }
 
-  constructor(reader: Reader, bookId: string, ui: NotesUI, goTo: (cfi: string) => void) {
+  constructor(reader: Reader, book: { id: string; title: string; author: string }, ui: NotesUI, goTo: (cfi: string) => void) {
     this.#reader = reader
-    this.#bookId = bookId
+    this.#bookId = book.id
+    this.#book = { title: book.title, author: book.author }
     this.#ui = ui
     this.#goTo = goTo
+  }
+
+  // Asks who says a quote. Null if cancelled.
+  #askSpeaker(text: string, current?: string, editing = false) {
+    return askSpeaker({ text, current, known: knownSpeakers(this.#items), author: this.#book.author, editing })
   }
 
   async load() {
@@ -89,7 +97,12 @@ export class BookNotes {
       color: color => this.#create(selection, { color }),
       style: style => this.#create(selection, { style }),
       note: async () => this.#editNote(await this.#create(selection, {}, false)),
-      quote: async () => { await this.#create(selection, { style: 'plain', quote: true }, false); toast('Saved to Quotes.') },
+      quote: async () => {
+        const speaker = await this.#askSpeaker(selection.text)
+        if (speaker == null) return this.#reader.clearSelection()
+        await this.#create(selection, { style: 'plain', quote: true, speaker }, false)
+        toast('Saved to Quotes.')
+      },
       tags: async () => this.#editTags(await this.#create(selection, {}, false)),
       copy: () => this.#copy(selection.text),
       lookUp: () => lookUp(selection.text),
@@ -108,7 +121,9 @@ export class BookNotes {
       note: () => this.#editNote(a),
       quote: async () => {
         if (!a.quote) {
-          await this.#change(a, { quote: true })
+          const speaker = await this.#askSpeaker(a.text, a.speaker)
+          if (speaker == null) return
+          await this.#change(a, { quote: true, speaker })
           return toast('Saved to Quotes.')
         }
         // A passage kept only as a quote (no colour, no note) goes away entirely.
@@ -233,7 +248,7 @@ export class BookNotes {
     for (const t of tags) chip(`tag:${t}`, `#${t}`)
     const copyAll = h('button', 'btn small note-list-action')
     copyAll.append(icon(Copy), h('span', '', shown.length === all.length ? 'Copy all' : `Copy these ${shown.length}`))
-    copyAll.addEventListener('click', () => this.#copy(shown.map(a => passageText(a)).join('\n\n')))
+    copyAll.addEventListener('click', () => this.#copy(shown.map(a => passageText(a, this.#book)).join('\n\n')))
     this.#ui.noteList.prepend(chips, copyAll)
   }
 
@@ -246,6 +261,10 @@ export class BookNotes {
     for (const a of items) {
       const tools: HTMLElement[] = []
       if (a.type === 'highlight') {
+        if (a.quote) tools.push(noteTool('Who says it', UserRound, async () => {
+          const speaker = await this.#askSpeaker(a.text, a.speaker, true)
+          if (speaker != null) await this.#save({ ...this.#latest(a), speaker })
+        }))
         tools.push(noteTool(a.note ? 'Edit note' : 'Add note', Pencil, () => this.#editNote(a)))
         tools.push(noteTool('Tags', Tag, () => this.#editTags(a)))
       }
@@ -256,7 +275,7 @@ export class BookNotes {
         }
         this.#delete(a)
       }))
-      root.append(noteCard(a, { open: () => this.#goTo(a.cfi), tools }))
+      root.append(noteCard(a, { open: () => this.#goTo(a.cfi), tools, author: this.#book.author }))
     }
   }
 }

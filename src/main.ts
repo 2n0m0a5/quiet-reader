@@ -5,7 +5,7 @@ import './styles/app.css'
 import {
   createIcons, AArrowDown, AArrowUp, AlignJustify, AlignLeft, ArrowLeft, BookOpen, ChevronDown,
   ChevronLeft, ChevronRight, ChevronUp, Download, Library, List, Moon, Plus, Settings2, Sun, Sunset,
-  Bookmark, BookmarkCheck, NotebookText, Search, Settings as SettingsIcon, Undo2, X, ZoomIn, ZoomOut,
+  Bookmark, BookmarkCheck, NotebookText, Search, Settings as SettingsIcon, Undo2, X, ZoomIn, ZoomOut, FilePlus, FolderOpen,
 } from 'lucide'
 import { Reader, ZOOM_STEPS, type TapZone } from './reader/reader'
 import { effectiveTheme, onSystemThemeChange, paletteOf } from './reader/themes'
@@ -20,7 +20,8 @@ import { getBook, getFile, moveToTrash, restoreBooks, updateBook, type BookRecor
 import { asFile, importBook, ImportError } from './library/import'
 import { LibraryView } from './library/library-view'
 import { showBookDetails } from './library/details'
-import { closeTopDialog, formDialog } from './ui/dialog'
+import { closeTopDialog, formDialog, icon, menuDialog } from './ui/dialog'
+import { addFolder, scanFolders } from './library/folders'
 import { BookNotes, BookSearch } from './reader/notes'
 import { hideSelectionMenu } from './reader/selection-menu'
 import { duration, percent } from './ui/format'
@@ -307,6 +308,7 @@ ui.searchInput.addEventListener('input', () => { if (!ui.searchInput.value) book
 const library = new LibraryView($('library'), {
   open: openBook,
   add: chooseFiles,
+  addFolder: () => addFolder(() => library.refresh()),
   info: record => showBookDetails(record, {
     read: openBook,
     remove: book => removeBooks([book]),
@@ -464,7 +466,28 @@ $('errorBack').addEventListener('click', goToLibrary)
 function chooseFiles() {
   ui.fileInput.click()
 }
-$('openFile').addEventListener('click', chooseFiles)
+
+// "Add books": a few files, or a whole folder of them.
+$('openFile').addEventListener('click', () => menuDialog({
+  title: 'Add books',
+  items: [
+    { label: 'Choose books', hint: 'Pick one or more book files.', icon: icon(FilePlus), run: chooseFiles },
+    {
+      label: 'Add a book folder', icon: icon(FolderOpen), run: () => addFolder(() => library.refresh()),
+      hint: isNativeApp ? 'Every book in a folder, and new ones as you add them.' : 'Every book in a folder.',
+    },
+  ],
+}))
+
+// The Android app checks the book folders for new books when it opens, and when it comes back
+// after a while in the background.
+const RESCAN_AFTER = 10 * 60_000
+let lastFolderScan = 0
+function checkFolders() {
+  if (!isNativeApp || Date.now() - lastFolderScan < RESCAN_AFTER) return
+  lastFolderScan = Date.now()
+  scanFolders(() => { if (ui.app.dataset.view === 'library') library.refresh() })
+}
 
 ui.fileInput.addEventListener('change', () => {
   const files = Array.from(ui.fileInput.files ?? [])
@@ -594,7 +617,7 @@ async function showReader(id: string) {
   reader = next
   tracker = new ReadingTracker(id, checkDailyGoal)
   ui.app.toggleAttribute('data-fxl', next.view.isFixedLayout)
-  notes = new BookNotes(next, id, { bookmarkList: $('bookmarkList'), noteList: $('noteList'), bookmarkButton: ui.bookmarkToggle }, goToFromPanel)
+  notes = new BookNotes(next, { id, title: record.title, author: record.author }, { bookmarkList: $('bookmarkList'), noteList: $('noteList'), bookmarkButton: ui.bookmarkToggle }, goToFromPanel)
   notes.load()
   bookSearch = new BookSearch(next, { status: $('searchStatus'), results: $('searchResults') }, goToFromPanel)
   applyReadingSession()
@@ -721,6 +744,7 @@ document.addEventListener('keydown', e => {
 })
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') { reader?.save(); tracker?.save() }
+  else checkFolders()
 })
 
 // The website keeps itself offline with a service worker. The Android app doesn't need one:
@@ -748,3 +772,4 @@ onBackButton(() => {
 render()
 route()
 listBooks().then(books => greet(books.length > 0, chooseFiles))
+checkFolders()

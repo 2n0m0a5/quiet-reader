@@ -66,6 +66,7 @@ export interface Annotation {
   // Added in version 3.
   style?: MarkStyle     // how a highlight is drawn; missing means 'highlight'
   quote?: boolean       // saved to Quotes
+  speaker?: string      // who says it, for a quote: a character; empty means the narrator or author
   tags?: string[]
 }
 

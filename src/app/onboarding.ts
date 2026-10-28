@@ -1,12 +1,20 @@
 // The first-run welcome (three short pages), and "What's new" after an update.
-import { BookOpen, ChartColumn, Highlighter, Languages, Library, NotebookText, Palette, Quote } from 'lucide'
+import { BookOpen, ChartColumn, FolderOpen, Highlighter, Languages, Library, NotebookText, Palette, Quote } from 'lucide'
 import { button, h, icon, openDialog } from '../ui/dialog'
 
 const WELCOME_KEY = 'quiet:welcome-seen'
 const VERSION_KEY = 'quiet:seen-version'
 
-// "0.3.0-dev.5" → "0.3": What's new is shown once per version, not for every small update.
-const feature = (version: string) => version.split('.').slice(0, 2).join('.')
+// The last version with something to tell: What's new shows once to anyone updating from before it.
+const NEWS = '0.3.1'
+
+// "0.3.0-dev.5" → [0, 3, 0], for comparing versions.
+const parts = (version: string) => version.split('-')[0].split('.').map(Number)
+const older = (a: string, b: string) => {
+  const [x, y] = [parts(a), parts(b)]
+  for (let i = 0; i < 3; i++) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) < (y[i] ?? 0)
+  return false
+}
 
 const read = (key: string) => { try { return localStorage.getItem(key) } catch { return null } }
 const write = (key: string, value: string) => { try { localStorage.setItem(key, value) } catch { /* storage unavailable */ } }
@@ -21,7 +29,7 @@ export function greet(hasBooks: boolean, addBooks: () => void) {
   }
   write(WELCOME_KEY, '1')
   // Versions before 0.3 didn't remember themselves; having books means it's an update.
-  if ((seen ? feature(seen) : '0.2') !== feature(__APP_VERSION__)) showWhatsNew()
+  if (older(seen ?? '0.2.0', NEWS)) showWhatsNew(seen ?? '0.2.0')
 }
 
 interface Page { art: HTMLElement; title: string; text: string }
@@ -100,7 +108,12 @@ export function showWelcome(addBooks: () => void) {
 }
 
 // What's new in this version. Also opened from Settings → About.
-export function showWhatsNew() {
+// `since`: the version the reader had before; what's newer than that comes first.
+export function showWhatsNew(since = '0.3.0') {
+  const latest: [typeof BookOpen, string, string][] = [
+    [FolderOpen, 'Book folders', 'Fill a folder with books and choose it once: Quiet adds them all, and in the app it checks the folder for new books each time it opens. Add books → Add a book folder.'],
+    [Quote, 'Quotes have owners', 'When you save a quote, say who says it: a character, or leave it empty for the narrator. Copied quotes are signed with their name and the book.'],
+  ]
   const items: [typeof BookOpen, string, string][] = [
     [Palette, 'Reading comfort', 'Black and custom themes, a System theme, warm light, a reading ruler, bold word starts, text weight and spacing.'],
     [BookOpen, 'Easier reading', 'Footnotes in a small window, pictures full screen, go to any percent, a Back chip after links, and pinch to zoom PDFs.'],
@@ -110,7 +123,8 @@ export function showWhatsNew() {
     [ChartColumn, 'Reading stats', 'Time read, a gentle streak, daily and yearly goals, and how many pages you read.'],
   ]
   const list = h('div', 'whats-new')
-  for (const [symbol, title, text] of items) {
+  const rows = older(since, '0.3.0') ? [...latest, ...items] : latest
+  for (const [symbol, title, text] of rows) {
     const row = h('div', 'whats-new-item')
     const badge = h('div', 'whats-new-icon')
     badge.append(icon(symbol))
@@ -120,6 +134,6 @@ export function showWhatsNew() {
     list.append(row)
   }
   const actions = h('div', 'dialog-actions')
-  const d = openDialog({ title: `What’s new in Quiet ${feature(__APP_VERSION__)}`, className: 'dialog-details', content: [list, actions] })
+  const d = openDialog({ title: `What’s new in Quiet ${NEWS}`, className: 'dialog-details', content: [list, actions] })
   actions.append(button('Continue', 'primary', () => d.close()))
 }

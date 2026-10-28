@@ -40,7 +40,13 @@ interface QuietNativePlugin {
   setOrientation(options: { value: Orientation }): Promise<void>
   haptic(options: { kind: 'tick' | 'confirm' }): Promise<void>
   battery(): Promise<{ level: number; charging: boolean }>
+  pickFolder(): Promise<{ uri?: string; name?: string; cancelled?: boolean }>
+  scanFolder(options: { uri: string }): Promise<{ name: string; files: FolderFile[] }>
+  copyFile(options: { uri: string; name: string }): Promise<{ path: string; name: string; type: string }>
+  forgetFolder(options: { uri: string }): Promise<void>
 }
+
+export interface FolderFile { uri: string; name: string; size: number; modified: number }
 
 const QuietNative = registerPlugin<QuietNativePlugin>('QuietNative')
 
@@ -106,6 +112,29 @@ export async function batteryLevel(): Promise<number | null> {
     return null
   }
 }
+
+// ---------- Book folders (Android app) ----------
+
+// Android's folder picker. Null if cancelled.
+export async function pickFolder(): Promise<{ uri: string; name: string } | null> {
+  const result = await QuietNative.pickFolder()
+  return result.uri ? { uri: result.uri, name: result.name ?? 'Folder' } : null
+}
+
+export const scanFolder = (uri: string) => QuietNative.scanFolder({ uri })
+
+// One book from a folder, as a File the library can add.
+export async function readFolderFile(file: FolderFile): Promise<File> {
+  const { path, name, type } = await QuietNative.copyFile({ uri: file.uri, name: file.name })
+  try {
+    const blob = await (await fetch(Capacitor.convertFileSrc(`file://${path}`))).blob()
+    return new File([blob], name, { type: type || blob.type })
+  } finally {
+    quietly(QuietNative.release({ path }))
+  }
+}
+
+export const forgetFolder = (uri: string) => quietly(QuietNative.forgetFolder({ uri }))
 
 // Opens a web page outside Quiet: the system browser in the app, a new tab on the website.
 // (In the app, Capacitor hands any navigation away from the app to the system browser.)

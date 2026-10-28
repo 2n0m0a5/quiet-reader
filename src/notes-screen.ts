@@ -1,6 +1,6 @@
 // The Notes screen: highlights, notes and quotes from every book, in one place. Searchable,
 // filtered by quotes, notes or tags, and grouped by book or newest first.
-import { Copy, Ellipsis, NotebookPen, Pencil, Quote, Search, Tag, Trash2, X } from 'lucide'
+import { Copy, Ellipsis, NotebookPen, Pencil, Quote, Search, Tag, Trash2, UserRound, X } from 'lucide'
 import {
   deleteAnnotation, listAllAnnotations, listBooks, saveAnnotation, type Annotation, type BookRecord,
 } from './library/db'
@@ -9,6 +9,7 @@ import { generatedCover } from './library/library-view'
 import { confirmDialog, formDialog, h, icon, menuDialog } from './ui/dialog'
 import { allHighlightTags, noteCard, noteTool, passageText } from './ui/note-card'
 import { toast } from './ui/toast'
+import { askSpeaker, knownSpeakers } from './ui/quote-dialog'
 
 type Filter = 'all' | 'quotes' | 'notes' | `tag:${string}`
 type Order = 'book' | 'newest'
@@ -110,7 +111,7 @@ export class NotesScreen {
     const q = normalize(this.#query.replace(/^#/, ''))
     return this.#items.filter(a => {
       const book = this.#books.get(a.bookId)
-      if (q && !normalize(`${a.text} ${a.note ?? ''} ${(a.tags ?? []).join(' ')} ${book?.title ?? ''} ${book?.author ?? ''}`).includes(q)) return false
+      if (q && !normalize(`${a.text} ${a.note ?? ''} ${a.speaker ?? ''} ${(a.tags ?? []).join(' ')} ${book?.title ?? ''} ${book?.author ?? ''}`).includes(q)) return false
       if (this.#filter === 'quotes') return a.quote
       if (this.#filter === 'notes') return !!a.note
       if (this.#filter.startsWith('tag:')) return a.tags?.includes(this.#filter.slice(4))
@@ -184,16 +185,27 @@ export class NotesScreen {
     return noteCard(a, {
       open: () => this.#actions.openAt(a.bookId, a.cfi),
       book: showBook ? name : undefined,
+      author: book?.author,
       tools: [
-        noteTool('Copy', Copy, () => this.#copy(passageText(a, name))),
-        noteTool('More', Ellipsis, () => this.#menu(a, name)),
+        noteTool('Copy', Copy, () => this.#copy(passageText(a, book))),
+        noteTool('More', Ellipsis, () => this.#menu(a, book)),
       ],
     })
   }
 
-  #menu(a: Annotation, book: string) {
+  // Who says it, for a quote. Null if cancelled.
+  #askSpeaker(a: Annotation, editing: boolean) {
+    const sameBook = this.#items.filter(x => x.bookId === a.bookId)
+    return askSpeaker({ text: a.text, current: a.speaker, known: knownSpeakers(sameBook), author: this.#books.get(a.bookId)?.author, editing })
+  }
+
+  #menu(a: Annotation, book?: BookRecord) {
     menuDialog({
       items: [
+        ...(a.quote ? [{ label: a.speaker ? `Who says it: ${a.speaker}` : 'Who says it…', icon: icon(UserRound), run: async () => {
+          const speaker = await this.#askSpeaker(a, true)
+          if (speaker != null) await this.#save({ ...a, speaker })
+        } }] : []),
         { label: a.note ? 'Edit note' : 'Add a note', icon: icon(Pencil), run: () => this.#editNote(a) },
         { label: 'Tags', icon: icon(Tag), run: () => this.#editTags(a) },
         { label: a.quote ? 'Remove from Quotes' : 'Save as a quote', icon: icon(Quote), run: () => this.#toggleQuote(a) },
@@ -224,7 +236,9 @@ export class NotesScreen {
 
   async #toggleQuote(a: Annotation) {
     if (!a.quote) {
-      await this.#save({ ...a, quote: true })
+      const speaker = await this.#askSpeaker(a, false)
+      if (speaker == null) return
+      await this.#save({ ...a, quote: true, speaker })
       return toast('Saved to Quotes.')
     }
     // A passage kept only as a quote (no colour, no note) goes away entirely.

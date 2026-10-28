@@ -1,5 +1,6 @@
 package app.quietreader;
 
+import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -11,13 +12,17 @@ import android.os.Build;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
+import android.provider.DocumentsContract;
 import android.provider.OpenableColumns;
 import android.view.KeyEvent;
 import android.view.WindowManager;
+import androidx.activity.result.ActivityResult;
+import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -33,6 +38,8 @@ import java.util.List;
  *  - Turning pages with the volume keys ("volumeKey" events), when the web app asks for it.
  *  - Keeping the screen on while reading.
  *  - Screen rotation lock, small vibrations (haptics), and the battery level for the reading clock.
+ *  - Book folders: the reader picks folders full of books; Quiet keeps permission to read them,
+ *    lists the books inside (sub-folders too) and copies new ones in for the web app to add.
  */
 @CapacitorPlugin(name = "QuietNative")
 public class QuietNativePlugin extends Plugin {
@@ -81,19 +88,28 @@ public class QuietNativePlugin extends Plugin {
         return intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
     }
 
-    private void copyAndAnnounce(Uri uri) {
-        ContentResolver resolver = getContext().getContentResolver();
-        String name = displayName(resolver, uri);
-        String type = resolver.getType(uri);
+    // Copies a file the web app can't read directly into the app's cache, where it can.
+    private File copyToCache(Uri uri, String name) throws Exception {
         File dir = new File(getContext().getCacheDir(), "incoming");
         //noinspection ResultOfMethodCallIgnored
         dir.mkdirs();
         File out = new File(dir, System.currentTimeMillis() + "-" + name.replaceAll("[\\\\/:*?\"<>|]", "_"));
-        try (InputStream in = resolver.openInputStream(uri); OutputStream os = new FileOutputStream(out)) {
+        try (InputStream in = getContext().getContentResolver().openInputStream(uri); OutputStream os = new FileOutputStream(out)) {
             if (in == null) throw new Exception("No data");
             byte[] buffer = new byte[64 * 1024];
             int n;
             while ((n = in.read(buffer)) > 0) os.write(buffer, 0, n);
+        }
+        return out;
+    }
+
+    private void copyAndAnnounce(Uri uri) {
+        ContentResolver resolver = getContext().getContentResolver();
+        String name = displayName(resolver, uri);
+        String type = resolver.getType(uri);
+        File out;
+        try {
+            out = copyToCache(uri, name);
         } catch (Exception e) {
             JSObject error = new JSObject();
             error.put("name", name);
@@ -220,5 +236,144 @@ public class QuietNativePlugin extends Plugin {
         data.put("level", level < 0 || scale <= 0 ? 1.0 : level / (double) scale);
         data.put("charging", plugged != 0);
         call.resolve(data);
+    }
+
+    // ---------- Book folders ----------
+
+    private static final String[] BOOK_EXTENSIONS = { "epub", "mobi", "azw3", "azw", "fb2", "fbz", "cbz", "pdf", "txt", "html", "htm" };
+    private static final int MAX_DEPTH = 8;
+    private static final int MAX_FILES = 5000;
+
+    // Opens Android's folder picker. Resolves with the folder, or { cancelled: true }.
+    @PluginMethod
+    public void pickFolder(PluginCall call) {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        startActivityForResult(call, intent, "folderPicked");
+    }
+
+    @ActivityCallback
+    private void folderPicked(PluginCall call, ActivityResult result) {
+        if (call == null) return;
+        Intent data = result.getData();
+        if (result.getResultCode() != Activity.RESULT_OK || data == null || data.getData() == null) {
+            JSObject cancelled = new JSObject();
+            cancelled.put("cancelled", true);
+            call.resolve(cancelled);
+            return;
+        }
+        Uri tree = data.getData();
+        // Keep the permission after a restart, so Quiet can check the folder for new books.
+        try {
+            getContext().getContentResolver().takePersistableUriPermission(tree, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } catch (SecurityException ignored) {}
+        JSObject folder = new JSObject();
+        folder.put("uri", tree.toString());
+        folder.put("name", folderName(tree));
+        call.resolve(folder);
+    }
+
+    // Lists the books in a folder and the folders inside it: { name, files: [{ uri, name, size, modified }] }.
+    @PluginMethod
+    public void scanFolder(PluginCall call) {
+        String value = call.getString("uri");
+        if (value == null) {
+            call.reject("No folder");
+            return;
+        }
+        new Thread(() -> {
+            try {
+                Uri tree = Uri.parse(value);
+                JSArray files = new JSArray();
+                walk(tree, DocumentsContract.getTreeDocumentId(tree), files, 0);
+                JSObject result = new JSObject();
+                result.put("name", folderName(tree));
+                result.put("files", files);
+                call.resolve(result);
+            } catch (Exception e) {
+                call.reject("Couldn't read the folder: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    private void walk(Uri tree, String parentId, JSArray files, int depth) {
+        Uri children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, parentId);
+        String[] columns = {
+            DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+            DocumentsContract.Document.COLUMN_MIME_TYPE, DocumentsContract.Document.COLUMN_SIZE,
+            DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+        };
+        try (Cursor cursor = getContext().getContentResolver().query(children, columns, null, null, null)) {
+            if (cursor == null) return;
+            while (cursor.moveToNext() && files.length() < MAX_FILES) {
+                String id = cursor.getString(0);
+                String name = cursor.getString(1);
+                String mime = cursor.getString(2);
+                if (name == null || name.startsWith(".")) continue;
+                if (DocumentsContract.Document.MIME_TYPE_DIR.equals(mime)) {
+                    if (depth < MAX_DEPTH) walk(tree, id, files, depth + 1);
+                    continue;
+                }
+                if (!isBook(name)) continue;
+                JSObject file = new JSObject();
+                file.put("uri", DocumentsContract.buildDocumentUriUsingTree(tree, id).toString());
+                file.put("name", name);
+                file.put("size", cursor.isNull(3) ? 0 : cursor.getLong(3));
+                file.put("modified", cursor.isNull(4) ? 0 : cursor.getLong(4));
+                files.put(file);
+            }
+        }
+    }
+
+    private static boolean isBook(String name) {
+        String lower = name.toLowerCase();
+        for (String ext : BOOK_EXTENSIONS) if (lower.endsWith("." + ext)) return true;
+        return false;
+    }
+
+    private String folderName(Uri tree) {
+        try {
+            Uri doc = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree));
+            try (Cursor cursor = getContext().getContentResolver().query(doc, new String[] { DocumentsContract.Document.COLUMN_DISPLAY_NAME }, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst() && cursor.getString(0) != null) return cursor.getString(0);
+            }
+        } catch (Exception ignored) {}
+        String last = tree.getLastPathSegment();
+        return last == null ? "Folder" : last.substring(last.lastIndexOf(':') + 1);
+    }
+
+    // Copies one book from a folder into the cache: { path, name, type }. Release it afterwards.
+    @PluginMethod
+    public void copyFile(PluginCall call) {
+        String value = call.getString("uri");
+        String name = call.getString("name", "book");
+        if (value == null) {
+            call.reject("No file");
+            return;
+        }
+        new Thread(() -> {
+            try {
+                Uri uri = Uri.parse(value);
+                File out = copyToCache(uri, name);
+                String type = getContext().getContentResolver().getType(uri);
+                JSObject result = new JSObject();
+                result.put("path", out.getAbsolutePath());
+                result.put("name", name);
+                result.put("type", type == null ? "" : type);
+                call.resolve(result);
+            } catch (Exception e) {
+                call.reject("Couldn't copy " + name + ": " + e.getMessage());
+            }
+        }).start();
+    }
+
+    // The reader removed the folder from Quiet: give back the permission to read it.
+    @PluginMethod
+    public void forgetFolder(PluginCall call) {
+        String value = call.getString("uri");
+        try {
+            if (value != null) getContext().getContentResolver().releasePersistableUriPermission(Uri.parse(value), Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } catch (Exception ignored) {}
+        call.resolve();
     }
 }
