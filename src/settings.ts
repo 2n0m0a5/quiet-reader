@@ -1,12 +1,15 @@
 // Reading preferences, remembered between visits.
 
 // The design style: how the whole app looks (fonts, colours, shapes, controls).
-export type DesignStyle = 'star' | 'paper' | 'tashkent'
-export const DESIGN_STYLES: DesignStyle[] = ['star', 'paper', 'tashkent']
+export type DesignStyle = 'star' | 'paper' | 'tashkent' | 'frost'
+export const DESIGN_STYLES: DesignStyle[] = ['star', 'paper', 'tashkent', 'frost']
 
 export type Theme = 'light' | 'sepia' | 'dark' | 'black' | 'custom' | 'system'
 export type Flow = 'scrolled' | 'paginated'
-export type FontChoice = 'original' | 'serif' | 'sans'
+// How a page turns in page mode.
+export type PageTurn = 'slide' | 'curl' | 'none'
+// `custom:<family>` is a font you added (reader/custom-fonts.ts).
+export type FontChoice = 'original' | 'serif' | 'sans' | `custom:${string}`
 export type Margins = 'narrow' | 'normal' | 'wide'
 export type Align = 'start' | 'justify'
 export type Ruler = 'off' | 'line' | 'focus'
@@ -14,6 +17,7 @@ export type Orientation = 'auto' | 'portrait' | 'landscape'
 
 export interface Settings {
   style: DesignStyle
+  pageTurn: PageTurn
   theme: Theme
   customBg: string        // colours for the Custom theme
   customText: string
@@ -46,6 +50,7 @@ export interface Settings {
 
 export const defaults: Settings = {
   style: 'star',
+  pageTurn: 'slide',
   theme: 'light',
   customBg: '#f3efe6',
   customText: '#2b2a26',

@@ -6,6 +6,7 @@ import { addToLibrary } from './import'
 import { button, h, icon, openDialog } from '../ui/dialog'
 import { toast } from '../ui/toast'
 import { forgetFolder, isNativeApp, pickFolder, readFolderFile, scanFolder, type FolderFile } from '../app/native'
+import { isBookFile } from '../formats/formats'
 
 export interface BookFolder {
   uri: string
@@ -17,7 +18,6 @@ export interface BookFolder {
 }
 
 const KEY = 'quiet:book-folders'
-const BOOK = /\.(epub|mobi|azw3?|fb2|fbz|cbz|pdf|txt|html?)$/i
 
 export function listFolders(): BookFolder[] {
   try { return JSON.parse(localStorage.getItem(KEY) ?? '[]') } catch { return [] }
@@ -80,7 +80,7 @@ function chooseInBrowser(changed: () => void) {
   input.multiple = true
   input.setAttribute('webkitdirectory', '')
   input.addEventListener('change', async () => {
-    const files = Array.from(input.files ?? []).filter(f => BOOK.test(f.name))
+    const files = Array.from(input.files ?? []).filter(f => isBookFile(f.name))
     const name = (input.files?.[0] as (File & { webkitRelativePath?: string }) | undefined)?.webkitRelativePath?.split('/')[0] || 'the folder'
     if (!files.length) return toast(`No books in “${name}”.`, 5000)
     const { added, failed } = await addFiles(files.map(f => async () => f), name, changed, true)

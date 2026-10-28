@@ -830,6 +830,8 @@ export class Paginator extends HTMLElement {
             x: touch?.screenX, y: touch?.screenY,
             t: e.timeStamp,
             vx: 0, xy: 0,
+            // Quiet: how far the finger moved in all (for "swipe-turn", below).
+            totalX: 0, totalY: 0,
         }
     }
     #onTouchMove(e) {
@@ -851,12 +853,23 @@ export class Paginator extends HTMLElement {
         state.t = e.timeStamp
         state.vx = dx / dt
         state.vy = dy / dt
+        state.totalX += dx
+        state.totalY += dy
         this.#touchScrolled = true
+        // Quiet: with the "swipe-turn" attribute, a swipe doesn't drag the page; it asks for a
+        // page turn when the finger lifts (the page curl in Quiet's reader is drawn that way).
+        if (this.hasAttribute('swipe-turn')) return
         this.scrollBy(dx, dy)
     }
     #onTouchEnd() {
         this.#touchScrolled = false
         if (this.scrolled) return
+        if (this.hasAttribute('swipe-turn')) {
+            const { totalX, totalY, vx } = this.#touchState
+            if (Math.abs(totalX) > Math.abs(totalY) && (Math.abs(totalX) > 40 || Math.abs(vx) > 0.3))
+                this.dispatchEvent(new CustomEvent('swipe-turn', { detail: { side: totalX > 0 ? 'right' : 'left' } }))
+            return
+        }
 
         // XXX: Firefox seems to report scale as 1... sometimes...?
         // at this point I'm basically throwing `requestAnimationFrame` at

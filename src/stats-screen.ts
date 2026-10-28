@@ -7,6 +7,7 @@ import { generatedCover } from './library/library-view'
 import type { Settings } from './settings'
 import { computeMore, computeStats, readingTime, type MoreStats, type Stats } from './stats/stats'
 import { columns, growWhenSeen, heatmap, numbers, readout, table } from './stats/charts'
+import { rollNumbers } from './ui/motion'
 import { h, icon } from './ui/dialog'
 import { haptic } from './app/native'
 
@@ -45,6 +46,8 @@ export class StatsScreen {
     )
     this.#root.replaceChildren(inner)
     inner.querySelectorAll<HTMLElement>('.chart-columns, .chart-heatmap').forEach(growWhenSeen)
+    // The big numbers count up to their value.
+    rollNumbers(inner.querySelectorAll<HTMLElement>('.stats-big, .stats-ring-value, .stats-value'))
   }
 
   reset() { this.#root.scrollTop = 0 }

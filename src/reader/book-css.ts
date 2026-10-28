@@ -1,6 +1,7 @@
 import type { Settings } from '../settings'
 import { fontFaceCSS, fontStacks } from './fonts'
 import { paletteOf } from './themes'
+import { customFontCSS, familyStack } from './custom-fonts'
 
 // Replaces the book's fonts everywhere except code, which stays monospaced.
 const fontRule = (stack: string) => `
@@ -15,7 +16,9 @@ export function bookCSS(settings: Settings) {
   const hyphens = hyphenate ? 'auto' : 'manual'
   return `
     @namespace epub "http://www.idpf.org/2007/ops";
-    ${font === 'original' ? '' : fontFaceCSS(style) + fontRule(fontStacks(style)[font])}
+    ${font === 'original' ? ''
+      : font.startsWith('custom:') ? customFontCSS() + fontRule(familyStack(font.slice(7)))
+      : fontFaceCSS(style) + fontRule(fontStacks(style)[font as 'serif' | 'sans'])}
     html {
       color-scheme: ${c.dark ? 'dark' : 'light'};
       background: ${c.bg} !important;

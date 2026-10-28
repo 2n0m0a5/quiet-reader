@@ -7,7 +7,7 @@ const WELCOME_KEY = 'quiet:welcome-seen'
 const VERSION_KEY = 'quiet:seen-version'
 
 // The last version with something to tell: What's new shows once to anyone updating from before it.
-const NEWS = '0.3.3'
+const NEWS = '0.3.4'
 
 // "0.3.0-dev.5" → [0, 3, 0], for comparing versions.
 const parts = (version: string) => version.split('-')[0].split('.').map(Number)
@@ -61,10 +61,12 @@ export function showWelcome(addBooks: () => void) {
   const style = document.documentElement.dataset.style
   const pages: Page[] = [
     style === 'paper'
-      ? { art: logo, title: 'A place to read. Nothing else.', text: 'EPUB, PDF, comics, FB2, MOBI and more. No account, no ads, no feed. Your books, your place in them and your notes stay on this device.' }
+      ? { art: logo, title: 'A place to read. Nothing else.', text: 'EPUB, PDF, Word, comics, FB2, MOBI and more. No account, no ads, no feed. Your books, your place in them and your notes stay on this device.' }
+      : style === 'frost'
+      ? { art: logo, title: 'Clear as glass.', text: 'Your books, with everything else on a pane of frosted glass that floats out of the way. EPUB, PDF, Word, comics and more. Everything stays on this device.' }
       : style === 'tashkent'
-      ? { art: logo, title: 'Come in, and read.', text: 'A quiet courtyard for your books: EPUB, PDF, comics, FB2, MOBI and more. Everything stays on this device. No account, no ads.' }
-      : { art: logo, title: 'Just you and the book.', text: 'A calm place for your books: EPUB, PDF, comics, FB2, MOBI and more. Everything stays on this device. No account, no ads, no tracking.' },
+      ? { art: logo, title: 'Come in, and read.', text: 'A quiet courtyard for your books: EPUB, PDF, Word, comics, FB2, MOBI and more. Everything stays on this device. No account, no ads.' }
+      : { art: logo, title: 'Just you and the book.', text: 'A calm place for your books: EPUB, PDF, Word, comics, FB2, MOBI and more. Everything stays on this device. No account, no ads, no tracking.' },
     { art: phone, title: 'Tap to read', text: 'Tap the middle of the page to show or hide the controls. In page mode, tap the left or right edge to turn the page.' },
     { art: marks, title: 'Make it yours', text: 'Select text to highlight it, write a note, save a quote or translate it. Themes, fonts and spacing are under the sliders button while you read.' },
   ]
@@ -115,8 +117,14 @@ export function showWelcome(addBooks: () => void) {
 
 // What's new in this version. Also opened from Settings → About.
 // `since`: the version the reader had before; what's newer than that comes first.
-export function showWhatsNew(since = '0.3.2') {
+export function showWhatsNew(since = '0.3.3') {
   const latest: [typeof BookOpen, string, string][] = [
+    [Palette, 'A fourth style: Frosty Glass', 'Controls of frosted glass float over a clear page, on soft, icy light. A liquid lens moves between tabs, and glass lights up where you press. Settings → Style.'],
+    [Sparkles, 'Everything moves', 'A book zooms out of its cover and back into it. Icons answer when tapped, books glide into place when sorted, swipe from the left edge to leave a book, and pages can curl.'],
+    [BookOpen, 'More kinds of books', 'Word (DOCX), OpenDocument (ODT), RTF, Markdown and Palm documents, and comics in CBR, CB7 and CBT, or as pictures in a zip.'],
+    [Library, 'Series, fonts and quote pictures', 'A Series shelf with each series in order. Read in your own fonts (Settings → Your fonts). Share a quote as a picture from Notes.'],
+  ]
+  const v033: [typeof BookOpen, string, string][] = [
     [Palette, 'A third style: Old Tashkent', 'Ganch plaster, carved walnut and arched doorways. Books sit in arches, and screens open like a door into a courtyard. Settings → Style.'],
     [ChartColumn, 'Five new reading stats', 'Your reading year as a calendar, when you read, your pace, finished books by month, and book by book with time left to finish.'],
     [Sparkles, 'Motion like iOS', 'Lists stretch past their ends and ease back. In scroll mode, keep pulling at the end of a chapter and let go to turn it. Drag sheets down to close. And each style moves in its own way.'],
@@ -138,7 +146,7 @@ export function showWhatsNew(since = '0.3.2') {
     [ChartColumn, 'Reading stats', 'Time read, a gentle streak, daily and yearly goals, and how many pages you read.'],
   ]
   const list = h('div', 'whats-new')
-  const rows = [...latest, ...older(since, '0.3.2') ? v032 : [], ...older(since, '0.3.1') ? before : [], ...older(since, '0.3.0') ? items : []]
+  const rows = [...latest, ...older(since, '0.3.3') ? v033 : [], ...older(since, '0.3.2') ? v032 : [], ...older(since, '0.3.1') ? before : [], ...older(since, '0.3.0') ? items : []]
   for (const [symbol, title, text] of rows) {
     const row = h('div', 'whats-new-item')
     const badge = h('div', 'whats-new-icon')

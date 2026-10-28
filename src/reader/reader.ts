@@ -2,7 +2,7 @@ import '../../vendor/foliate-js/view.js'
 import { Overlayer } from '../../vendor/foliate-js/overlayer.js'
 import * as CFI from '../../vendor/foliate-js/epubcfi.js'
 import type { Book, FoliateView, Location } from './foliate'
-import type { Flow, Margins, Settings } from '../settings'
+import type { Flow, Margins, PageTurn, Settings } from '../settings'
 import type { MarkStyle } from '../library/db'
 import { bookCSS } from './book-css'
 import { addBionic, removeBionic } from './bionic'
@@ -60,6 +60,8 @@ export class Reader {
   #events: ReaderEvents
   #saveTimer = 0
   #pull: ChapterPull
+  #pageTurn: PageTurn = 'slide'
+  #curling = false
   #marks = new Map<string, Mark & { index: number }>()
   #selectionTimer = 0
   #scrollPastEnd = true
@@ -128,6 +130,10 @@ export class Reader {
     this.apply(settings)
     await view.init({ lastLocation: lastPosition ?? undefined })
     this.#watchScroll()
+    view.renderer?.addEventListener('swipe-turn', e => {
+      this.#events.onUserMove()
+      ;(e as CustomEvent<{ side: 'left' | 'right' }>).detail.side === 'right' ? this.goRight() : this.goLeft()
+    })
   }
 
   apply(settings: Settings) {
@@ -135,6 +141,9 @@ export class Reader {
     if (!renderer) return
     renderer.setStyles?.(bookCSS(settings))
     this.#scrollPastEnd = settings.scrollPastEnd
+    this.#pageTurn = settings.pageTurn ?? 'slide'
+    // Curl: a swipe asks for a turn (drawn by #curl) instead of dragging the page along.
+    renderer.toggleAttribute('swipe-turn', this.#pageTurn === 'curl')
     if (settings.bionic !== this.#bionic) this.#setBionic(settings.bionic)
     if (!this.view.isFixedLayout) {
       const { gap, maxWidth } = MARGINS[settings.margins] ?? MARGINS.normal
@@ -142,8 +151,8 @@ export class Reader {
       renderer.setAttribute('max-inline-size', maxWidth)
       renderer.setAttribute('margin', settings.flow === 'paginated' ? '44px' : '28px')
       renderer.setAttribute('gap', gap)
-      // Pages slide when they turn, unless the device asks for less motion.
-      renderer.toggleAttribute('animated', !matchMedia('(prefers-reduced-motion: reduce)').matches)
+      // Pages slide when they turn (if chosen), unless the device asks for less motion.
+      renderer.toggleAttribute('animated', this.#pageTurn === 'slide' && !matchMedia('(prefers-reduced-motion: reduce)').matches)
     }
   }
 
@@ -326,8 +335,35 @@ export class Reader {
     })
   }
 
-  prev() { return this.view.prev() }
-  next() { return this.view.next() }
+  prev() { return this.#curl(-1, () => this.view.prev()) }
+  next() { return this.#curl(1, () => this.view.next()) }
+  // Turning by side of the screen (taps, arrow keys, swipes). In right-to-left books, left is forward.
+  goLeft() { return this.#curl(this.#rtl ? 1 : -1, () => this.view.goLeft()) }
+  goRight() { return this.#curl(this.#rtl ? -1 : 1, () => this.view.goRight()) }
+  get #rtl() { return (this.view.book as { dir?: string })?.dir === 'rtl' }
+
+  // The page curl: the page on screen is captured as it is, and that picture turns away from the
+  // spine like a sheet of paper while the next page shows underneath it (going back, the previous
+  // page is laid down on top). Drawn with the View Transitions API; see .page-curl in motion.css.
+  async #curl(dir: 1 | -1, turn: () => Promise<unknown>) {
+    const doc = document as Document & { startViewTransition?: (cb: () => Promise<void>) => { finished: Promise<void>; updateCallbackDone: Promise<void> } }
+    const r = this.view.renderer
+    if (this.#pageTurn !== 'curl' || !r || r.scrolled || !doc.startViewTransition || this.#curling || document.hidden
+      || matchMedia('(prefers-reduced-motion: reduce)').matches) return turn()
+    this.#curling = true
+    const root = document.documentElement
+    root.dataset.curl = dir > 0 ? 'next' : 'prev'
+    // (The page is drawn again only after this returns, so it mustn't wait for a frame; foliate's
+    // turn can, so it gets a moment and the curl starts anyway.)
+    let turned: Promise<unknown> = Promise.resolve()
+    const t = doc.startViewTransition(async () => {
+      turned = turn()
+      await Promise.race([turned, new Promise(resolve => setTimeout(resolve, 350))])
+    })
+    t.finished.catch(() => {}).finally(() => { delete root.dataset.curl; this.#curling = false })
+    await t.updateCallbackDone.catch(() => {})
+    return turned
+  }
   goTo(href: string) { return this.view.goTo(href) }
   goToFraction(fraction: number) { return this.view.goToFraction(fraction) }
 
@@ -338,10 +374,10 @@ export class Reader {
     switch (e.key) {
       case 'ArrowDown': this.view.next(step); break
       case 'ArrowUp': this.view.prev(step); break
-      case 'ArrowRight': scrolled ? this.view.next(step) : this.view.goRight(); break
-      case 'ArrowLeft': scrolled ? this.view.prev(step) : this.view.goLeft(); break
-      case 'PageDown': case ' ': this.view.next(); break
-      case 'PageUp': this.view.prev(); break
+      case 'ArrowRight': scrolled ? this.view.next(step) : this.goRight(); break
+      case 'ArrowLeft': scrolled ? this.view.prev(step) : this.goLeft(); break
+      case 'PageDown': case ' ': this.next(); break
+      case 'PageUp': this.prev(); break
       default: return
     }
     e.preventDefault()

@@ -1,6 +1,6 @@
 // The Notes screen: highlights, notes and quotes from every book, in one place. Searchable,
 // filtered by quotes, notes or tags, and grouped by book or newest first.
-import { Copy, Ellipsis, NotebookPen, Pencil, Quote, Search, Tag, Trash2, UserRound, X } from 'lucide'
+import { Copy, Ellipsis, NotebookPen, Pencil, Quote, Search, Tag, Trash2, UserRound, X, Image as ImageIcon } from 'lucide'
 import {
   deleteAnnotation, listAllAnnotations, listBooks, saveAnnotation, type Annotation, type BookRecord,
 } from './library/db'
@@ -9,6 +9,7 @@ import { generatedCover } from './library/library-view'
 import { confirmDialog, formDialog, h, icon, menuDialog } from './ui/dialog'
 import { allHighlightTags, noteCard, noteTool, passageText } from './ui/note-card'
 import { toast } from './ui/toast'
+import { showQuoteImage } from './ui/quote-image'
 import { askSpeaker, knownSpeakers } from './ui/quote-dialog'
 
 type Filter = 'all' | 'quotes' | 'notes' | `tag:${string}`
@@ -188,6 +189,7 @@ export class NotesScreen {
       author: book?.author,
       tools: [
         noteTool('Copy', Copy, () => this.#copy(passageText(a, book))),
+        noteTool('Share as a picture', ImageIcon, () => showQuoteImage(a, book)),
         noteTool('More', Ellipsis, () => this.#menu(a, book)),
       ],
     })
@@ -210,6 +212,7 @@ export class NotesScreen {
         { label: 'Tags', icon: icon(Tag), run: () => this.#editTags(a) },
         { label: a.quote ? 'Remove from Quotes' : 'Save as a quote', icon: icon(Quote), run: () => this.#toggleQuote(a) },
         { label: 'Copy', icon: icon(Copy), run: () => this.#copy(passageText(a, book)) },
+        { label: 'Share as a picture', icon: icon(ImageIcon), run: () => showQuoteImage(a, book) },
         { label: 'Delete', icon: icon(Trash2), danger: true, run: () => this.#delete(a) },
       ],
     })

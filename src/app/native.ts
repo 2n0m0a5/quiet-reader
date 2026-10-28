@@ -35,6 +35,8 @@ interface QuietNativePlugin {
   addListener(event: 'incomingFile', fn: (data: { path?: string; name: string; type?: string; error?: string }) => void): Promise<PluginListenerHandle>
   addListener(event: 'volumeKey', fn: (data: { direction: 'next' | 'prev' }) => void): Promise<PluginListenerHandle>
   release(options: { path: string }): Promise<void>
+  shareImage(options: { data: string; name: string; text?: string }): Promise<void>
+  saveImage(options: { data: string; name: string }): Promise<void>
   setVolumeKeys(options: { enabled: boolean }): Promise<void>
   keepAwake(options: { enabled: boolean }): Promise<void>
   setOrientation(options: { value: Orientation }): Promise<void>
@@ -141,4 +143,29 @@ export const forgetFolder = (uri: string) => quietly(QuietNative.forgetFolder({ 
 export function openExternal(url: string) {
   if (isNativeApp) window.location.href = url
   else window.open(url, '_blank', 'noopener')
+}
+
+// A picture (a quote card): Android's share sheet, or the browser's (or a download) on the website.
+async function base64(blob: Blob) {
+  const url = await new Promise<string>(resolve => { const r = new FileReader(); r.onload = () => resolve(r.result as string); r.readAsDataURL(blob) })
+  return url.slice(url.indexOf(',') + 1)
+}
+export async function shareImage(blob: Blob, name: string, text?: string) {
+  if (isNativeApp) return QuietNative.shareImage({ data: await base64(blob), name, text })
+  const file = new File([blob], name, { type: 'image/png' })
+  if (navigator.canShare?.({ files: [file] })) return navigator.share({ files: [file], text })
+  return downloadBlob(blob, name)
+}
+export async function saveImage(blob: Blob, name: string) {
+  if (isNativeApp) return QuietNative.saveImage({ data: await base64(blob), name })
+  return downloadBlob(blob, name)
+}
+function downloadBlob(blob: Blob, name: string) {
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = name
+  document.body.append(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(a.href), 10_000)
 }

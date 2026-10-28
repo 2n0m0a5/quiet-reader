@@ -566,3 +566,202 @@ svg.khatam { width: 18px; height: 18px; fill: currentColor; flex-shrink: 0; }
 [data-preview="tashkent"] .style-art-name::after { content: ' mutolaa'; font: italic 13px 'Lora Variable', Georgia, serif; color: #6e5e50; letter-spacing: 0; }
 [data-preview="tashkent"] .style-art-text { font: 15.5px/1.45 'Lora Variable', Georgia, serif; }
 [data-preview="tashkent"] .style-art-action { padding: 8px 18px; border-radius: 6px; background: #2e2620; color: #f3eee6; font-family: 'Marcellus', Georgia, serif; letter-spacing: .06em; }
+
+/* ==================== Frosty Glass ====================
+   Controls of frosted glass floating over a clear page, on soft, icy light. Following Apple's
+   rules for its glass: glass is only for what floats above the content (bars, toolbars, sheets,
+   menus, toasts), never stacked on itself; the content (book pages, covers, lists) stays clear.
+   Inter for the app, Literata for books. Its own motion is in motion.css: glass materialises
+   instead of fading, swells and lights up where you press, and a liquid lens moves between tabs. */
+
+:root[data-style="frost"] {
+  --font-ui: 'Inter Variable', 'Source Sans 3 Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-reading: 'Literata Variable', Georgia, serif;
+  --font-title: 'Inter Variable', 'Source Sans 3 Variable', system-ui, sans-serif;
+  --primary: var(--accent); --on-primary: #ffffff;
+  --radius-s: 12px; --radius-m: 16px; --radius-l: 22px;
+  --day-bg: #f6f8fc; --day-ink: #18202e; --night-bg: #0f1422; --night-ink: #e3e8f1;
+  --glass: rgba(255, 255, 255, .55); --glass-strong: rgba(255, 255, 255, .82);
+  --glass-edge: rgba(255, 255, 255, .78); --glass-line: rgba(20, 32, 60, .09);
+  --glass-highlight: rgba(255, 255, 255, .95); --glass-shadow: rgba(30, 45, 90, .14);
+  --blur: blur(22px) saturate(1.8);
+  --aurora:
+    radial-gradient(60% 42% at 6% 0%, #c4daf8 0%, transparent 70%),
+    radial-gradient(52% 40% at 100% 24%, #e3d5f7 0%, transparent 70%),
+    radial-gradient(70% 45% at 28% 100%, #cdeee5 0%, transparent 72%),
+    #eef2f8;
+}
+:root[data-style="frost"][data-dark] {
+  --glass: rgba(26, 32, 52, .55); --glass-strong: rgba(40, 48, 74, .82);
+  --glass-edge: rgba(255, 255, 255, .13); --glass-line: rgba(255, 255, 255, .07);
+  --glass-highlight: rgba(255, 255, 255, .17); --glass-shadow: rgba(0, 0, 0, .5);
+  --aurora:
+    radial-gradient(60% 42% at 6% 0%, #1b2b56 0%, transparent 70%),
+    radial-gradient(52% 40% at 100% 24%, #2c2054 0%, transparent 70%),
+    radial-gradient(70% 45% at 28% 100%, #0f3a3d 0%, transparent 72%),
+    #0b1020;
+}
+:root[data-style="frost"][data-theme="light"] {
+  --bg: #eef2f8; --panel: rgba(255, 255, 255, .64); --text: #18202e; --muted: #536074; --line: rgba(20, 32, 60, .11);
+  --accent: #2f62d0; --accent-soft: rgba(47, 98, 208, .13); --accent-strong: #2450b5; --on-accent: #ffffff;
+  --reader-bg: #f6f8fc; --reader-text: #18202e; --reader-link: #2f5fc4; --shadow: 0 18px 50px rgba(30, 45, 90, .2);
+}
+:root[data-style="frost"][data-theme="dark"] {
+  --bg: #0b1020; --panel: rgba(32, 40, 64, .55); --text: #e6ebf4; --muted: #9ca8bd; --line: rgba(255, 255, 255, .09);
+  --accent: #8fb3ff; --accent-soft: rgba(143, 179, 255, .17); --accent-strong: #b5ccff; --on-accent: #0b1020;
+  --primary: #6f9bff; --on-primary: #071026;
+  --reader-bg: #0f1422; --reader-text: #e3e8f1; --reader-link: #93b4ff; --shadow: 0 18px 50px rgba(0, 0, 0, .55);
+}
+
+/* Soft, icy light behind everything; the screens themselves are clear. */
+[data-style="frost"] .app { background: var(--aurora); background-attachment: fixed; }
+[data-style="frost"] :is(.library, .settings-screen, .notes-screen, .stats-screen) { background: transparent; }
+[data-style="frost"] h1, [data-style="frost"] h2, [data-style="frost"] .dialog-title, [data-style="frost"] .details-title,
+[data-style="frost"] .welcome-title, [data-style="frost"] .style-name { font-weight: 700; letter-spacing: -.022em; }
+[data-style="frost"] h2 { font-size: 21px; }
+
+/* ---------- Glass: only for what floats above the content ---------- */
+[data-style="frost"] :is(.topbar, .tabbar, .reader-toolbar, .reader-footer, .settings-pop, dialog.dialog, .toast, .select-bar, .selection-menu, .sidebar, .back-chip) {
+  background: var(--glass); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+  border-color: var(--glass-line);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 10px 34px var(--glass-shadow);
+}
+[data-style="frost"] .topbar, [data-style="frost"] .reader-toolbar { box-shadow: inset 0 -1px 0 var(--glass-line); border-bottom-color: transparent; }
+[data-style="frost"] .reader-footer { box-shadow: inset 0 1px 0 var(--glass-line); border-top-color: transparent; }
+[data-style="frost"] .app[data-view="reader"] .topbar { background: var(--glass); }
+[data-style="frost"] .toast { color: var(--text); border: 1px solid var(--glass-edge); border-radius: 999px; }
+[data-style="frost"] .toast-action { color: var(--accent); }
+[data-style="frost"] dialog.dialog { border: 1px solid var(--glass-edge); border-radius: 28px; }
+[data-style="frost"] dialog.dialog::backdrop { background: rgba(20, 30, 60, .18); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+@media (max-width: 600px) {
+  [data-style="frost"] dialog.dialog, [data-style="frost"] dialog.dialog.dialog-small, [data-style="frost"] dialog.dialog.dialog-details { border-radius: 30px 30px 0 0; border-bottom: 0; }
+}
+[data-style="frost"] .settings-pop { border: 1px solid var(--glass-edge); border-radius: 26px; }
+@media (max-width: 850px) { [data-style="frost"] .settings-pop { border-radius: 30px 30px 0 0; border-bottom: 0; } }
+[data-style="frost"] .settings-pop .sheet-handle { background: transparent; }
+[data-style="frost"] .select-bar, [data-style="frost"] .selection-menu { border: 1px solid var(--glass-edge); border-radius: 26px; }
+
+/* Content stays clear: frosted panes only lightly over the light, no glass on glass. */
+[data-style="frost"] :is(.settings-card, .continue-card, .reading-strip, .stats-tile, .note-item, .style-card, .dup-group) {
+  background: var(--panel); border: 1px solid var(--glass-edge); border-radius: 22px;
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 6px 22px rgba(30, 45, 90, .07);
+}
+[data-style="frost"] .stats-card .stats-tile { background: rgba(255, 255, 255, .35); box-shadow: none; border-radius: 16px; }
+[data-style="frost"][data-dark] .stats-card .stats-tile { background: rgba(255, 255, 255, .05); }
+[data-style="frost"] .note-item { border-radius: 18px; }
+
+/* The wordmark: a small frosted orb, and "Quiet". */
+[data-style="frost"] .brand-star, [data-style="frost"] .brand-dot { display: none; }
+[data-style="frost"] .brand { gap: 9px; }
+[data-style="frost"] .brand::before {
+  content: ''; width: 17px; height: 17px; border-radius: 50%; flex-shrink: 0;
+  background: radial-gradient(circle at 34% 30%, #fff 0 12%, transparent 13%), radial-gradient(circle at 50% 55%, #9ec0ff, #6b8fe8 55%, #8e78e0);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .6), 0 3px 10px rgba(80, 110, 220, .45);
+}
+[data-style="frost"] .brand-name { text-transform: capitalize; font-size: 20px; font-weight: 700; letter-spacing: -.03em; }
+[data-style="frost"] .logo { background: linear-gradient(150deg, #dfe9fb, #c9d6f6 50%, #e6dcf7); position: relative; border: 1px solid rgba(255, 255, 255, .8); box-shadow: inset 0 1px 0 #fff, 0 12px 30px rgba(60, 90, 180, .3); }
+[data-style="frost"] .logo .khatam, [data-style="frost"] .logo-q { display: none; }
+[data-style="frost"] .logo::after {
+  content: ''; position: absolute; inset: 28%; border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, #fff 0 12%, transparent 13%), radial-gradient(circle at 50% 55%, #9ec0ff, #6b8fe8 55%, #8e78e0);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .6), 0 6px 16px rgba(80, 110, 220, .45);
+}
+
+/* Buttons: tinted glass for the main action, clear glass for the rest. */
+[data-style="frost"] .btn { border-radius: 999px; padding-inline: 16px; border-color: var(--glass-edge); background: var(--glass); box-shadow: inset 0 1px 0 var(--glass-highlight), 0 2px 8px rgba(30, 45, 90, .08); }
+[data-style="frost"] .btn.icon { border-radius: 50%; padding: 0; }
+[data-style="frost"] .btn.primary { background: color-mix(in srgb, var(--primary) 90%, transparent); border-color: transparent; color: var(--on-primary); font-weight: 650; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 6px 18px color-mix(in srgb, var(--primary) 35%, transparent); }
+[data-style="frost"] .btn.danger { background: rgba(214, 64, 69, .9); color: #fff; border-color: transparent; }
+/* Inside a glass bar, buttons are clear: no glass on glass. */
+[data-style="frost"] :is(.topbar, .reader-toolbar, .reader-footer, .select-bar, .tabbar) .btn:not(.primary) { background: transparent; border-color: transparent; box-shadow: none; }
+[data-style="frost"] .chapter-button { border-radius: 999px; }
+
+/* Choices: a frosted track; the chosen option sits under a glass lens that slides (motion.css). */
+[data-style="frost"] .choice-row:not(.theme-row) { background: rgba(120, 140, 180, .14); border-radius: 999px; padding: 3px; gap: 2px; }
+[data-style="frost"][data-dark] .choice-row:not(.theme-row) { background: rgba(255, 255, 255, .07); }
+[data-style="frost"] .choice-row:not(.theme-row) .choice { border: 0; border-radius: 999px; color: var(--muted); }
+[data-style="frost"] .choice-row:not(.theme-row) .choice.selected { background: var(--glass-strong); color: var(--text); font-weight: 650; box-shadow: inset 0 1px 0 var(--glass-highlight), 0 2px 8px var(--glass-shadow); }
+[data-style="frost"] .choice-row:not(.theme-row)[data-marked]::before { background: var(--glass-strong); border-radius: 999px; box-shadow: inset 0 1px 0 var(--glass-highlight), 0 2px 10px var(--glass-shadow); }
+[data-style="frost"] .choice-row[data-marked]:not(.theme-row) .choice.selected { background: transparent; box-shadow: none; }
+[data-style="frost"] .choice-row.many:not(.theme-row) { border-radius: 20px; }
+[data-style="frost"] .theme-choice { border-color: transparent; border-radius: 16px; }
+[data-style="frost"] .theme-choice::before { border-radius: 12px; }
+[data-style="frost"] .theme-choice.selected { box-shadow: none; border-color: transparent; color: var(--accent); font-weight: 650; }
+[data-style="frost"] .theme-choice.selected::before { box-shadow: 0 0 0 2px var(--accent); }
+[data-style="frost"] .chip { border-color: var(--glass-edge); background: var(--glass); box-shadow: inset 0 1px 0 var(--glass-highlight); padding: 7px 14px; }
+[data-style="frost"] .chip.selected { background: color-mix(in srgb, var(--primary) 90%, transparent); border-color: transparent; color: var(--on-primary); }
+
+/* Fields, sliders and switches, iOS-like. */
+[data-style="frost"] .field input, [data-style="frost"] .field textarea, [data-style="frost"] .search-input { border-color: var(--glass-edge); background: var(--glass); border-radius: 14px; box-shadow: inset 0 1px 2px rgba(30, 45, 90, .06); }
+[data-style="frost"] input[type=range] { --range-track: 5px; }
+[data-style="frost"] input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 28px; height: 28px; margin-top: -11.5px; border-radius: 50%; border: 0;
+  background: radial-gradient(circle at 50% 30%, #fff, #f2f5fb); box-shadow: 0 0 0 .5px rgba(20, 30, 60, .12), 0 3px 10px rgba(20, 30, 60, .25);
+}
+[data-style="frost"] input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 50%; border: 0; background: #fff; box-shadow: 0 3px 10px rgba(20, 30, 60, .25); }
+[data-style="frost"] .switch { width: 51px; height: 31px; background: rgba(120, 140, 180, .3); }
+[data-style="frost"] .switch::after { top: 2px; left: 2px; width: 27px; height: 27px; box-shadow: 0 3px 8px rgba(0, 0, 0, .2); }
+[data-style="frost"] .switch:checked { background: #34c759; }
+[data-style="frost"] .switch:checked::after { transform: translateX(20px); }
+[data-style="frost"] .star.on { color: var(--accent); }
+
+/* Covers keep a soft light across them, like glass over a print. */
+[data-style="frost"] .book-cover { border-radius: 12px; box-shadow: 0 1px 2px rgba(20, 30, 60, .1), 0 10px 24px rgba(30, 45, 90, .16); }
+[data-style="frost"] .book-cover::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(135deg, rgba(255, 255, 255, .32), transparent 42%); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .25); }
+[data-style="frost"] .generated-cover { background: linear-gradient(160deg, var(--tone-a, #8fb0f0), var(--tone-b, #5f7fd8)); color: #fff; }
+[data-style="frost"] [data-tone="0"] { --tone-a: #9bb9f4; --tone-b: #5b7bd6; }
+[data-style="frost"] [data-tone="1"] { --tone-a: #b8a6ee; --tone-b: #7a64cf; }
+[data-style="frost"] [data-tone="2"] { --tone-a: #8fd3c6; --tone-b: #3f9a8e; }
+[data-style="frost"] [data-tone="3"] { --tone-a: #f0b3c4; --tone-b: #c66d8d; }
+[data-style="frost"] [data-tone="4"] { --tone-a: #a9b6cc; --tone-b: #5a6780; }
+[data-style="frost"] [data-tone="5"] { --tone-a: #9fd0f2; --tone-b: #4b8fc4; }
+[data-style="frost"] [data-tone="6"] { --tone-a: #c7b8e6; --tone-b: #8a77b8; }
+
+/* ---------- Floating bars ----------
+   The top bar floats over the screens (they scroll under it), and on phones the tab bar is a
+   floating capsule above the bottom edge. */
+[data-style="frost"] .app:not([data-view="reader"]) .topbar { position: absolute; left: 0; right: 0; top: 0; z-index: 30; }
+[data-style="frost"] :is(.library, .settings-screen, .notes-screen, .stats-screen) { padding-top: calc(60px + env(safe-area-inset-top)); }
+@media (max-width: 850px) {
+  [data-style="frost"] :is(.library, .settings-screen, .notes-screen, .stats-screen) { padding-top: calc(54px + env(safe-area-inset-top)); padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
+  [data-style="frost"] .tabbar {
+    position: absolute; left: 14px; right: 14px; bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 30;
+    border: 1px solid var(--glass-edge); border-radius: 32px; padding: 4px;
+  }
+  [data-style="frost"] .tab { min-height: 56px; border-radius: 28px; position: relative; z-index: 1; }
+  [data-style="frost"] .select-bar { bottom: calc(88px + env(safe-area-inset-bottom)); }
+  :root[data-style="frost"]:has(.app:not([data-view="reader"])) .toast { bottom: calc(92px + env(safe-area-inset-bottom)); }
+}
+[data-style="frost"] .tab.selected { color: var(--accent); font-weight: 650; }
+[data-style="frost"] .tabbar::before {
+  content: ''; position: absolute; z-index: 0; pointer-events: none; top: 4px; bottom: 4px;
+  left: var(--lens-l, 0px); right: var(--lens-r, 100%); border-radius: 28px;
+  background: var(--glass-strong); box-shadow: inset 0 1px 0 var(--glass-highlight), 0 3px 12px var(--glass-shadow);
+  opacity: var(--lens-on, 0);
+}
+@media (min-width: 851px) { [data-style="frost"] .tabbar { position: relative; } [data-style="frost"] .tab { position: relative; z-index: 1; border-radius: 999px; } }
+
+/* When glass should be solid (Reduce Transparency), it becomes frostier and opaque. */
+@media (prefers-reduced-transparency: reduce) {
+  [data-style="frost"] :is(.topbar, .tabbar, .reader-toolbar, .reader-footer, .settings-pop, dialog.dialog, .toast, .select-bar, .selection-menu, .sidebar) { background: var(--glass-strong); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+
+/* The Style picker's preview card */
+[data-preview="frost"] .style-art {
+  position: relative; border-radius: 18px; color: #18202e; font-family: 'Inter Variable', system-ui, sans-serif; overflow: hidden;
+  background: radial-gradient(60% 60% at 10% 0%, #c4daf8, transparent 70%), radial-gradient(50% 60% at 100% 40%, #e3d5f7, transparent 70%), radial-gradient(70% 60% at 30% 100%, #cdeee5, transparent 72%), #eef2f8;
+}
+[data-preview="frost"] .khatam { display: none; }
+[data-preview="frost"] .style-art-mark::before { content: ''; width: 15px; height: 15px; border-radius: 50%; background: radial-gradient(circle at 34% 30%, #fff 0 12%, transparent 13%), radial-gradient(circle at 50% 55%, #9ec0ff, #6b8fe8 55%, #8e78e0); box-shadow: 0 3px 8px rgba(80, 110, 220, .45); }
+[data-preview="frost"] .style-art-name { font: 700 19px/1 'Inter Variable', system-ui, sans-serif; letter-spacing: -.03em; }
+[data-preview="frost"] .style-art-text { font: 15.5px/1.45 'Literata Variable', Georgia, serif; padding: 10px 12px; border-radius: 14px; background: rgba(255, 255, 255, .55); border: 1px solid rgba(255, 255, 255, .8); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+[data-preview="frost"] .style-art-action { padding: 8px 16px; border-radius: 999px; background: rgba(47, 98, 208, .92); color: #fff; font-weight: 650; box-shadow: 0 6px 16px rgba(47, 98, 208, .35); }
+/* Chrome doesn't always clip a backdrop blur to rounded corners (on the zoomed tab bar), so clip it. */
+@media (max-width: 850px) { [data-style="frost"] .tabbar { clip-path: inset(0 round 32px); box-shadow: inset 0 1px 0 var(--glass-highlight); } }
+/* Over the text of a book, the bars are frostier, so their own words stay clear. */
+[data-style="frost"] .app[data-view="reader"] :is(.topbar, .reader-toolbar, .reader-footer) { background: rgba(250, 251, 254, .8); }
+[data-style="frost"][data-dark] .app[data-view="reader"] :is(.topbar, .reader-toolbar, .reader-footer) { background: rgba(18, 24, 40, .82); }
+/* During a screen change, Chrome captures a blurred bar with square corners; in Frosty Glass the
+   tab bar changes with the screen instead of being captured on its own. */
+[data-style="frost"] .tabbar { view-transition-name: none; }

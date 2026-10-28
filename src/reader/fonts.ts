@@ -16,6 +16,8 @@ import newsreader from '@fontsource-variable/newsreader/index.css?raw'
 import newsreaderItalic from '@fontsource-variable/newsreader/wght-italic.css?raw'
 import franklin from '@fontsource-variable/libre-franklin/index.css?raw'
 import franklinItalic from '@fontsource-variable/libre-franklin/wght-italic.css?raw'
+import inter from '@fontsource-variable/inter/index.css?raw'
+import interItalic from '@fontsource-variable/inter/wght-italic.css?raw'
 import lora from '@fontsource-variable/lora/index.css?raw'
 import loraItalic from '@fontsource-variable/lora/wght-italic.css?raw'
 import type { DesignStyle } from '../settings'
@@ -28,6 +30,7 @@ const files = import.meta.glob([
   '/node_modules/@fontsource-variable/newsreader/files/*-wght-*.woff2',
   '/node_modules/@fontsource-variable/libre-franklin/files/*-wght-*.woff2',
   '/node_modules/@fontsource-variable/lora/files/*-wght-*.woff2',
+  '/node_modules/@fontsource-variable/inter/files/*-wght-*.woff2',
 ], { eager: true, query: '?url', import: 'default' }) as Record<string, string>
 
 const urlFor = new Map(Object.entries(files).map(([path, url]) =>
@@ -42,6 +45,7 @@ const faces: Record<DesignStyle, string> = {
   star: withAbsoluteUrls([sourceSerif, sourceSerifItalic, figtree, figtreeItalic, ...fallback].join('\n')),
   paper: withAbsoluteUrls([newsreader, newsreaderItalic, franklin, franklinItalic, ...fallback].join('\n')),
   tashkent: withAbsoluteUrls([lora, loraItalic, ...fallback].join('\n')),
+  frost: withAbsoluteUrls([inter, interItalic, ...fallback].join('\n')),
 }
 
 export const fontFaceCSS = (style: DesignStyle) => faces[style] ?? faces.star
@@ -59,6 +63,11 @@ const stacks: Record<DesignStyle, { serif: string; sans: string }> = {
   tashkent: {
     serif: `'Lora Variable', 'Literata Variable', Georgia, serif`,
     sans: `'Source Sans 3 Variable', system-ui, sans-serif`,
+  },
+  // Frosty Glass: Literata (made for reading on screens) and Inter, clear as glass.
+  frost: {
+    serif: `'Literata Variable', Georgia, serif`,
+    sans: `'Inter Variable', 'Source Sans 3 Variable', system-ui, sans-serif`,
   },
 }
 

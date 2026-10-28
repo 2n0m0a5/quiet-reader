@@ -9,6 +9,7 @@ import '@fontsource-variable/libre-franklin'
 import '@fontsource/marcellus'
 import '@fontsource-variable/lora'
 import '@fontsource-variable/lora/wght-italic.css'
+import '@fontsource-variable/inter'
 import './styles/tokens.css'
 import './styles/app.css'
 import './styles/styles.css'
@@ -50,8 +51,9 @@ import { ReadingTracker, dayKey } from './stats/tracker'
 import { computeStats, readingTime } from './stats/stats'
 import { listBooks, listReading } from './library/db'
 import { greet } from './app/onboarding'
+import { FONT_ACCEPT, addFonts, customFamilies, load as loadFonts, onFontsChange } from './reader/custom-fonts'
 import { fillRange } from './ui/range'
-import { draggableSheet, installSprings, pop, rubberBand, transition, watchMarks, type Navigation } from './ui/motion'
+import { draggableSheet, installSprings, pop, rubberBand, spring, transition, watchMarks, watchSymbols, reducedMotion, type Navigation } from './ui/motion'
 
 createIcons({
   icons: {
@@ -104,6 +106,7 @@ const ui = {
 
 installSprings()
 watchMarks()
+watchSymbols()
 
 const toc = new TocView($('toc'))
 const coverPlaceholder = ui.cover.innerHTML
@@ -225,6 +228,46 @@ ui.settings.querySelectorAll<HTMLElement>('.choice-row').forEach(row => {
   })
 })
 
+// Fonts you added appear next to Serif and Sans, each shown in its own letters.
+const fontRow = ui.settings.querySelector<HTMLElement>('.choice-row[data-setting="font"]')!
+async function showFontChoices() {
+  const families = await customFamilies()
+  fontRow.querySelectorAll('.choice.custom-font').forEach(b => b.remove())
+  for (const family of families) {
+    const b = document.createElement('button')
+    b.className = 'choice custom-font'
+    b.dataset.value = `custom:${family}`
+    b.textContent = family
+    b.style.fontFamily = `'${family.replace(/['\\]/g, '')}', serif`
+    fontRow.append(b)
+  }
+  fontRow.classList.toggle('many', families.length > 0)
+  // A font that was removed: back to the style's serif.
+  if (settings.font.startsWith('custom:') && !families.includes(settings.font.slice(7))) update({ font: 'serif' })
+  else { render(); reader?.apply(settings) }
+}
+onFontsChange(() => { showFontChoices(); if (ui.app.dataset.view === 'settings') settingsScreen.render() })
+loadFonts().then(showFontChoices)
+
+const fontInput = $<HTMLInputElement>('fontInput')
+fontInput.accept = FONT_ACCEPT
+const chooseFonts = () => fontInput.click()
+$('addFont').addEventListener('click', chooseFonts)
+fontInput.addEventListener('change', async () => {
+  const files = Array.from(fontInput.files ?? [])
+  fontInput.value = ''
+  if (!files.length) return
+  const { added, failed } = await addFonts(files)
+  if (added) {
+    const families = await customFamilies()
+    const newest = families.at(-1)
+    if (newest) update({ font: `custom:${newest}` })
+    toast(failed.length ? `Added ${added} of ${files.length} fonts. ${failed.join(', ')} couldn’t be read.` : added === 1 ? 'Font added.' : `${added} fonts added.`, 4500)
+  } else {
+    toast(`${failed.join(', ')} ${failed.length === 1 ? 'isn’t a font' : 'aren’t fonts'} Quiet can use.`, 5000)
+  }
+})
+
 // Reading settings: a popover on wide screens, a sheet from the bottom on phones.
 // Closes on outside click, a tap on the backdrop, or Escape.
 function setSettingsOpen(open: boolean) {
@@ -273,7 +316,7 @@ function onTap(zone: TapZone) {
   const paged = settings.flow === 'paginated' || reader?.view.isFixedLayout
   if (paged && zone !== 'center' && settings.tapZones) {
     // Tap the left or right third to turn the page.
-    zone === 'left' ? reader?.view.goLeft() : reader?.view.goRight()
+    zone === 'left' ? reader?.goLeft() : reader?.goRight()
     setChrome(false)
   } else if (compact.matches) {
     setChrome(ui.app.dataset.chrome === 'hidden')
@@ -371,21 +414,40 @@ function goToLibrary() {
 
 // A book slides in from the right and goes back the way it came; the tabs cross-fade.
 let started = false
+// Opening a book from its cover zooms the cover up into the page; closing it zooms the page back
+// down into the same cover (Paper keeps its own fade). Without a cover on screen, it slides.
+let skipTransition = false
+let readingId = ''
+const visibleCover = (id: string) => [...document.querySelectorAll<HTMLElement>(`.book-cover[data-book-id="${CSS.escape(id)}"]`)]
+  .find(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.bottom > 0 && r.top < innerHeight })
 function route() {
   const match = location.hash.match(/^#\/book\/(.+)$/)
   const from = ui.app.dataset.view
   const to = match ? 'reader' : ({ '#/settings': 'settings', '#/notes': 'notes', '#/stats': 'stats' } as Record<string, string>)[location.hash] ?? 'library'
-  const kind: Navigation = to === 'reader' && from !== 'reader' ? 'push' : from === 'reader' && to !== 'reader' ? 'pop' : 'fade'
-  const show = () => {
-    if (match) showReader(decodeURIComponent(match[1]))
-    else if (to === 'settings') showSettings()
-    else if (to === 'notes') showNotes()
-    else if (to === 'stats') showStats()
-    else showLibrary()
+  const id = match ? decodeURIComponent(match[1]) : ''
+  const zooms = document.documentElement.dataset.style !== 'paper'
+  const closing = readingId
+  const source = to === 'reader' && from !== 'reader' && zooms ? visibleCover(id) : undefined
+  const kind: Navigation = to === 'reader' && from !== 'reader' ? (source ? 'zoom-in' : 'push')
+    : from === 'reader' && to !== 'reader' ? (zooms && closing ? 'zoom-out' : 'pop') : 'fade'
+  const name = (el: HTMLElement | null | undefined, on: boolean) => el?.style.setProperty('view-transition-name', on ? 'book' : '')
+  const show = async () => {
+    name(source, false)
+    if (kind === 'zoom-out') name(ui.stage, false)
+    let shown: unknown
+    if (match) shown = showReader(id)
+    else if (to === 'settings') shown = showSettings()
+    else if (to === 'notes') shown = showNotes()
+    else if (to === 'stats') shown = showStats()
+    else shown = showLibrary()
     markTab()
+    if (kind === 'zoom-in') name(ui.stage, true)
+    if (kind === 'zoom-out') { await Promise.race([shown, new Promise(r => setTimeout(r, 400))]); name(visibleCover(closing), true) }
   }
-  if (!started || (from === to && !match)) { started = true; show() }
-  else transition(kind, show)
+  if (!started || (from === to && !match) || skipTransition) { started = true; skipTransition = false; show(); return }
+  if (kind === 'zoom-in') name(source, true)
+  if (kind === 'zoom-out') name(ui.stage, true)
+  transition(kind, show, () => document.querySelectorAll<HTMLElement>('[style*="view-transition-name: book"]').forEach(el => name(el, false)))
 }
 
 window.addEventListener('hashchange', e => {
@@ -403,6 +465,7 @@ window.addEventListener('hashchange', e => {
 const settingsScreen = new SettingsScreen($('settingsScreen'), {
   get: () => settings,
   update,
+  addFonts: () => chooseFonts(),
   libraryCleared: () => library.refresh(),
 })
 
@@ -505,8 +568,8 @@ function showLibrary() {
   setSystemBarsHidden(false)
   ui.app.dataset.view = 'library'
   document.title = 'Quiet'
-  library.refresh()
   offline.offerUpdate()
+  return library.refresh()
 }
 
 // ---------- The tab bar ----------
@@ -532,13 +595,85 @@ function markTab() {
     tab.classList.toggle('selected', on)
     on ? tab.setAttribute('aria-current', 'page') : tab.removeAttribute('aria-current')
   })
+  placeLens()
 }
+// Frosty Glass's liquid lens under the chosen tab (styles.css). Its leading edge moves first and
+// the trailing edge catches up, so it stretches as it travels between tabs, like a drop of water.
+let lensLeft = -1
+function placeLens() {
+  const chosen = tabbar.querySelector<HTMLElement>('.tab.selected')
+  if (!chosen || !tabbar.offsetWidth) { tabbar.style.setProperty('--lens-on', '0'); return }
+  const left = chosen.offsetLeft
+  const right = tabbar.clientWidth - left - chosen.offsetWidth
+  tabbar.dataset.dir = lensLeft < 0 ? 'none' : left > lensLeft ? 'right' : 'left'
+  lensLeft = left
+  tabbar.style.setProperty('--lens-l', `${left}px`)
+  tabbar.style.setProperty('--lens-r', `${right}px`)
+  tabbar.style.setProperty('--lens-on', '1')
+}
+addEventListener('resize', () => { lensLeft = -1; placeLens() })
 // On phones the bar sits at the bottom of the screen; on wider screens, in the top bar.
 const placeTabbar = () => compact.matches
   ? ui.app.append(tabbar)
   : document.querySelector('.top-start')!.after(tabbar)
-compact.addEventListener('change', placeTabbar)
+compact.addEventListener('change', () => { placeTabbar(); lensLeft = -1; placeLens() })
 placeTabbar()
+
+// ---------- Swipe back ----------
+// In a book on a phone, a swipe from the left edge takes you back, as on iOS: the book follows your
+// finger off to the right with the library underneath, and lets go past a third of the way (or
+// with a quick flick). Anything less, and it slides back.
+{
+  const edge = document.createElement('div')
+  edge.className = 'edge-back'
+  edge.setAttribute('aria-hidden', 'true')
+  ui.stage.append(edge)
+  let start: { x: number; t: number } | null = null
+  let x = 0, v = 0, lastX = 0, lastT = 0
+  const set = (px: number) => { x = px; ui.app.style.setProperty('--swipe', `${px}px`) }
+  edge.addEventListener('touchstart', e => {
+    if (!compact.matches || e.touches.length !== 1) return
+    start = { x: e.touches[0].clientX, t: e.timeStamp }
+    lastX = e.touches[0].clientX
+    lastT = e.timeStamp
+    v = 0
+  }, { passive: true })
+  edge.addEventListener('touchmove', e => {
+    if (!start) return
+    e.preventDefault()
+    const cx = e.touches[0].clientX
+    v = 0.7 * ((cx - lastX) / Math.max(1, e.timeStamp - lastT) * 1000) + 0.3 * v
+    lastX = cx
+    lastT = e.timeStamp
+    const dx = Math.max(0, cx - start.x)
+    if (!ui.app.hasAttribute('data-peek') && dx > 6) { ui.app.toggleAttribute('data-peek', true); setChrome(true) }
+    set(dx)
+  }, { passive: false })
+  const end = async () => {
+    if (!start) return
+    start = null
+    if (!ui.app.hasAttribute('data-peek')) return
+    const width = ui.app.clientWidth
+    const leave = x > width / 3 || v > 700
+    const target = leave ? width : 0
+    const s = spring(leave ? 0.32 : 0.4, 0, Math.min(30, Math.abs(v) / Math.max(1, Math.abs(target - x))))
+    const animation = ui.app.animate([{ '--swipe': `${x}px` }, { '--swipe': `${target}px` }], { duration: reducedMotion.matches ? 1 : s.ms, easing: s.easing })
+    set(target)
+    await animation.finished.catch(() => {})
+    if (leave) {
+      haptic()
+      skipTransition = true
+      goToLibrary()
+      await new Promise(r => setTimeout(r, 60))
+    }
+    ui.app.removeAttribute('data-peek')
+    ui.app.style.removeProperty('--swipe')
+  }
+  edge.addEventListener('touchend', end)
+  edge.addEventListener('touchcancel', end)
+  // A plain tap on the edge is a tap on the page's left side.
+  edge.addEventListener('click', () => onTap('left'))
+}
 
 // ---------- Scrolling ----------
 // Every list stretches past its ends and eases back, as on iOS (ui/motion.ts). In the library,
@@ -623,16 +758,17 @@ async function removeBooks(books: BookRecord[]) {
   if (!books.length) return
   await moveToTrash(books.map(b => b.id))
   haptic()
-  library.refresh()
+  library.refreshRearranged()
   toast(books.length === 1 ? `Removed “${books[0].title}”.` : `Removed ${books.length} books.`, 6000, {
     label: 'Undo',
-    run: async () => { await restoreBooks(books.map(b => b.id)); library.refresh() },
+    run: async () => { await restoreBooks(books.map(b => b.id)); library.refreshRearranged() },
   })
 }
 
 // ---------- Reading ----------
 
 function closeReader() {
+  readingId = ''
   openToken++
   endReadingSession()
   bookSearch?.clear()
@@ -654,6 +790,7 @@ function closeReader() {
 
 async function showReader(id: string) {
   closeReader()
+  readingId = id
   library.closeSelection()
   const token = openToken
   ui.app.dataset.view = 'reader'

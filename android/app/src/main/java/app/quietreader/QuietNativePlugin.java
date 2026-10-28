@@ -2,6 +2,7 @@ package app.quietreader;
 
 import android.app.Activity;
 import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.ActivityInfo;
@@ -13,6 +14,10 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
 import android.provider.DocumentsContract;
+import android.provider.MediaStore;
+import android.os.Environment;
+import android.util.Base64;
+import androidx.core.content.FileProvider;
 import android.provider.OpenableColumns;
 import android.view.KeyEvent;
 import android.view.WindowManager;
@@ -240,7 +245,10 @@ public class QuietNativePlugin extends Plugin {
 
     // ---------- Book folders ----------
 
-    private static final String[] BOOK_EXTENSIONS = { "epub", "mobi", "azw3", "azw", "fb2", "fbz", "cbz", "pdf", "txt", "html", "htm" };
+    // The same list as src/formats/formats.ts.
+    private static final String[] BOOK_EXTENSIONS = {
+        "epub", "mobi", "azw3", "azw", "prc", "pdb", "fb2", "fbz", "pdf", "docx", "odt", "rtf", "md", "markdown",
+        "txt", "txtz", "html", "htm", "xhtml", "htmlz", "cbz", "cbr", "cb7", "cbt", "zip", "rar", "7z", "tar" };
     private static final int MAX_DEPTH = 8;
     private static final int MAX_FILES = 5000;
 
@@ -375,5 +383,57 @@ public class QuietNativePlugin extends Plugin {
             if (value != null) getContext().getContentResolver().releasePersistableUriPermission(Uri.parse(value), Intent.FLAG_GRANT_READ_URI_PERMISSION);
         } catch (Exception ignored) {}
         call.resolve();
+    }
+
+    // ---------- Pictures of quotes ----------
+
+    // Shares a PNG (given as base64) through Android's share sheet.
+    @PluginMethod
+    public void shareImage(PluginCall call) {
+        try {
+            byte[] bytes = Base64.decode(call.getString("data", ""), Base64.DEFAULT);
+            File dir = new File(getContext().getCacheDir(), "shared");
+            dir.mkdirs();
+            File file = new File(dir, call.getString("name", "quote.png"));
+            try (OutputStream out = new FileOutputStream(file)) { out.write(bytes); }
+            Uri uri = FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", file);
+            Intent send = new Intent(Intent.ACTION_SEND);
+            send.setType("image/png");
+            send.putExtra(Intent.EXTRA_STREAM, uri);
+            String text = call.getString("text");
+            if (text != null) send.putExtra(Intent.EXTRA_TEXT, text);
+            send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            Intent chooser = Intent.createChooser(send, null);
+            chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(chooser);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Couldn't share the picture", e);
+        }
+    }
+
+    // Saves a PNG (given as base64) to Pictures/Quiet, where the gallery shows it.
+    @PluginMethod
+    public void saveImage(PluginCall call) {
+        try {
+            byte[] bytes = Base64.decode(call.getString("data", ""), Base64.DEFAULT);
+            String name = call.getString("name", "quote.png");
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ContentValues values = new ContentValues();
+                values.put(MediaStore.Images.Media.DISPLAY_NAME, name);
+                values.put(MediaStore.Images.Media.MIME_TYPE, "image/png");
+                values.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/Quiet");
+                Uri uri = getContext().getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+                if (uri == null) throw new Exception("No place to save");
+                try (OutputStream out = getContext().getContentResolver().openOutputStream(uri)) { out.write(bytes); }
+            } else {
+                File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "Quiet");
+                dir.mkdirs();
+                try (OutputStream out = new FileOutputStream(new File(dir, name))) { out.write(bytes); }
+            }
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Couldn't save the picture", e);
+        }
     }
 }

@@ -51,13 +51,18 @@ export function installSprings(root = document.documentElement) {
 // ---------- Screens ----------
 // Moving between screens uses the View Transitions API where there is one: a book slides in
 // from the right and goes back to the right (the same way it came); tabs cross-fade.
-export type Navigation = 'push' | 'pop' | 'fade'
-export function transition(kind: Navigation, change: () => void) {
-  const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown }
-  if (!doc.startViewTransition || reducedMotion.matches || document.hidden) return change()
+// Opening a book from its cover zooms the cover into the page, and closing it zooms back into the
+// same cover (like iOS 18's zoom transition); see main.ts.
+export type Navigation = 'push' | 'pop' | 'fade' | 'zoom-in' | 'zoom-out'
+export function transition(kind: Navigation, change: () => void | Promise<unknown>, done?: () => void) {
+  const doc = document as Document & { startViewTransition?: (cb: () => Promise<void>) => unknown }
+  if (!doc.startViewTransition || reducedMotion.matches || document.hidden) { Promise.resolve(change()).finally(done); return }
   document.documentElement.dataset.nav = kind
-  const t = doc.startViewTransition(change) as { finished: Promise<void> }
-  t.finished.finally(() => { delete document.documentElement.dataset.nav })
+  const t = doc.startViewTransition(async () => {
+    // Waits for the new screen, but not forever (a slow book still zooms in while it loads).
+    await Promise.race([Promise.resolve(change()), new Promise(resolve => setTimeout(resolve, 600))])
+  }) as { finished: Promise<void> }
+  t.finished.catch(() => {}).finally(() => { delete document.documentElement.dataset.nav; done?.() })
 }
 
 // ---------- Sheets you can drag ----------
@@ -356,4 +361,105 @@ export function rubberBand(scroller: HTMLElement, options: { edges?: 'both' | 'b
     running = animateOffset(scroller, '--pull', values, ms)
     speed = 0
   }, { passive: true })
+}
+
+// ---------- Icons that answer (like SF Symbols' effects) ----------
+// Tapping a button plays its icon's own small animation: a gear turns, arrows nudge the way they
+// point, a plus turns into place, a bin wiggles, most things bounce. Swapped icons (moon and sun)
+// replace each other with a blur and a scale (motion.css).
+type Effect = Keyframe[]
+const bounce: Effect = [{ transform: 'scale(1)' }, { transform: 'scale(.78)', offset: .3 }, { transform: 'scale(1.12)', offset: .65 }, { transform: 'scale(1)' }]
+const nudge = (x: number, y: number): Effect => [{ transform: 'none' }, { transform: `translate(${x}px, ${y}px)`, offset: .35 }, { transform: 'none' }]
+const EFFECTS: [RegExp, Effect][] = [
+  [/lucide-settings/, [{ transform: 'rotate(0)' }, { transform: 'rotate(90deg)' }]],
+  [/lucide-plus/, [{ transform: 'rotate(0) scale(1)' }, { transform: 'rotate(90deg) scale(.8)', offset: .5 }, { transform: 'rotate(180deg) scale(1)' }]],
+  [/lucide-(arrow|chevron)-left|lucide-undo/, nudge(-4, 0)],
+  [/lucide-(arrow|chevron)-right/, nudge(4, 0)],
+  [/lucide-(arrow|chevron)-up|lucide-a-arrow-up|lucide-zoom-in/, nudge(0, -3)],
+  [/lucide-(arrow|chevron)-down|lucide-a-arrow-down|lucide-zoom-out|lucide-download/, nudge(0, 3)],
+  [/lucide-(trash|tag|bell|x)\b/, [{ transform: 'rotate(0)' }, { transform: 'rotate(-14deg)', offset: .2 }, { transform: 'rotate(11deg)', offset: .45 }, { transform: 'rotate(-6deg)', offset: .7 }, { transform: 'rotate(0)' }]],
+  [/lucide-ellipsis/, [{ transform: 'scaleX(1)' }, { transform: 'scaleX(1.35)', offset: .4 }, { transform: 'scaleX(1)' }]],
+  [/lucide-search/, [{ transform: 'none' }, { transform: 'rotate(-12deg) scale(1.12)', offset: .4 }, { transform: 'none' }]],
+]
+export function symbolEffect(svg: Element) {
+  if (reducedMotion.matches) return
+  const name = svg.getAttribute('class') ?? ''
+  const frames = EFFECTS.find(([re]) => re.test(name))?.[1] ?? bounce
+  const s = SPRINGS['-bounce']
+  svg.animate(frames, { duration: Math.max(380, s.ms * 0.8), easing: frames === bounce ? 'ease-out' : supportsLinear ? s.easing : 'ease-out' })
+}
+export function watchSymbols(root: HTMLElement = document.body) {
+  root.addEventListener('click', e => {
+    const button = (e.target as Element).closest?.('button')
+    if (!button || button.disabled || button.closest('.choice-row')) return
+    const svg = [...button.querySelectorAll('svg.lucide')].find(s => (s as HTMLElement).offsetParent !== null || getComputedStyle(s).display !== 'none')
+    if (svg) symbolEffect(svg)
+  })
+}
+
+// ---------- Where the finger is ----------
+// The last place a finger or mouse went down: menus open from it, and Frosty Glass lights up there.
+export const lastPointer = { x: innerWidth / 2, y: innerHeight / 2 }
+document.addEventListener('pointerdown', e => {
+  lastPointer.x = e.clientX
+  lastPointer.y = e.clientY
+  const target = (e.target as Element).closest?.<HTMLElement>('button, .chip, .choice, .tab')
+  if (target) {
+    const r = target.getBoundingClientRect()
+    target.style.setProperty('--px', `${e.clientX - r.left}px`)
+    target.style.setProperty('--py', `${e.clientY - r.top}px`)
+  }
+}, { capture: true, passive: true })
+
+// ---------- Numbers that roll ----------
+// Numbers count up to their value when they appear (the stats), like iOS's numeric text.
+export function rollNumbers(els: Iterable<HTMLElement>) {
+  if (reducedMotion.matches) return
+  for (const el of els) {
+    const final = el.textContent ?? ''
+    const numbers = [...final.matchAll(/\d[\d,]*/g)].map(m => Number(m[0].replace(/,/g, '')))
+    if (!numbers.some(n => n > 0)) continue
+    const start = performance.now()
+    const ms = 900
+    el.classList.add('rolling')
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / ms)
+      const k = 1 - Math.pow(1 - t, 3)
+      let i = 0
+      el.textContent = final.replace(/\d[\d,]*/g, m => {
+        const n = numbers[i++]
+        const v = Math.round(n * k)
+        return m.includes(',') ? v.toLocaleString('en') : String(v)
+      })
+      if (t < 1) requestAnimationFrame(step)
+      else { el.textContent = final; el.classList.remove('rolling') }
+    }
+    requestAnimationFrame(step)
+  }
+}
+
+// ---------- Lists that rearrange ----------
+// When books are sorted, filtered or removed, each one glides to its new place instead of the
+// list redrawing at once (each item gets a view-transition-name for the change).
+export function animateLayout(container: HTMLElement, selector: string, idOf: (el: HTMLElement) => string | undefined, change: () => void | Promise<void>) {
+  const doc = document as Document & { startViewTransition?: (cb: () => Promise<void>) => { finished: Promise<void> } }
+  if (!doc.startViewTransition || reducedMotion.matches || document.documentElement.dataset.nav) { change(); return }
+  const name = (el: HTMLElement) => {
+    const id = idOf(el)
+    if (!id) return
+    const r = el.getBoundingClientRect()
+    // Only what's on screen (or near it) moves; the rest just appears.
+    if (r.bottom < -200 || r.top > innerHeight + 200) return
+    el.style.setProperty('view-transition-name', `item-${id.replace(/[^a-zA-Z0-9_-]/g, '')}`)
+    el.style.setProperty('view-transition-class', 'list-item')
+  }
+  const clear = () => container.querySelectorAll<HTMLElement>(selector).forEach(el => { el.style.removeProperty('view-transition-name'); el.style.removeProperty('view-transition-class') })
+  container.querySelectorAll<HTMLElement>(selector).forEach(name)
+  document.documentElement.dataset.layout = ''
+  const t = doc.startViewTransition(async () => {
+    clear()
+    await change()
+    container.querySelectorAll<HTMLElement>(selector).forEach(name)
+  })
+  t.finished.catch(() => {}).finally(() => { clear(); delete document.documentElement.dataset.layout })
 }

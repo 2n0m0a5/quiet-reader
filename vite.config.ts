@@ -38,13 +38,18 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,mjs,css,html,svg,png,woff2}'],
-        globIgnores: ['pdfjs/**'],
+        globIgnores: ['pdfjs/**', 'vendor/libarchive/**'],
         navigateFallback: 'index.html',
         // PDF.js data files (character maps, fonts) are kept once they've been used.
         runtimeCaching: [{
           urlPattern: /\/pdfjs\//,
           handler: 'CacheFirst',
           options: { cacheName: 'pdfjs-data' },
+        }, {
+          // The RAR and 7-Zip reader (about 1 MB) is kept once a comic has needed it.
+          urlPattern: /\/vendor\/libarchive\//,
+          handler: 'CacheFirst',
+          options: { cacheName: 'archive-reader' },
         }],
       },
     }),

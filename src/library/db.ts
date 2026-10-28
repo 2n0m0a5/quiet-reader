@@ -90,7 +90,7 @@ export function statusOf(book: BookRecord): Status {
 export const TRASH_DAYS = 30
 
 const DB_NAME = 'quiet'
-const DB_VERSION = 3
+const DB_VERSION = 4
 
 let dbPromise: Promise<IDBDatabase> | null = null
 
@@ -110,6 +110,7 @@ function db(): Promise<IDBDatabase> {
         const annotations = d.createObjectStore('annotations', { keyPath: 'id' })
         annotations.createIndex('bookId', 'bookId')
       }
+      if (!d.objectStoreNames.contains('fonts')) d.createObjectStore('fonts', { keyPath: 'id' })
     }
     request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error)
@@ -127,7 +128,7 @@ const finished = (tx: IDBTransaction) => new Promise<void>((resolve, reject) => 
   tx.onerror = tx.onabort = () => reject(tx.error)
 })
 
-type StoreName = 'books' | 'files' | 'collections' | 'annotations' | 'reading'
+type StoreName = 'books' | 'files' | 'collections' | 'annotations' | 'reading' | 'fonts'
 
 async function store(name: StoreName, mode: IDBTransactionMode = 'readonly') {
   return (await db()).transaction(name, mode).objectStore(name)
@@ -283,4 +284,30 @@ export async function listReading(): Promise<ReadingDay[]> {
 // Ask the browser not to clear our storage when the device is low on space.
 export function requestPersistentStorage() {
   navigator.storage?.persist?.().catch(() => {})
+}
+
+// ---------- Fonts you added (reader/custom-fonts.ts) ----------
+
+export interface FontRecord {
+  id: string
+  family: string        // shown in the font choices, and used in the book's CSS
+  weight: number        // 400 regular, 700 bold…
+  style: 'normal' | 'italic'
+  fileName: string
+  data: Blob
+  addedAt: number
+}
+
+export async function listFontRecords(): Promise<FontRecord[]> {
+  return done((await store('fonts')).getAll())
+}
+
+export async function saveFontRecord(font: FontRecord) {
+  await done((await store('fonts', 'readwrite')).put(font))
+}
+
+export async function deleteFontRecords(ids: string[]) {
+  const tx = (await db()).transaction('fonts', 'readwrite')
+  for (const id of ids) tx.objectStore('fonts').delete(id)
+  await finished(tx)
 }

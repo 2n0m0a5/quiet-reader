@@ -26,6 +26,11 @@ const STYLE_PALETTES: Record<DesignStyle, Partial<Record<Theme, Palette>>> = {
     light: { bg: '#f6f1e8', text: '#2e2620', link: '#8a4b2a', dark: false },
     dark: { bg: '#1c1814', text: '#e6daca', link: '#d49a6a', dark: true },
   },
+  // Frosty Glass: a clear, cool page under glass controls.
+  frost: {
+    light: { bg: '#f6f8fc', text: '#18202e', link: '#2f5fc4', dark: false },
+    dark: { bg: '#0f1422', text: '#e3e8f1', link: '#93b4ff', dark: true },
+  },
 }
 
 const systemDark = matchMedia('(prefers-color-scheme: dark)')

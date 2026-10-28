@@ -19,13 +19,14 @@ export const makeComicBook = ({ entries, loadBlob, getSize }, file) => {
     const exts = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.jxl', '.avif']
     const files = entries
         .map(entry => entry.filename)
-        .filter(name => exts.some(ext => name.endsWith(ext)))
-        .sort(new Intl.Collator([], { numeric: true }).compare)
+        // Quiet: upper-case extensions count too, and hidden files and macOS leftovers don't.
+        .filter(name => exts.some(ext => name.toLowerCase().endsWith(ext)) && !/(^|\/)(__MACOSX|\.)/.test(name))
+        .sort(new Intl.Collator([], { numeric: true, sensitivity: 'base' }).compare)
     if (!files.length) throw new Error('No supported image files in archive')
 
     const book = {}
     book.getCover = () => loadBlob(files[0])
-    book.metadata = { title: file.name }
+    book.metadata = { title: file.name.replace(/\.[^.]+$/, '') }
     book.sections = files.map(name => ({
         id: name,
         load: () => load(name),

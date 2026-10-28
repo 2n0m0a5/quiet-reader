@@ -105,6 +105,8 @@
                 <button class="choice font-sans" data-value="sans">Sans</button>
                 <button class="choice" data-value="original">Book’s own</button>
               </div>
+              <button class="link-button add-font" id="addFont">Add your own font</button>
+              <input id="fontInput" type="file" multiple hidden>
             </div>
             <div class="setting"><div class="setting-head"><span>Font size</span><span id="fontValue"></span></div><input type="range" id="fontRange" aria-label="Font size" min="80" max="180" step="5"></div>
             <div class="setting"><div class="setting-head"><span>Weight</span><span id="weightValue"></span></div><input type="range" id="weightRange" aria-label="Text weight" min="300" max="700" step="50"></div>
@@ -116,6 +118,14 @@
               <div class="choice-row" data-setting="flow">
                 <button class="choice" data-value="scrolled">Scroll</button>
                 <button class="choice" data-value="paginated">Pages</button>
+              </div>
+            </div>
+            <div class="setting">
+              <div class="setting-head"><span>Page turn</span><span>In page mode</span></div>
+              <div class="choice-row" data-setting="pageTurn">
+                <button class="choice" data-value="slide">Slide</button>
+                <button class="choice" data-value="curl">Curl</button>
+                <button class="choice" data-value="none">None</button>
               </div>
             </div>
             <div class="setting">

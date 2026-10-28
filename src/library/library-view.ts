@@ -1,12 +1,13 @@
 import {
   ArrowDownUp, Bookmark, BookCheck, ChartColumn, Check, CopyCheck, Ellipsis, FolderPlus, LayoutGrid, Library, ListChecks, Plus,
-  RotateCcw, Rows3, Search, SquareLibrary, Tag, Trash2, Users, X,
+  RotateCcw, Rows3, ChevronLeft, Layers, Search, SquareLibrary, Tag, Trash2, Users, X,
 } from 'lucide'
 import {
   deleteCollection, listBooks, listCollections, listTrash, newId, purgeTrash, saveCollection, statusOf, updateBook,
   type BookRecord, type Collection, type Status,
 } from './db'
 import { confirmDialog, formDialog, h, menuDialog, icon } from '../ui/dialog'
+import { animateLayout } from '../ui/motion'
 import { fileSize, percent, timeAgo } from '../ui/format'
 import { allTags, pickCollections, pickTags, seriesText } from './details'
 import { findDuplicates, showDuplicates, showTrash } from './library-tools'
@@ -14,7 +15,8 @@ import { haptic } from '../app/native'
 
 type SortKey = 'recent' | 'added' | 'title' | 'author' | 'series' | 'rating' | 'progress' | 'size'
 type View = 'grid' | 'list' | 'shelf'
-type Filter = 'all' | Status | `collection:${string}` | `tag:${string}`
+// 'series' shows every series as a stack of covers; `series:<name>` one series, in order.
+type Filter = 'all' | Status | 'series' | `series:${string}` | `collection:${string}` | `tag:${string}`
 
 const SORTS: Record<SortKey, string> = {
   recent: 'Recently read', added: 'Recently added', title: 'Title', author: 'Author', series: 'Series',
@@ -33,7 +35,7 @@ export interface LibraryActions {
   stats?(): void
 }
 
-interface Prefs { sort: SortKey; reversed: boolean; view: View; groupByAuthor: boolean; shelfSize: number | null }
+interface Prefs { sort: SortKey; reversed: boolean; view: View; groupByAuthor: boolean; groupBySeries?: boolean; shelfSize: number | null }
 
 // The library screen: "Continue reading", then every book, with search, sorting, filters,
 // collections and tags; several books can be selected at once.
@@ -92,6 +94,7 @@ export class LibraryView {
     if (empty) return
     if (this.#filter.startsWith('collection:') && !this.#currentCollection()) this.#filter = 'all'
     if (this.#filter.startsWith('tag:') && !this.#tags.includes(this.#filter.slice(4))) this.#filter = 'all'
+    if (this.#filter.startsWith('series:') && !this.#seriesNames().includes(this.#filter.slice(7))) this.#filter = 'series'
     this.#count.textContent = String(this.#books.length)
     this.#actions.summary?.().then(el => this.#summary.replaceChildren(...(el ? [el] : [])))
     this.#renderControls()
@@ -225,20 +228,24 @@ export class LibraryView {
       ['reading', `Reading ${count('reading') || ''}`],
       ['new', `Not started ${count('new') || ''}`],
       ['finished', `Finished ${count('finished') || ''}`],
+      ...(this.#seriesNames().length ? [['series', `Series ${this.#seriesNames().length}`] as [Filter, string]] : []),
       ...this.#collections.map(c => [`collection:${c.id}`, c.name] as [Filter, string]),
       ...this.#tags.map(t => [`tag:${t}`, `#${t}`] as [Filter, string]),
     ]
     this.#chips.replaceChildren()
     for (const [filter, label] of chips) {
-      const chip = h('button', `chip${filter === this.#filter ? ' selected' : ''}${filter.startsWith('tag:') ? ' tag-chip' : ''}`, label.trim())
+      const on = filter === this.#filter || (filter === 'series' && this.#filter.startsWith('series:'))
+      const chip = h('button', `chip${on ? ' selected' : ''}${filter.startsWith('tag:') ? ' tag-chip' : ''}`, label.trim())
       chip.setAttribute('aria-pressed', String(filter === this.#filter))
       chip.addEventListener('click', () => {
         // Tapping the selected collection again opens its options.
         if (filter === this.#filter && filter.startsWith('collection:')) return this.#collectionMenu(filter)
-        this.#filter = filter
-        this.#renderContinue()
-        this.#renderChips()
-        this.#renderResults()
+        this.#rearrange(() => {
+          this.#filter = filter
+          this.#renderContinue()
+          this.#renderChips()
+          this.#renderResults()
+        })
       })
       if (filter.startsWith('collection:'))
         chip.addEventListener('contextmenu', e => { e.preventDefault(); this.#collectionMenu(filter) })
@@ -257,9 +264,11 @@ export class LibraryView {
     this.#results.replaceChildren()
     // When a different set of books shows (another filter or view, books added), they rise into place.
     // Coming back to the same books doesn't replay it.
-    const shown = `${this.#filter}|${this.#prefs.view}|${this.#prefs.groupByAuthor}|${books.map(b => b.id).sort().join()}`
+    const shown = `${this.#filter}|${this.#prefs.view}|${this.#prefs.groupByAuthor}|${this.#prefs.groupBySeries}|${books.map(b => b.id).sort().join()}`
     this.#results.classList.toggle('entering', shown !== this.#shown)
     this.#shown = shown
+    if (this.#filter === 'series') return this.#renderSeriesShelf(books)
+    if (this.#filter.startsWith('series:')) return this.#renderSeries(this.#filter.slice(7), books)
     const collection = this.#currentCollection()
     if (collection) {
       const bar = h('div', 'collection-bar')
@@ -272,16 +281,82 @@ export class LibraryView {
       this.#results.append(h('p', 'no-results', this.#emptyMessage()))
       return
     }
-    // Grouped by author: one heading per author, in the chosen order inside each group.
-    const groups = this.#prefs.groupByAuthor ? groupBy(books, b => b.author || 'Unknown author') : [['', books] as const]
-    for (const [author, group] of groups) {
-      if (author) {
-        const heading = h('h3', 'group-heading', `${author} `)
+    // Grouped by author or series: one heading per group, in the chosen order inside each group
+    // (a series in its own order).
+    const groups = this.#prefs.groupBySeries ? groupBy(books, b => b.series || 'Not in a series')
+        .map(([name, group]) => [name, name === 'Not in a series' ? group : bySeriesOrder(group)] as const)
+        .sort(([a], [b]) => a === 'Not in a series' ? 1 : b === 'Not in a series' ? -1 : 0)
+      : this.#prefs.groupByAuthor ? groupBy(books, b => b.author || 'Unknown author') : [['', books] as const]
+    for (const [name, group] of groups) {
+      if (name) {
+        const heading = h('h3', 'group-heading', `${name} `)
         heading.append(h('span', 'count', String(group.length)))
         this.#results.append(heading)
       }
       this.#results.append(this.#bookList(group))
     }
+  }
+
+  // ---------- Series ----------
+
+  #seriesNames() {
+    return [...new Set(this.#books.map(b => b.series?.trim()).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b))
+  }
+
+  // Every series as a small stack of its covers, with how far you are through it.
+  #renderSeriesShelf(visible: BookRecord[]) {
+    const all = groupBy(visible.filter(b => b.series?.trim()), b => b.series!.trim())
+    if (!all.length) { this.#results.append(h('p', 'no-results', 'No series yet. Open a book’s details and choose Edit to say which series it belongs to.')); return }
+    const grid = h('div', 'series-grid')
+    all.forEach(([name, books], i) => {
+      const ordered = bySeriesOrder(books)
+      const finished = books.filter(b => statusOf(b) === 'finished').length
+      const card = h('button', 'series-card')
+      card.style.setProperty('--n', String(Math.min(i, 14)))
+      card.dataset.id = `series-${name}`
+      const stack = h('div', 'series-stack')
+      ordered.slice(0, 3).reverse().forEach((book, j, list) => {
+        const cover = this.#cover(book)
+        cover.style.setProperty('--depth', String(list.length - 1 - j))
+        stack.append(cover)
+      })
+      const bar = h('div', 'bar')
+      const fill = h('span')
+      fill.style.width = `${finished / books.length * 100}%`
+      bar.append(fill)
+      card.append(stack, h('div', 'tile-title', name),
+        h('div', 'tile-author', [...new Set(books.map(b => b.author).filter(Boolean))].join(', ') || 'Unknown author'),
+        bar, h('div', 'tile-status', `${books.length} ${books.length === 1 ? 'book' : 'books'} · ${finished} finished`))
+      card.setAttribute("aria-label", `${name}: ${books.length} ${books.length === 1 ? "book" : "books"}, ${finished} finished`)
+      card.addEventListener('click', () => {
+        this.#filter = `series:${name}`
+        this.#renderChips()
+        this.#renderResults()
+        this.#results.closest('.library')?.scrollTo({ top: 0 })
+      })
+      grid.append(card)
+    })
+    this.#results.append(grid)
+  }
+
+  // One series, in its own order, with the next book to read.
+  #renderSeries(name: string, visible: BookRecord[]) {
+    const books = bySeriesOrder(visible.filter(b => b.series?.trim() === name))
+    const finished = books.filter(b => statusOf(b) === 'finished').length
+    const next = books.find(b => statusOf(b) !== 'finished')
+    const bar = h('div', 'collection-bar series-bar')
+    const back = h('button', 'link-button', 'All series')
+    back.prepend(icon(ChevronLeft))
+    back.addEventListener('click', () => { this.#filter = 'series'; this.#renderChips(); this.#renderResults() })
+    bar.append(back, h('span', '', `${finished} of ${books.length} finished`))
+    const head = h('div', 'series-head')
+    head.append(h('h2', '', name))
+    if (next) {
+      const go = h('button', 'btn primary small', statusOf(next) === 'reading' ? `Continue ${next.title}` : `Next: ${next.title}`)
+      go.addEventListener('click', () => this.#actions.open(next.id))
+      head.append(go)
+    }
+    this.#results.append(bar, head, this.#bookList(books))
   }
 
   #bookList(books: BookRecord[]) {
@@ -292,6 +367,7 @@ export class LibraryView {
     books.forEach((book, i) => {
       const el = view === 'grid' ? this.#tile(book) : view === 'list' ? this.#row(book) : this.#shelfBook(book)
       el.style.setProperty('--n', String(Math.min(i, 14)))
+      el.dataset.id = book.id
       list.append(el)
     })
     return list
@@ -326,6 +402,7 @@ export class LibraryView {
       if (this.#filter === 'all') return true
       if (this.#filter.startsWith('collection:')) return b.collections?.includes(this.#filter.slice(11)) ?? false
       if (this.#filter.startsWith('tag:')) return b.tags?.includes(this.#filter.slice(4)) ?? false
+      if (this.#filter === 'series' || this.#filter.startsWith('series:')) return !!b.series?.trim()
       return statusOf(b) === this.#filter
     })
   }
@@ -350,13 +427,26 @@ export class LibraryView {
   }
 
   #rerender() {
-    this.#renderControls()
-    this.#renderContinue()
-    this.#renderResults()
+    this.#rearrange(() => {
+      this.#renderControls()
+      this.#renderContinue()
+      this.#renderResults()
+    })
   }
 
+  // A change to which books show, or in what order: each book glides to its new place.
+  #rearrange(change: () => void | Promise<void>) {
+    animateLayout(this.#inner, '.book-tile, .book-row, .shelf-slot, .series-card', el => el.dataset.id, async () => {
+      await change()
+      this.#results.classList.remove('entering')
+    })
+  }
+
+  // After books are removed or restored (main.ts).
+  refreshRearranged() { this.#rearrange(() => this.refresh()) }
+
   #chooseSort() {
-    const { sort, reversed, groupByAuthor } = this.#prefs
+    const { sort, reversed, groupByAuthor, groupBySeries } = this.#prefs
     menuDialog({
       title: 'Sort by',
       items: [
@@ -365,7 +455,8 @@ export class LibraryView {
           run: () => { this.#savePrefs({ sort: key, reversed: false }); this.#rerender() },
         })),
         { label: reversed ? 'Normal order' : 'Reverse order', icon: icon(ArrowDownUp), run: () => { this.#savePrefs({ reversed: !reversed }); this.#rerender() } },
-        { label: groupByAuthor ? 'Don’t group by author' : 'Group by author', icon: icon(Users), run: () => { this.#savePrefs({ groupByAuthor: !groupByAuthor }); this.#rerender() } },
+        { label: groupByAuthor ? 'Don’t group by author' : 'Group by author', icon: icon(Users), run: () => { this.#savePrefs({ groupByAuthor: !groupByAuthor, groupBySeries: false }); this.#rerender() } },
+        { label: groupBySeries ? 'Don’t group by series' : 'Group by series', icon: icon(Layers), run: () => { this.#savePrefs({ groupBySeries: !groupBySeries, groupByAuthor: false }); this.#rerender() } },
       ],
     })
   }
@@ -655,19 +746,32 @@ export class LibraryView {
       haptic()
       this.#actions.info(book)
     }
-    const cancel = () => window.clearTimeout(timer)
+    // While held, the book slowly sinks under the finger; when the press counts, it lifts back up
+    // (like iOS's long press) and its details open.
+    let sink = 0
+    const cancel = () => { window.clearTimeout(timer); window.clearTimeout(sink); el.classList.remove('pressing') }
+    const shown = show
+    const lift = (byTouch: boolean) => {
+      el.classList.remove('pressing')
+      el.classList.add('lifted')
+      window.setTimeout(() => el.classList.remove('lifted'), 450)
+      shown(byTouch)
+    }
     el.addEventListener('touchstart', () => {
       fired = false
-      timer = window.setTimeout(() => show(true), 500)
+      sink = window.setTimeout(() => el.classList.add('pressing'), 120)
+      timer = window.setTimeout(() => lift(true), 500)
     }, { passive: true })
     el.addEventListener('touchmove', cancel, { passive: true })
     el.addEventListener('touchend', cancel)
     el.addEventListener('click', e => { if (fired) { e.stopImmediatePropagation(); fired = false } }, true)
-    el.addEventListener('contextmenu', e => { e.preventDefault(); cancel(); show(e.pointerType === 'touch' || fired) })
+    el.addEventListener('contextmenu', e => { e.preventDefault(); cancel(); lift(e.pointerType === 'touch' || fired) })
   }
 
   #cover(book: BookRecord, urls = this.#coverUrls) {
     const cover = h('div', 'book-cover')
+    // Opening a book zooms from this cover into the page (main.ts).
+    cover.dataset.bookId = book.id
     if (book.cover) {
       const img = h('img')
       img.alt = ''
@@ -704,6 +808,11 @@ function groupBy(books: BookRecord[], key: (b: BookRecord) => string) {
   for (const b of books) groups.set(key(b), [...groups.get(key(b)) ?? [], b])
   return [...groups.entries()].sort(([a], [b]) =>
     a === 'Unknown author' ? 1 : b === 'Unknown author' ? -1 : a.localeCompare(b))
+}
+
+// A series' books in their order (by number, then title).
+function bySeriesOrder(books: BookRecord[]) {
+  return [...books].sort((a, b) => (a.seriesIndex ?? Infinity) - (b.seriesIndex ?? Infinity) || a.title.localeCompare(b.title))
 }
 
 // Case- and accent-insensitive text for searching ("Émile" matches "emile").

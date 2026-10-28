@@ -1,7 +1,8 @@
-import { Copy, Pencil, Tag, Trash2, UserRound, X } from 'lucide'
-import { deleteAnnotation, listAnnotations, newId, saveAnnotation, type Annotation, type MarkStyle } from '../library/db'
+import { Copy, Image as ImageIcon, Pencil, Tag, Trash2, UserRound, X } from 'lucide'
+import { deleteAnnotation, getBook, listAnnotations, newId, saveAnnotation, type Annotation, type MarkStyle } from '../library/db'
 import { pickTags } from '../library/details'
 import { allHighlightTags, noteCard, noteTool, passageText } from '../ui/note-card'
+import { showQuoteImage } from '../ui/quote-image'
 import { showTranslation } from './translate'
 import { askSpeaker, knownSpeakers } from '../ui/quote-dialog'
 import type { Reader } from './reader'
@@ -29,12 +30,12 @@ export class BookNotes {
   #goTo: (cfi: string) => void
   #items: Annotation[] = []
   #lastColor = HIGHLIGHT_COLORS[0].value
-  #book: { title: string; author: string }
+  #book: { id: string; title: string; author: string }
 
   constructor(reader: Reader, book: { id: string; title: string; author: string }, ui: NotesUI, goTo: (cfi: string) => void) {
     this.#reader = reader
     this.#bookId = book.id
-    this.#book = { title: book.title, author: book.author }
+    this.#book = { id: book.id, title: book.title, author: book.author }
     this.#ui = ui
     this.#goTo = goTo
   }
@@ -267,6 +268,7 @@ export class BookNotes {
         }))
         tools.push(noteTool(a.note ? 'Edit note' : 'Add note', Pencil, () => this.#editNote(a)))
         tools.push(noteTool('Tags', Tag, () => this.#editTags(a)))
+        tools.push(noteTool('Share as a picture', ImageIcon, async () => showQuoteImage(a, await getBook(this.#book.id))))
       }
       tools.push(noteTool(a.type === 'bookmark' ? 'Remove bookmark' : 'Delete', a.type === 'bookmark' ? X : Trash2, async () => {
         if (a.type === 'highlight' && (a.note || a.quote)) {

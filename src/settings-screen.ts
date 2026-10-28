@@ -9,10 +9,12 @@ import { addFolder, listFolders, removeFolder, scanFolders } from './library/fol
 import { X } from 'lucide'
 import { khatam, logo as quietLogo } from './ui/brand'
 import { fillRange } from './ui/range'
+import { familyStack, loadedFamilies, loadedRecords, removeFamily } from './reader/custom-fonts'
 
 export interface SettingsScreenActions {
   get(): Settings
   update(patch: Partial<Settings>): void
+  addFonts(): void
   libraryCleared(): void
 }
 
@@ -22,6 +24,7 @@ const STYLES: { id: DesignStyle, name: string, wordmark: string, text: string, a
   { id: 'star', name: 'Quiet Star', wordmark: 'Quiet', text: 'Almost nothing, and one small star. Lapis blue, soft paper and rounded shapes.', action: 'Continue reading' },
   { id: 'paper', name: 'Paper', wordmark: 'quiet', text: 'Black ink on white paper. Nothing else. Hairlines, words instead of buttons, one red mark.', action: 'Continue reading' },
   { id: 'tashkent', name: 'Old Tashkent', wordmark: 'Quiet', text: 'Ganch plaster, carved walnut and arched doorways, like a quiet courtyard in the old town.', action: 'Continue' },
+  { id: 'frost', name: 'Frosty Glass', wordmark: 'Quiet', text: 'Controls of frosted glass floating over a clear page, on soft, icy light.', action: 'Continue reading' },
 ]
 
 // The Settings screen: reading defaults, behaviour, storage, and About.
@@ -44,7 +47,9 @@ export class SettingsScreen {
       ]),
       this.#section('Reading', 'These are also in the reading settings while a book is open.', [
         this.#choices('Reading mode', 'flow', [['scrolled', 'Scroll'], ['paginated', 'Pages']]),
-        this.#choices('Font', 'font', [['serif', 'Serif'], ['sans', 'Sans'], ['original', 'Book’s own']]),
+        this.#choices('Page turn (in page mode)', 'pageTurn', [['slide', 'Slide'], ['curl', 'Curl'], ['none', 'None']]),
+        this.#choices('Font', 'font', [['serif', 'Serif'], ['sans', 'Sans'], ['original', 'Book’s own'],
+          ...loadedFamilies().map(f => [`custom:${f}`, f] as [Settings['font'], string])]),
         this.#slider('Font size', 'fontSize', limits.fontSize, v => `${v}%`),
         this.#slider('Weight', 'fontWeight', limits.fontWeight, v => v === 400 ? 'Regular' : v < 400 ? 'Lighter' : 'Bolder'),
         this.#slider('Line spacing', 'lineHeight', limits.lineHeight, v => v.toFixed(1)),
@@ -73,6 +78,7 @@ export class SettingsScreen {
         this.#toggle('Keep the screen on while reading', 'The screen won’t dim or lock while a book is open.', 'keepAwake'),
         ...(isNativeApp ? [this.#toggle('Turn pages with the volume keys', 'Volume down for the next page, volume up for the previous one.', 'volumeKeys')] : []),
       ]),
+      this.#fonts(),
       this.#folders(),
       this.#storage(),
       this.#about(),
@@ -123,6 +129,38 @@ export class SettingsScreen {
     soon.append(more, own)
     section.append(list, soon)
     return section
+  }
+
+  // ---------- Your fonts ----------
+
+  #fonts() {
+    const rows: HTMLElement[] = []
+    const records = loadedRecords()
+    for (const family of loadedFamilies()) {
+      const row = h('div', 'settings-row font-row')
+      const text = h('div', 'font-text')
+      const sample = h('div', 'font-sample', 'It was a quiet morning.')
+      sample.style.fontFamily = familyStack(family)
+      const styles = records.filter(r => r.family === family).sort((a, b) => a.weight - b.weight || a.style.localeCompare(b.style)).map(r => `${r.weight >= 600 ? 'Bold' : r.weight <= 300 ? 'Light' : 'Regular'}${r.style === 'italic' ? ' italic' : ''}`)
+      text.append(h('div', 'settings-label', family), sample, h('div', 'settings-hint', [...new Set(styles)].join(' · ')))
+      const remove = h('button', 'btn small icon', '')
+      remove.append(icon(X))
+      remove.setAttribute('aria-label', `Remove ${family}`)
+      remove.title = `Remove ${family}`
+      remove.addEventListener('click', async () => {
+        if (!await confirmDialog({ title: `Remove ${family}?`, message: 'Books shown in it go back to the style’s own font.', confirm: 'Remove', danger: true })) return
+        await removeFamily(family)
+        toast(`${family} removed.`)
+      })
+      row.append(text, remove)
+      rows.push(row)
+    }
+    const add = h('div', 'settings-row')
+    const button = h('button', 'btn small primary', 'Add fonts')
+    button.addEventListener('click', () => this.#actions.addFonts())
+    add.append(h('div', 'settings-label', rows.length ? 'Add more' : 'No fonts added yet'), button)
+    rows.push(add)
+    return this.#section('Your fonts', 'Read in any font you like: add TTF, OTF, WOFF or WOFF2 files. Add the bold and italic files too, and they’re used for bold and italic text. Fonts stay on this device.', rows)
   }
 
   // ---------- Building blocks ----------

@@ -1,4 +1,5 @@
-// Plain text (.txt) and web pages (.html) as books.
+// Plain text (.txt) and web pages (.html) as books. Other formats that become HTML
+// (Word, OpenDocument, RTF, Markdown, HTMLZ) use htmlBook() from here too.
 // The text is split into chapters and given to the reading engine in the same shape
 // as its own EPUB and FB2 readers produce (see vendor/foliate-js/README.md, "The Main Interface for Books").
 import type { Book } from '../reader/foliate'
@@ -8,7 +9,7 @@ interface Chapter { title: string; html: string }
 const XHTML = 'application/xhtml+xml'
 const MAX_CHAPTER = 60_000   // characters; longer stretches without headings are split up
 
-const escape = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!))
+export const escape = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!))
 
 const page = (title: string, body: string) => `<?xml version="1.0" encoding="utf-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml"><head><title>${escape(title)}</title>
@@ -16,7 +17,7 @@ const page = (title: string, body: string) => `<?xml version="1.0" encoding="utf
 </head><body>${body}</body></html>`
 
 // Decodes text as UTF-8, falling back to Windows-1251 (common for older Russian texts), then Latin-1.
-async function decode(file: Blob) {
+export async function decode(file: Blob) {
   const bytes = new Uint8Array(await file.arrayBuffer())
   for (const encoding of ['utf-8', 'windows-1251']) {
     try { return new TextDecoder(encoding, { fatal: true }).decode(bytes) } catch { /* try the next */ }
@@ -25,7 +26,7 @@ async function decode(file: Blob) {
 }
 
 // "Author - Title.txt" → { author, title }
-function namesFrom(fileName: string) {
+export function namesFrom(fileName: string) {
   const base = fileName.replace(/\.[^.]+$/, '').replace(/_/g, ' ').trim()
   const parts = base.split(/\s+[-–—]\s+/)
   return parts.length === 2 ? { author: parts[0], title: parts[1] } : { author: '', title: base }
@@ -36,8 +37,12 @@ function namesFrom(fileName: string) {
 const HEADING = /^\s*((chapter|part|book|prologue|epilogue|interlude|глава|часть|книга|пролог|эпилог)(?=[\s.:]|$)[^\n]{0,80}|[IVXLC]{1,7}\.?|\d{1,3}\.?)\s*$/iu
 
 export async function makeTextBook(file: File): Promise<Book> {
-  const text = (await decode(file)).replace(/\r\n?/g, '\n').replace(/^﻿/, '')
-  const { author, title } = namesFrom(file.name)
+  return textBook(await decode(file), namesFrom(file.name))
+}
+
+// Text split into paragraphs and chapters (used for .txt, RTF and Palm documents).
+export function textBook(raw: string, { author, title }: { author: string; title: string }): Book {
+  const text = raw.replace(/\r\n?/g, '\n').replace(/^﻿/, '')
 
   // Paragraphs are separated by blank lines, or (in files without blank lines) by every line break.
   const lines = text.split('\n')
@@ -69,10 +74,14 @@ export async function makeTextBook(file: File): Promise<Book> {
 }
 
 export async function makeHtmlBook(file: File): Promise<Book> {
-  const doc = new DOMParser().parseFromString(await decode(file), 'text/html')
-  const names = namesFrom(file.name)
+  return htmlBook(await decode(file), namesFrom(file.name))
+}
+
+// A web page as a book: one chapter per top-level heading. `names` is used where the page has none.
+export function htmlBook(html: string, names: { author: string; title: string }, extra: { language?: string } = {}): Book {
+  const doc = new DOMParser().parseFromString(html, 'text/html')
   const title = doc.title.trim() || names.title
-  const author = doc.querySelector('meta[name="author"]')?.getAttribute('content') ?? names.author
+  const author = doc.querySelector('meta[name="author"]')?.getAttribute('content') || names.author
   // Remove anything that could run code or load from the internet.
   doc.querySelectorAll('script, iframe, object, embed, link, meta, base, form').forEach(el => el.remove())
   for (const el of doc.querySelectorAll('*'))
@@ -93,10 +102,10 @@ export async function makeHtmlBook(file: File): Promise<Book> {
     current.html += serializer.serializeToString(node)
   }
   if (current.html.trim() || !chapters.length) chapters.push(current)
-  return bookFrom(chapters, { title, author })
+  return bookFrom(chapters, { title, author, language: extra.language })
 }
 
-function bookFrom(chapters: Chapter[], meta: { title: string; author: string }): Book {
+function bookFrom(chapters: Chapter[], meta: { title: string; author: string; language?: string }): Book {
   const urls: string[] = []
   const sections = chapters.map((chapter, index) => {
     const str = page(chapter.title, chapter.html)
@@ -111,7 +120,7 @@ function bookFrom(chapters: Chapter[], meta: { title: string; author: string }):
     }
   })
   const book = {
-    metadata: { title: meta.title, author: meta.author || undefined },
+    metadata: { title: meta.title, author: meta.author || undefined, language: meta.language },
     sections,
     toc: chapters.length > 1 ? chapters.map((c, i) => ({ label: c.title, href: String(i) })) : [],
     dir: 'ltr' as const,

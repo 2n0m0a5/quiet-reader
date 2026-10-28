@@ -1,7 +1,7 @@
 // Dialogs: a sheet from the bottom on phones, a centred window on larger screens.
 // Built on <dialog>, which handles focus and the Escape key.
 import { createElement, type IconNode } from 'lucide'
-import { draggableSheet, rubberBand } from './motion'
+import { draggableSheet, lastPointer, rubberBand } from './motion'
 
 // An icon element, sized by the app's CSS (svg.lucide).
 export const icon = (node: IconNode) => createElement(node, { class: 'lucide' })
@@ -72,6 +72,11 @@ export function openDialog(options: {
   el.addEventListener('click', e => { if (e.target === el) close() })    // backdrop
   open.push(dialog)
   el.showModal()
+  // On wider screens a dialog grows out of where you tapped, like a popover on iOS.
+  if (!phone.matches) {
+    const r = el.getBoundingClientRect()
+    el.style.transformOrigin = `${Math.max(0, Math.min(r.width, lastPointer.x - r.left))}px ${Math.max(0, Math.min(r.height, lastPointer.y - r.top))}px`
+  }
   return dialog
 }
 
