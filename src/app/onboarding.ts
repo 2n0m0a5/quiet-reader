@@ -1,12 +1,13 @@
 // The first-run welcome (three short pages), and "What's new" after an update.
-import { BookOpen, ChartColumn, FolderOpen, Highlighter, Languages, Library, NotebookText, Palette, Quote } from 'lucide'
+import { BookOpen, ChartColumn, FolderOpen, Highlighter, Languages, Library, NotebookText, Palette, Quote, Sparkles } from 'lucide'
 import { button, h, icon, openDialog } from '../ui/dialog'
+import { logo as quietLogo } from '../ui/brand'
 
 const WELCOME_KEY = 'quiet:welcome-seen'
 const VERSION_KEY = 'quiet:seen-version'
 
 // The last version with something to tell: What's new shows once to anyone updating from before it.
-const NEWS = '0.3.1'
+const NEWS = '0.3.2'
 
 // "0.3.0-dev.5" → [0, 3, 0], for comparing versions.
 const parts = (version: string) => version.split('-')[0].split('.').map(Number)
@@ -55,10 +56,12 @@ export function showWelcome(addBooks: () => void) {
     m.append(icon(symbol), h('span', '', label))
     marks.append(m)
   }
-  const logo = art('welcome-logo', h('div', 'logo', 'q'))
+  const logo = art('welcome-logo', quietLogo())
 
   const pages: Page[] = [
-    { art: logo, title: 'Welcome to Quiet', text: 'A calm place for your books: EPUB, PDF, comics, FB2, MOBI and more. Everything stays on this device. No account, no ads, no tracking.' },
+    document.documentElement.dataset.style === 'paper'
+      ? { art: logo, title: 'A place to read. Nothing else.', text: 'EPUB, PDF, comics, FB2, MOBI and more. No account, no ads, no feed. Your books, your place in them and your notes stay on this device.' }
+      : { art: logo, title: 'Just you and the book.', text: 'A calm place for your books: EPUB, PDF, comics, FB2, MOBI and more. Everything stays on this device. No account, no ads, no tracking.' },
     { art: phone, title: 'Tap to read', text: 'Tap the middle of the page to show or hide the controls. In page mode, tap the left or right edge to turn the page.' },
     { art: marks, title: 'Make it yours', text: 'Select text to highlight it, write a note, save a quote or translate it. Themes, fonts and spacing are under the sliders button while you read.' },
   ]
@@ -109,8 +112,12 @@ export function showWelcome(addBooks: () => void) {
 
 // What's new in this version. Also opened from Settings → About.
 // `since`: the version the reader had before; what's newer than that comes first.
-export function showWhatsNew(since = '0.3.0') {
+export function showWhatsNew(since = '0.3.1') {
   const latest: [typeof BookOpen, string, string][] = [
+    [Palette, 'Two design styles', 'Quiet Star: almost nothing, and one small star. Paper: black ink on white paper, nothing else. Pick one in Settings → Style.'],
+    [Sparkles, 'More on the way', 'More styles are coming, and later you’ll be able to build your own.'],
+  ]
+  const before: [typeof BookOpen, string, string][] = [
     [FolderOpen, 'Book folders', 'Fill a folder with books and choose it once: Quiet adds them all, and in the app it checks the folder for new books each time it opens. Add books → Add a book folder.'],
     [Quote, 'Quotes have owners', 'When you save a quote, say who says it: a character, or leave it empty for the narrator. Copied quotes are signed with their name and the book.'],
   ]
@@ -123,7 +130,7 @@ export function showWhatsNew(since = '0.3.0') {
     [ChartColumn, 'Reading stats', 'Time read, a gentle streak, daily and yearly goals, and how many pages you read.'],
   ]
   const list = h('div', 'whats-new')
-  const rows = older(since, '0.3.0') ? [...latest, ...items] : latest
+  const rows = [...latest, ...older(since, '0.3.1') ? before : [], ...older(since, '0.3.0') ? items : []]
   for (const [symbol, title, text] of rows) {
     const row = h('div', 'whats-new-item')
     const badge = h('div', 'whats-new-icon')
@@ -135,5 +142,8 @@ export function showWhatsNew(since = '0.3.0') {
   }
   const actions = h('div', 'dialog-actions')
   const d = openDialog({ title: `What’s new in Quiet ${NEWS}`, className: 'dialog-details', content: [list, actions] })
-  actions.append(button('Continue', 'primary', () => d.close()))
+  actions.append(
+    button('See the styles', '', () => { d.close(); location.hash = '#/settings' }),
+    button('Continue', 'primary', () => d.close()),
+  )
 }

@@ -699,15 +699,13 @@ function groupBy(books: BookRecord[], key: (b: BookRecord) => string) {
 // Case- and accent-insensitive text for searching ("Émile" matches "emile").
 const normalize = (s: string) => s.toLocaleLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
 
-// Books without a cover get a simple typographic one, coloured by title.
-const COVER_COLORS = ['#6e806c', '#8a6f5a', '#5f7486', '#866a80', '#7d7a55', '#5d7d78', '#8c6464']
-
+// Books without a cover get a simple typographic one. The title picks one of seven tones;
+// each design style has its own (see styles.css).
 export function generatedCover(book: Pick<BookRecord, 'title' | 'author'>) {
   let hash = 0
   for (const ch of book.title) hash = (hash * 31 + ch.charCodeAt(0)) | 0
-  const color = COVER_COLORS[Math.abs(hash) % COVER_COLORS.length]
   const el = h('div', 'generated-cover')
-  el.style.background = `linear-gradient(150deg, ${color}, color-mix(in srgb, ${color} 62%, #000))`
+  el.dataset.tone = String(Math.abs(hash) % 7)
   el.append(h('div', 'gc-title', book.title), h('div', 'gc-author', book.author))
   return el
 }

@@ -1,5 +1,8 @@
 // Reading preferences, remembered between visits.
 
+// The design style: how the whole app looks (fonts, colours, shapes, controls).
+export type DesignStyle = 'star' | 'paper'
+
 export type Theme = 'light' | 'sepia' | 'dark' | 'black' | 'custom' | 'system'
 export type Flow = 'scrolled' | 'paginated'
 export type FontChoice = 'original' | 'serif' | 'sans'
@@ -9,6 +12,7 @@ export type Ruler = 'off' | 'line' | 'focus'
 export type Orientation = 'auto' | 'portrait' | 'landscape'
 
 export interface Settings {
+  style: DesignStyle
   theme: Theme
   customBg: string        // colours for the Custom theme
   customText: string
@@ -40,6 +44,7 @@ export interface Settings {
 }
 
 export const defaults: Settings = {
+  style: 'star',
   theme: 'light',
   customBg: '#f3efe6',
   customText: '#2b2a26',

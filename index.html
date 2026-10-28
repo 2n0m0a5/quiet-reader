@@ -15,18 +15,16 @@
   <header class="topbar">
     <div class="top-start">
       <button class="btn icon back-button" id="backToLibrary" title="Back to library" aria-label="Back to library"><i data-lucide="arrow-left"></i></button>
-      <div class="brand"><div class="logo">q</div> quiet<span class="brand-sub">reader</span></div>
+      <div class="brand" aria-label="Quiet"><svg class="khatam brand-star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8 14.7 5.5H18.5V9.3L21.2 12 18.5 14.7V18.5H14.7L12 21.2 9.3 18.5H5.5V14.7L2.8 12 5.5 9.3V5.5H9.3Z"/></svg><span class="brand-name" aria-hidden="true">quiet</span><span class="brand-dot" aria-hidden="true">.</span></div>
       <div class="top-title reader-only" id="topTitle"></div>
       <div class="top-title settings-only">Settings</div>
-      <div class="top-title notes-only">Notes</div>
+      <div class="top-title notes-only"><span class="star-only">Notes</span><span class="paper-only">Commonplace book</span></div>
       <div class="top-title stats-only">Reading</div>
     </div>
     <div class="top-actions">
       <button class="btn library-only" id="installApp" aria-label="Install Quiet" hidden><i data-lucide="download"></i><span class="label">Install</span></button>
-      <button class="btn primary" id="openFile" aria-label="Add books"><i data-lucide="plus"></i><span class="label">Add books</span></button>
+      <button class="btn primary library-only" id="openFile" aria-label="Add books"><i data-lucide="plus"></i><span class="label">Add books</span></button>
       <input id="fileInput" type="file" multiple accept=".epub,.mobi,.azw3,.azw,.fb2,.fbz,.cbz,application/epub+zip,application/x-mobipocket-ebook,application/x-fictionbook+xml,application/vnd.comicbook+zip" hidden>
-      <button class="btn icon library-only" id="openNotes" title="Notes and quotes" aria-label="Notes and quotes"><i data-lucide="notebook-text"></i></button>
-      <button class="btn icon library-only" id="openSettings" title="Settings" aria-label="Settings"><i data-lucide="settings"></i></button>
       <button class="btn icon" id="themeQuick" title="Switch day/night" aria-label="Switch day/night"><i data-lucide="moon" class="when-light"></i><i data-lucide="sun" class="when-dark"></i></button>
     </div>
   </header>
@@ -36,6 +34,14 @@
   <section class="notes-screen" id="notesScreen" aria-label="Notes and quotes"></section>
   <section class="stats-screen" id="statsScreen" aria-label="Reading stats"></section>
   <div class="sheet-scrim" id="sheetScrim"></div>
+
+  <!-- The four main screens. A bar at the bottom on phones, in the top bar on wider screens. -->
+  <nav class="tabbar" id="tabbar" aria-label="Main">
+    <button class="tab" id="navLibrary" data-view="library"><i data-lucide="library"></i><span>Library</span></button>
+    <button class="tab" id="openNotes" data-view="notes"><i data-lucide="notebook-text"></i><span>Notes</span></button>
+    <button class="tab" id="openStats" data-view="stats"><i data-lucide="chart-column"></i><span>Reading</span></button>
+    <button class="tab" id="openSettings" data-view="settings"><i data-lucide="settings"></i><span>Settings</span></button>
+  </nav>
 
   <div class="workspace">
     <div class="scrim" id="scrim"></div>
@@ -70,7 +76,7 @@
       <div class="reader-toolbar">
         <button class="chapter-button" id="tocToggle" title="Contents" aria-label="Contents"><i data-lucide="list"></i><span class="location-label" id="chapterLabel"></span></button>
         <div class="tool-group">
-          <button class="btn icon" id="bookmarkToggle" title="Bookmark this page" aria-pressed="false" aria-label="Bookmark this page"><i data-lucide="bookmark" class="when-unmarked"></i><i data-lucide="bookmark-check" class="when-marked"></i></button>
+          <button class="btn icon" id="bookmarkToggle" title="Bookmark this page" aria-pressed="false" aria-label="Bookmark this page"><i data-lucide="bookmark" class="when-unmarked"></i><i data-lucide="bookmark-check" class="when-marked"></i><svg class="khatam bookmark-star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8 14.7 5.5H18.5V9.3L21.2 12 18.5 14.7V18.5H14.7L12 21.2 9.3 18.5H5.5V14.7L2.8 12 5.5 9.3V5.5H9.3Z"/></svg></button>
           <button class="btn icon" id="searchToggle" title="Search in book" aria-label="Search in book"><i data-lucide="search"></i></button>
           <button class="btn icon reflow-only" id="smaller" title="Smaller text" aria-label="Smaller text"><i data-lucide="a-arrow-down"></i></button>
           <button class="btn icon reflow-only" id="larger" title="Larger text" aria-label="Larger text"><i data-lucide="a-arrow-up"></i></button>
@@ -82,10 +88,10 @@
             <div class="sheet-handle" aria-hidden="true"></div>
             <div class="setting">
               <div class="choice-row theme-row" data-setting="theme">
-                <button class="choice theme-choice" data-value="system" style="--swatch:linear-gradient(135deg,#fffdf9 50%,#1d201d 50%);--ink:#8c8a82" title="Day or Night, following your device" aria-label="Day or Night, following your device">System</button>
-                <button class="choice theme-choice" data-value="light" style="--swatch:#fffdf9;--ink:#292923">Day</button>
+                <button class="choice theme-choice" data-value="system" style="--swatch:linear-gradient(135deg,var(--day-bg) 50%,var(--night-bg) 50%);--ink:#8c8a82" title="Day or Night, following your device" aria-label="Day or Night, following your device">System</button>
+                <button class="choice theme-choice" data-value="light" style="--swatch:var(--day-bg);--ink:var(--day-ink)">Day</button>
                 <button class="choice theme-choice" data-value="sepia" style="--swatch:#f6eddc;--ink:#43382b">Sepia</button>
-                <button class="choice theme-choice" data-value="dark" style="--swatch:#1d201d;--ink:#e5e4dc">Night</button>
+                <button class="choice theme-choice" data-value="dark" style="--swatch:var(--night-bg);--ink:var(--night-ink)">Night</button>
                 <button class="choice theme-choice" data-value="black" style="--swatch:#000;--ink:#cfcfc8">Black</button>
               </div>
             </div>

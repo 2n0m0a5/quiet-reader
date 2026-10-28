@@ -1,6 +1,6 @@
 {
   "name": "quiet",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
   "description": "Quiet — a calm, distraction-free e-book reader.",
   "type": "module",
@@ -16,8 +16,12 @@
     "@capacitor/android": "^8.5.3",
     "@capacitor/app": "^8.1.2",
     "@capacitor/core": "^8.5.3",
+    "@fontsource-variable/figtree": "^5.3.0",
+    "@fontsource-variable/libre-franklin": "^5.3.0",
     "@fontsource-variable/literata": "^5.3.0",
+    "@fontsource-variable/newsreader": "^5.3.0",
     "@fontsource-variable/source-sans-3": "^5.3.1",
+    "@fontsource-variable/source-serif-4": "^5.3.1",
     "lucide": "^1.61.0",
     "pdfjs-dist": "^5.5.207"
   },

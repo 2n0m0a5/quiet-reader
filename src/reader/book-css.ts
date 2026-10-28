@@ -10,12 +10,12 @@ const fontRule = (stack: string) => `
 
 // CSS injected into every chapter of the book.
 export function bookCSS(settings: Settings) {
-  const { font, fontSize, lineHeight, align, hyphenate, fontWeight, paragraphSpacing, indent } = settings
+  const { font, fontSize, lineHeight, align, hyphenate, fontWeight, paragraphSpacing, indent, style } = settings
   const c = paletteOf(settings)
   const hyphens = hyphenate ? 'auto' : 'manual'
   return `
     @namespace epub "http://www.idpf.org/2007/ops";
-    ${font === 'original' ? '' : fontFaceCSS + fontRule(fontStacks[font])}
+    ${font === 'original' ? '' : fontFaceCSS(style) + fontRule(fontStacks(style)[font])}
     html {
       color-scheme: ${c.dark ? 'dark' : 'light'};
       background: ${c.bg} !important;

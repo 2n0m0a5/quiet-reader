@@ -1,0 +1,404 @@
+/* Design styles: Quiet Star and Paper (Settings → Style).
+   tokens.css and app.css are the shared base; a style changes the colours of Day and Night,
+   the type, the shapes and the marks. Sepia, Black and Custom keep their own colours in either style.
+   <html data-style="star|paper"> is set by main.ts. */
+
+/* ==================== Shared by both styles ==================== */
+
+:root {
+  --font-title: var(--font-reading);
+  --primary: var(--accent);
+  --on-primary: var(--on-accent);
+  --mark: var(--accent);
+  --day-bg: #fffdf9; --day-ink: #292923; --night-bg: #1d201d; --night-ink: #e5e4dc;
+}
+
+h1, h2, .dialog-title, .details-title, .welcome-title, .about-name, .style-name { font-family: var(--font-title); }
+.choice.font-serif { font-family: var(--font-reading); }
+.choice.font-sans { font-family: var(--font-ui); }
+.gc-title { font-family: var(--font-title); }
+
+/* The bars lie on the page instead of over it. */
+.topbar { background: var(--bg); border-bottom-color: transparent; }
+.app[data-view="reader"] .topbar, .reader-toolbar, .reader-footer { background: var(--reader-bg); }
+.app[data-view="reader"] .topbar { border-bottom-color: var(--line); }
+.topbar .btn.icon, .reader-toolbar .btn.icon, .reader-footer .btn.icon, .chapter-button { border-color: transparent; }
+
+/* The marks: khatam (Quiet Star) and "q." (Paper). See ui/brand.ts. */
+svg.khatam { width: 18px; height: 18px; fill: currentColor; flex-shrink: 0; }
+.brand { gap: 7px; font-weight: 400; letter-spacing: 0; }
+.brand-name { font-family: var(--font-title); }
+.bookmark-star, .star .khatam, .star-number { display: none; }
+.logo { overflow: hidden; }
+.logo .khatam { width: 58%; height: 58%; }
+.logo-q { font-family: var(--font-reading); font-style: italic; line-height: 1; margin-top: -.12em; }
+.logo-dot { color: var(--mark); font-style: normal; }
+.star-only, .paper-only { display: contents; }
+:root:not([data-style="star"]) .star-only, :root:not([data-style="paper"]) .paper-only { display: none; }
+
+/* ---------- The tab bar ---------- */
+.tabbar { display: flex; }
+.app[data-view="reader"] .tabbar { display: none; }
+.tab {
+  border: 0; background: transparent; color: var(--muted); display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 12px; border-radius: var(--radius-m); transition: color .15s, background .15s;
+}
+.tab:hover { color: var(--text); }
+.tab.selected { color: var(--text); }
+/* The back arrow is only for leaving a book; the tabs move between the other screens. */
+.app:not([data-view="reader"]) .back-button { display: none; }
+
+@media (min-width: 851px) {
+  .tabbar { flex: 1; gap: 2px; margin-left: 12px; }
+  .top-title.settings-only, .top-title.notes-only, .top-title.stats-only { display: none !important; }
+}
+@media (max-width: 850px) {
+  .tabbar {
+    flex-shrink: 0; justify-content: space-around; padding: 0 6px env(safe-area-inset-bottom);
+    border-top: 1px solid var(--line); background: var(--bg); zoom: var(--ui-zoom, 1);
+  }
+  .tab { flex: 1; flex-direction: column; justify-content: center; gap: 3px; min-height: 58px; padding: 6px 0; font-size: 11px; border-radius: 0; }
+  .tab svg.lucide { width: 21px; height: 21px; }
+  /* Each tab's name stands in for the logo at the top. */
+  .app:is([data-view="notes"], [data-view="stats"], [data-view="settings"]) .brand { display: none; }
+  .app:is([data-view="notes"], [data-view="stats"], [data-view="settings"]) .top-title {
+    font-family: var(--font-title); font-size: 21px !important; font-weight: 600;
+  }
+  /* Above the tab bar */
+  .select-bar { bottom: calc(70px + env(safe-area-inset-bottom)); }
+  :root:has(.app:not([data-view="reader"])) .toast { bottom: calc(76px + env(safe-area-inset-bottom)); }
+}
+
+/* ---------- Sliders ---------- */
+:root[data-style] input[type=range] {
+  -webkit-appearance: none; appearance: none; background: transparent; height: 28px; margin: 0;
+  --range-color: var(--accent); --range-track: 3px;
+}
+:root[data-style] input[type=range]::-webkit-slider-runnable-track {
+  height: var(--range-track); border-radius: 3px;
+  background: linear-gradient(var(--range-color), var(--range-color)) 0 / var(--fill, 0%) 100% no-repeat, var(--line);
+}
+:root[data-style] input[type=range]::-moz-range-track { height: var(--range-track); border-radius: 3px; background: var(--line); }
+:root[data-style] input[type=range]::-moz-range-progress { height: var(--range-track); border-radius: 3px; background: var(--range-color); }
+:root[data-style] input[type=range]:disabled { opacity: .5; }
+:root[data-style] .warm-range { --range-color: #d98b3a; }
+
+/* ---------- Picking a style (Settings) ----------
+   Each card shows its style in that style's own colours, whichever is in use. */
+.style-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-top: 12px; }
+.style-card {
+  display: flex; flex-direction: column; gap: 12px; text-align: left; padding: 12px; color: var(--text);
+  border: 1px solid var(--line); border-radius: var(--radius-l); background: var(--panel); transition: border-color .15s, box-shadow .15s;
+}
+.style-card:hover { border-color: var(--muted); }
+.style-card.selected { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); cursor: default; }
+.style-art { display: flex; flex-direction: column; gap: 10px; min-height: 132px; padding: 16px 16px 14px; border-radius: 12px; }
+.style-art-mark { display: flex; align-items: center; gap: 6px; }
+.style-art-text { font-size: 15px; line-height: 1.45; }
+.style-art-action { margin-top: auto; align-self: flex-start; font-size: 12px; }
+.style-text { display: flex; flex-direction: column; gap: 2px; padding: 0 2px; }
+.style-text .settings-hint { margin: 0; }
+.style-name { font-size: 17px; font-weight: 600; }
+.style-state { padding: 0 2px 2px; font-size: 12.5px; font-weight: 650; color: var(--accent); }
+.style-card.selected .style-state { color: var(--text); }
+.style-card.selected .style-state::before { content: '✓ '; }
+
+[data-preview="star"] .style-art { background: #fcfbf8; color: #1b1a17; border: 1px solid #e4e0d8; font-family: 'Figtree Variable', system-ui, sans-serif; }
+[data-preview="star"] .khatam { width: 17px; height: 17px; color: #24407a; }
+[data-preview="star"] .style-art-name { font: 600 18px/1 'Source Serif 4 Variable', Georgia, serif; }
+[data-preview="star"] .style-art-text { font-family: 'Source Serif 4 Variable', Georgia, serif; }
+[data-preview="star"] .style-art-action { padding: 7px 14px; border-radius: 999px; background: #1b1a17; color: #fcfbf8; font-weight: 600; }
+
+[data-preview="paper"] .style-art { background: #fafaf7; color: #111111; border: 1px solid #e2e1db; border-radius: 0; font-family: 'Libre Franklin Variable', system-ui, sans-serif; }
+[data-preview="paper"] .khatam { display: none; }
+[data-preview="paper"] .style-art-name { font: italic 400 22px/1 'Newsreader Variable', Georgia, serif; letter-spacing: -.02em; }
+[data-preview="paper"] .style-art-name::after { content: '.'; color: #c8341e; font-style: normal; }
+[data-preview="paper"] .style-art-text { font: 16px/1.4 'Newsreader Variable', Georgia, serif; }
+[data-preview="paper"] .style-art-action { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding: 4px 0; }
+[data-preview="paper"] .style-art-action::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #c8341e; }
+
+.style-soon { display: flex; flex-direction: column; margin-top: 14px; }
+.style-soon-row { padding: 12px 2px; border-top: 1px solid var(--line); }
+.style-soon-row .settings-hint { margin: 0; }
+.style-soon-head { display: flex; align-items: center; gap: 10px; }
+.soon-badge {
+  font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent-strong);
+}
+
+/* ==================== Quiet Star ====================
+   Almost nothing, and one small star. Source Serif and Figtree, lapis on soft paper,
+   round pills and segmented controls. The khatam is the logo, bookmark, rating and slider handle. */
+
+:root[data-style="star"] {
+  --font-ui: 'Figtree Variable', 'Source Sans 3 Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-reading: 'Source Serif 4 Variable', 'Literata Variable', Georgia, serif;
+  --primary: var(--text);
+  --on-primary: var(--bg);
+  --track: color-mix(in srgb, var(--text) 7%, var(--bg));
+  --seg-on: var(--panel);
+  --radius-s: 10px; --radius-m: 12px; --radius-l: 18px;
+  --day-bg: #fcfbf8; --day-ink: #1b1a17; --night-bg: #16181c; --night-ink: #e3dfd6;
+  --star-handle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%2324407a' stroke='%23fcfbf8' stroke-width='1.6' stroke-linejoin='round' paint-order='stroke' d='M12 2.8 14.7 5.5H18.5V9.3L21.2 12 18.5 14.7V18.5H14.7L12 21.2 9.3 18.5H5.5V14.7L2.8 12 5.5 9.3V5.5H9.3Z'/%3E%3C/svg%3E");
+}
+:root[data-style="star"][data-dark] {
+  --star-handle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%238fa6d8' stroke='%2316181c' stroke-width='1.6' stroke-linejoin='round' paint-order='stroke' d='M12 2.8 14.7 5.5H18.5V9.3L21.2 12 18.5 14.7V18.5H14.7L12 21.2 9.3 18.5H5.5V14.7L2.8 12 5.5 9.3V5.5H9.3Z'/%3E%3C/svg%3E");
+}
+:root[data-style="star"][data-theme="light"] {
+  --bg: #fcfbf8; --panel: #ffffff; --text: #1b1a17; --muted: #5e5a52; --line: #e4e0d8;
+  --accent: #24407a; --accent-soft: #e3e8f2; --accent-strong: #24407a; --on-accent: #ffffff;
+  --reader-bg: #fcfbf8; --reader-text: #1b1a17; --reader-link: #24407a;
+  --track: #f1eee7; --seg-on: #ffffff; --shadow: 0 14px 36px #1b1a171a;
+}
+:root[data-style="star"][data-theme="dark"] {
+  --bg: #16181c; --panel: #1d2025; --text: #e3dfd6; --muted: #9c988f; --line: #2c3038;
+  --accent: #8fa6d8; --accent-soft: #2a3550; --accent-strong: #b3c3e8; --on-accent: #16181c;
+  --reader-bg: #16181c; --reader-text: #e3dfd6; --reader-link: #8fa6d8;
+  --track: #22252b; --seg-on: #30343c; --shadow: 0 14px 36px #0008;
+}
+
+[data-style="star"] h1, [data-style="star"] h2 { font-weight: 600; letter-spacing: -.01em; }
+[data-style="star"] h2 { font-size: 19px; }
+[data-style="star"] .dialog-title, [data-style="star"] .details-title, [data-style="star"] .welcome-title { font-weight: 600; letter-spacing: -.01em; }
+
+/* The wordmark: the star and "Quiet" in serif. */
+[data-style="star"] .brand-star { width: 19px; height: 19px; color: var(--accent); }
+[data-style="star"] .brand-name { text-transform: capitalize; font-size: 20px; font-weight: 600; letter-spacing: -.01em; }
+[data-style="star"] .brand-dot { display: none; }
+[data-style="star"] .logo { background: #24407a; color: #fcfbf8; }
+[data-style="star"] .logo-q { display: none; }
+
+/* Pills, with ink for the one main action. */
+[data-style="star"] .btn { border-radius: 999px; padding-inline: 14px; }
+[data-style="star"] .btn.icon { border-radius: 50%; padding: 0; }
+[data-style="star"] .btn.primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); font-weight: 600; }
+[data-style="star"] .btn.primary:hover { background: color-mix(in srgb, var(--primary) 85%, var(--bg)); }
+[data-style="star"] .btn.danger { color: #fff; }
+[data-style="star"] .chapter-button, [data-style="star"] .toast, [data-style="star"] .back-chip { border-radius: 999px; }
+
+/* Segmented controls: a soft track, the chosen part raised. */
+[data-style="star"] .choice-row:not(.theme-row) { background: var(--track); border-radius: 999px; padding: 3px; gap: 2px; }
+[data-style="star"] .choice-row.many:not(.theme-row) { border-radius: 16px; }
+[data-style="star"] .choice-row:not(.theme-row) .choice { border: 0; border-radius: 999px; color: var(--muted); transition: background .15s, color .15s; }
+[data-style="star"] .choice-row:not(.theme-row) .choice.selected {
+  background: var(--seg-on); color: var(--text); font-weight: 600; box-shadow: 0 1px 3px #0000001f, 0 0 0 .5px #00000010;
+}
+[data-style="star"] .theme-choice { border-color: transparent; border-radius: 12px; }
+[data-style="star"] .theme-choice.selected { box-shadow: none; border-color: transparent; color: var(--accent); font-weight: 600; }
+[data-style="star"] .theme-choice.selected::before { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+/* Filters as text tabs, underlined in lapis. */
+[data-style="star"] .chips { gap: 20px; padding: 0; margin-bottom: 18px; border-bottom: 1px solid var(--line); }
+[data-style="star"] .chips .chip {
+  border: 0; border-radius: 0; background: transparent; padding: 9px 0 10px; margin-bottom: -1px;
+  border-bottom: 2px solid transparent; font-size: 13px; color: var(--muted);
+}
+[data-style="star"] .chips .chip:hover { color: var(--text); }
+[data-style="star"] .chips .chip.selected { background: transparent; color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+[data-style="star"] .chips .chip-add { color: var(--accent); }
+
+/* Sheets and dialogs */
+[data-style="star"] dialog.dialog { border-radius: 24px; }
+[data-style="star"] .settings-pop { border-radius: 20px; }
+@media (max-width: 850px) { [data-style="star"] .settings-pop { border-radius: 24px 24px 0 0; } }
+@media (max-width: 600px) {
+  [data-style="star"] dialog.dialog, [data-style="star"] dialog.dialog.dialog-small, [data-style="star"] dialog.dialog.dialog-details { border-radius: 24px 24px 0 0; }
+}
+[data-style="star"] .settings-card, [data-style="star"] .continue-card, [data-style="star"] .reading-strip { border-radius: 18px; }
+[data-style="star"] .select-bar { border-radius: 22px; }
+
+/* The star as bookmark, rating and slider handle. */
+[data-style="star"] #bookmarkToggle svg.lucide { display: none !important; }
+[data-style="star"] .bookmark-star { display: block; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; }
+[data-style="star"] #bookmarkToggle.marked { border-color: transparent; }
+[data-style="star"] #bookmarkToggle.marked .bookmark-star { fill: var(--accent); stroke: var(--accent); }
+[data-style="star"] .star svg.lucide { display: none; }
+[data-style="star"] .star .khatam { display: block; width: 22px; height: 22px; }
+[data-style="star"] .star { color: var(--line); }
+[data-style="star"] .star.on { color: var(--accent); }
+[data-style="star"] .star:hover { color: color-mix(in srgb, var(--accent) 60%, var(--bg)); }
+
+[data-style="star"] input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 24px; height: 24px; margin-top: -10.5px; border: 0; background: var(--star-handle) center / contain no-repeat;
+}
+[data-style="star"] input[type=range]::-moz-range-thumb { width: 24px; height: 24px; border: 0; background: var(--star-handle) center / contain no-repeat; }
+
+/* Books without a cover: flat, quiet tones. */
+[data-style="star"] .generated-cover { background: var(--tone, #24407a); color: #fcfbf8; }
+[data-style="star"] [data-tone="0"] { --tone: #24407a; }
+[data-style="star"] [data-tone="1"] { --tone: #7a5a2e; }
+[data-style="star"] [data-tone="2"] { --tone: #7a3030; }
+[data-style="star"] [data-tone="3"] { --tone: #2f5c59; }
+[data-style="star"] [data-tone="4"] { --tone: #3a3936; }
+[data-style="star"] [data-tone="5"] { --tone: #56663a; }
+[data-style="star"] [data-tone="6"] { --tone: #59406a; }
+
+/* Quiet's own colours instead of the old browns and greens. */
+[data-style="star"] .quotes-list .note-item::before { color: var(--accent); opacity: .5; }
+[data-style="star"] .quote-owner.character { color: var(--accent-strong); }
+[data-style="star"] .quote-badge { color: var(--accent); }
+[data-style="star"] .stats-streak.on svg.lucide { color: var(--accent); fill: color-mix(in srgb, var(--accent) 25%, transparent); }
+
+/* Tab bar: lapis for the screen you're on. */
+[data-style="star"] .tab.selected { color: var(--accent); font-weight: 600; }
+@media (min-width: 851px) { [data-style="star"] .tab { border-radius: 999px; } [data-style="star"] .tab.selected { background: var(--accent-soft); } }
+
+/* ==================== Paper ====================
+   Black ink on white paper. Nothing else. Newsreader and Libre Franklin, no boxes or cards,
+   hairlines and white space, words instead of buttons, one red mark for the main action. */
+
+:root[data-style="paper"] {
+  --font-ui: 'Libre Franklin Variable', 'Source Sans 3 Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-reading: 'Newsreader Variable', 'Literata Variable', Georgia, serif;
+  --mark: #c8341e;
+  --pencil: #77776f;
+  --radius-s: 0px; --radius-m: 0px; --radius-l: 0px;
+  --day-bg: #fafaf7; --day-ink: #111111; --night-bg: #161513; --night-ink: #e8e4da;
+}
+:root[data-style="paper"][data-dark] { --mark: #e0684f; --pencil: #8c887f; }
+:root[data-style="paper"][data-theme="light"] {
+  --bg: #fafaf7; --panel: #fafaf7; --text: #111111; --muted: #5c5c57; --line: #e2e1db;
+  --accent: #111111; --accent-soft: #efeee8; --accent-strong: #111111; --on-accent: #fafaf7;
+  --reader-bg: #fafaf7; --reader-text: #111111; --reader-link: #111111; --shadow: 0 12px 32px #11111118;
+}
+:root[data-style="paper"][data-theme="dark"] {
+  --bg: #161513; --panel: #161513; --text: #e8e4da; --muted: #a39f96; --line: #2c2a26;
+  --accent: #e8e4da; --accent-soft: #22201d; --accent-strong: #e8e4da; --on-accent: #161513;
+  --reader-bg: #161513; --reader-text: #e8e4da; --reader-link: #e8e4da; --shadow: 0 12px 34px #0009;
+}
+
+[data-style="paper"] body { font-variant-numeric: oldstyle-nums; }
+[data-style="paper"] h1, [data-style="paper"] h2, [data-style="paper"] .dialog-title,
+[data-style="paper"] .details-title, [data-style="paper"] .welcome-title, [data-style="paper"] .about-name, [data-style="paper"] .style-name { font-weight: 400; letter-spacing: -.01em; }
+[data-style="paper"] h1 { font-size: 30px; }
+[data-style="paper"] h2 { font-size: 22px; }
+[data-style="paper"] h2 .count { font-family: var(--font-ui); font-size: 13px; }
+[data-style="paper"] svg.lucide { stroke-width: 1.5; }
+
+/* The wordmark: "quiet." in italic, with a red full stop. */
+[data-style="paper"] .brand { gap: 0; }
+[data-style="paper"] .brand-star { display: none; }
+[data-style="paper"] .brand-name { font-style: italic; font-size: 25px; letter-spacing: -.02em; line-height: 1; }
+[data-style="paper"] .brand-dot { font-family: var(--font-title); font-size: 25px; line-height: 1; color: var(--mark); }
+[data-style="paper"] .logo { background: var(--bg); color: var(--text); border: 1px solid var(--line); font-size: 30px; }
+[data-style="paper"] .logo .khatam { display: none; }
+
+/* Words, not buttons. The main action has the red dot. */
+[data-style="paper"] .btn { border-color: transparent; border-radius: 0; padding-inline: 2px; }
+[data-style="paper"] .btn:not(.icon) { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); }
+[data-style="paper"] .btn:hover { background: transparent; text-decoration-color: currentColor; }
+[data-style="paper"] .btn.icon:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+[data-style="paper"] .btn.primary { background: transparent; border-color: transparent; color: var(--text); font-weight: 600; text-decoration: none; gap: 9px; }
+[data-style="paper"] .btn.primary:not(.icon)::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--mark); flex-shrink: 0; }
+[data-style="paper"] .btn.primary:not(.icon) svg.lucide { display: none; }
+[data-style="paper"] .btn.primary:hover { background: transparent; color: var(--mark); }
+[data-style="paper"] .btn.danger { background: transparent; border-color: transparent; color: var(--mark); }
+[data-style="paper"] #openFile .label { display: inline !important; }
+[data-style="paper"] .details-read { justify-content: flex-start; font-family: var(--font-reading); font-size: 18px; font-weight: 500; }
+[data-style="paper"] .btn.icon-label { text-decoration: none; }
+[data-style="paper"] .empty-icon { border-radius: 50%; background: transparent; }
+[data-style="paper"] .link-button, [data-style="paper"] .strip-more { color: var(--text); text-decoration: underline; text-underline-offset: 3px; font-weight: 500; }
+@media (max-width: 600px) { [data-style="paper"] .dialog-actions .btn { flex: 0 1 auto; } [data-style="paper"] .dialog-actions { gap: 22px; } }
+
+/* Choices: the chosen word is underlined. */
+[data-style="paper"] .choice-row:not(.theme-row) { gap: 6px 20px; flex-wrap: wrap; }
+[data-style="paper"] .choice-row:not(.theme-row) .choice {
+  flex: 0 0 auto; border: 0; border-radius: 0; padding: 7px 0; color: var(--muted); font-size: 15px;
+}
+[data-style="paper"] .choice-row:not(.theme-row) .choice:not(.font-sans) { font-family: var(--font-reading); }
+[data-style="paper"] .choice-row:not(.theme-row) .choice.selected {
+  box-shadow: none; color: var(--text); text-decoration: underline; text-underline-offset: 5px; text-decoration-thickness: 1px;
+}
+[data-style="paper"] .choice-row.many .choice { flex: 0 0 auto; }
+[data-style="paper"] .theme-choice { border-color: transparent; }
+[data-style="paper"] .theme-choice::before { border-radius: 0; }
+[data-style="paper"] .theme-choice.selected { box-shadow: none; text-decoration: underline; text-underline-offset: 4px; }
+[data-style="paper"] .theme-choice.selected::before { border-color: var(--text); }
+[data-style="paper"] .sort button.selected, [data-style="paper"] .toc-item.active, [data-style="paper"] .menu-item.selected {
+  background: transparent; color: var(--text); text-decoration: underline; text-underline-offset: 4px;
+}
+
+/* Filters: small capitals over a black rule. */
+[data-style="paper"] .chips { gap: 18px; padding: 0 0 8px; margin-bottom: 18px; border-bottom: 1px solid var(--text); }
+[data-style="paper"] .chips .chip {
+  border: 0; background: transparent; padding: 4px 0; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+}
+[data-style="paper"] .chips .chip.selected { background: transparent; color: var(--text); font-weight: 650; }
+[data-style="paper"] .chip { border-radius: 0; border-color: transparent; border-bottom-color: var(--line); background: transparent; padding-inline: 0; }
+[data-style="paper"] .chip.selected { background: transparent; color: var(--text); border-bottom-color: var(--text); }
+
+/* No boxes: hairlines and white space. */
+[data-style="paper"] .settings-card { background: transparent; border: 0; border-top: 1px solid var(--text); margin-top: 12px; }
+[data-style="paper"] .settings-row { padding-inline: 0; }
+[data-style="paper"] .settings-card .settings-row:last-child { border-bottom: 1px solid var(--line); }
+[data-style="paper"] .about-card { padding: 16px 0; }
+[data-style="paper"] .continue-card { background: transparent; border: 0; border-bottom: 1px solid var(--line); padding: 14px 0; }
+[data-style="paper"] .reading-strip { background: transparent; border: 0; border-block: 1px solid var(--line); padding: 12px 0; }
+[data-style="paper"] .note-item { background: transparent !important; border: 0; border-bottom: 1px solid var(--line); }
+[data-style="paper"] .note-item.style-highlight .note-mark { text-decoration: underline 2px var(--note-color); text-underline-offset: 3px; }
+[data-style="paper"] .quotes-list .note-item::before { color: var(--muted); opacity: .6; }
+[data-style="paper"] .quote-owner.character { color: var(--text); font-variant: small-caps; letter-spacing: .04em; font-weight: 500; font-size: 14px; }
+[data-style="paper"] .quote-badge, [data-style="paper"] .note-tag { background: transparent; color: var(--muted); padding: 0; }
+[data-style="paper"] .stats-tile, [data-style="paper"] .dup-group, [data-style="paper"] .translate-result {
+  background: transparent; border: 0; border-top: 1px solid var(--line); padding-inline: 0;
+}
+[data-style="paper"] .book-card, [data-style="paper"] .welcome-mark { background: transparent; border-color: transparent; }
+[data-style="paper"] .status-pill {
+  background: transparent !important; color: var(--muted) !important; border: 0; padding: 0;
+  font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase;
+}
+[data-style="paper"] .whats-new-icon, [data-style="paper"] .stats-library-icon { background: transparent; color: var(--text); border: 1px solid var(--line); }
+[data-style="paper"] .book-cover { border-radius: 1px; box-shadow: 0 0 0 1px #0000000d, 0 4px 10px #00000012; }
+[data-style="paper"] .bar { height: 2px; }
+[data-style="paper"] .tile-status.new { color: var(--text); }
+
+/* Sheets slide up under a thin black rule. */
+[data-style="paper"] dialog.dialog { border: 0; border-top: 1px solid var(--text); border-radius: 0; }
+[data-style="paper"] .settings-pop { border-top: 1px solid var(--text); }
+[data-style="paper"] .select-bar { border: 0; border-top: 1px solid var(--text); }
+[data-style="paper"] .toast { border-radius: 0; }
+[data-style="paper"] .toast-action { color: var(--mark); }
+[data-style="paper"] .field input, [data-style="paper"] .field textarea, [data-style="paper"] .search-input, [data-style="paper"] .translate-select {
+  border: 0; border-bottom: 1px solid var(--text); border-radius: 0; background: transparent;
+}
+[data-style="paper"] .field input, [data-style="paper"] .field textarea { padding-inline: 0; font-family: var(--font-reading); font-size: 17px; }
+[data-style="paper"] .switch { background: transparent; box-shadow: inset 0 0 0 1px var(--text); }
+[data-style="paper"] .switch::after { top: 4px; left: 4px; width: 18px; height: 18px; background: var(--text); box-shadow: none; }
+[data-style="paper"] .switch:checked { background: var(--text); }
+[data-style="paper"] .switch:checked::after { background: var(--bg); }
+
+/* Rating: the numbers 1 to 5, the chosen one circled. */
+[data-style="paper"] .stars { gap: 8px; margin-left: 0; }
+[data-style="paper"] .star svg { display: none; }
+[data-style="paper"] .star-number { display: block; }
+[data-style="paper"] .star {
+  width: 32px; height: 32px; padding: 0; border-radius: 50%; display: grid; place-items: center;
+  font: 17px/1 var(--font-reading); color: var(--muted);
+}
+[data-style="paper"] .star.on { color: var(--text); }
+[data-style="paper"] .star.chosen { box-shadow: inset 0 0 0 1px var(--text); }
+[data-style="paper"] .star:hover { color: var(--text); }
+
+/* Slider: a hairline and a small ink dot. */
+[data-style="paper"] input[type=range] { --range-track: 2px; --range-color: var(--text); }
+[data-style="paper"] input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px; margin-top: -6px; border-radius: 50%; border: 0;
+  background: var(--text); box-shadow: 0 0 0 3px var(--bg);
+}
+[data-style="paper"] input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; border: 0; background: var(--text); box-shadow: 0 0 0 3px var(--bg); }
+
+/* Books without a cover: a plain title page. */
+[data-style="paper"] .generated-cover { background: #efede6; color: #111111; border: 1px solid #e2e1db; justify-content: flex-start; gap: 8%; }
+[data-style="paper"][data-dark] .generated-cover { background: #23211d; color: #e8e4da; border-color: #2c2a26; }
+[data-style="paper"] .gc-title { font-weight: 400; }
+[data-style="paper"] .gc-author { font-family: var(--font-reading); font-style: italic; }
+
+/* Tab bar: words, the screen you're on underlined. */
+[data-style="paper"] .tab svg.lucide { display: none; }
+[data-style="paper"] .tab { font-family: var(--font-reading); font-size: 17px; color: var(--muted); padding-inline: 6px; }
+[data-style="paper"] .tab.selected { color: var(--text); text-decoration: underline; text-underline-offset: 6px; text-decoration-thickness: 1px; }
+@media (max-width: 850px) {
+  [data-style="paper"] .tabbar { border-top-color: transparent; justify-content: space-between; padding-inline: 24px; }
+  [data-style="paper"] .tab { flex: 0 0 auto; min-height: 54px; font-size: 17px; }
+  [data-style="paper"] .app:is([data-view="notes"], [data-view="stats"], [data-view="settings"]) .top-title { font-weight: 400; font-size: 24px !important; }
+}

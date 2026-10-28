@@ -8,6 +8,7 @@ import { button, formDialog, h, menuDialog, openDialog, icon } from '../ui/dialo
 import { date, fileSize, percent, timeAgo } from '../ui/format'
 import { toast } from '../ui/toast'
 import { haptic } from '../app/native'
+import { khatam } from '../ui/brand'
 
 export interface DetailsActions {
   read(id: string): void
@@ -73,8 +74,10 @@ export async function showBookDetails(record: BookRecord, actions: DetailsAction
       b.type = 'button'
       b.setAttribute('role', 'radio')
       b.setAttribute('aria-checked', String(n === rating))
+      if (n === rating) b.classList.add('chosen')
       b.setAttribute('aria-label', `${n} ${n === 1 ? 'star' : 'stars'}`)
-      b.append(icon(Star))
+      // Quiet Star rates with its star; Paper with the numbers 1 to 5, the chosen one circled.
+      b.append(icon(Star), khatam('star-mark'), h('span', 'star-number', String(n)))
       b.addEventListener('click', () => { haptic(); change({ rating: n === rating ? 0 : n }) })
       row.append(b)
     }

@@ -1,11 +1,19 @@
 import '@fontsource-variable/literata'
 import '@fontsource-variable/source-sans-3'
+import '@fontsource-variable/source-serif-4'
+import '@fontsource-variable/source-serif-4/wght-italic.css'
+import '@fontsource-variable/figtree'
+import '@fontsource-variable/newsreader'
+import '@fontsource-variable/newsreader/wght-italic.css'
+import '@fontsource-variable/libre-franklin'
 import './styles/tokens.css'
 import './styles/app.css'
+import './styles/styles.css'
 import {
   createIcons, AArrowDown, AArrowUp, AlignJustify, AlignLeft, ArrowLeft, BookOpen, ChevronDown,
   ChevronLeft, ChevronRight, ChevronUp, Download, Library, List, Moon, Plus, Settings2, Sun, Sunset,
   Bookmark, BookmarkCheck, NotebookText, Search, Settings as SettingsIcon, Undo2, X, ZoomIn, ZoomOut, FilePlus, FolderOpen,
+  ChartColumn,
 } from 'lucide'
 import { Reader, ZOOM_STEPS, type TapZone } from './reader/reader'
 import { effectiveTheme, onSystemThemeChange, paletteOf } from './reader/themes'
@@ -38,12 +46,14 @@ import { ReadingTracker, dayKey } from './stats/tracker'
 import { computeStats, readingTime } from './stats/stats'
 import { listBooks, listReading } from './library/db'
 import { greet } from './app/onboarding'
+import { fillRange } from './ui/range'
 
 createIcons({
   icons: {
     AArrowDown, AArrowUp, AlignJustify, AlignLeft, ArrowLeft, BookOpen, ChevronDown,
     ChevronLeft, ChevronRight, ChevronUp, Download, Library, List, Moon, Plus, Settings2, Sun, Sunset,
     Bookmark, BookmarkCheck, NotebookText, Search, Settings: SettingsIcon, Undo2, X, ZoomIn, ZoomOut,
+    ChartColumn,
   },
 })
 
@@ -125,6 +135,7 @@ function render() {
   const root = document.documentElement
   const palette = paletteOf(settings)
   root.dataset.theme = effectiveTheme(settings)
+  root.dataset.style = settings.style
   root.dataset.flow = settings.flow
   root.toggleAttribute('data-dark', palette.dark)
   // The Custom theme: the app's colours are mixed from the two the reader picked.
@@ -152,6 +163,7 @@ function render() {
   ui.warmRange.value = String(settings.warmth)
   ui.warmValue.textContent = settings.warmth ? `${settings.warmth}%` : 'Off'
   ui.weightRange.value = String(settings.fontWeight)
+  for (const range of [ui.fontRange, ui.lineRange, ui.brightRange, ui.warmRange, ui.weightRange]) fillRange(range)
   ui.weightValue.textContent = settings.fontWeight === 400 ? 'Regular' : settings.fontWeight < 400 ? 'Lighter' : 'Bolder'
   overlays.apply(settings)
 
@@ -336,6 +348,7 @@ function route() {
   else if (location.hash === '#/notes') showNotes()
   else if (location.hash === '#/stats') showStats()
   else showLibrary()
+  markTab()
 }
 
 window.addEventListener('hashchange', e => {
@@ -344,6 +357,9 @@ window.addEventListener('hashchange', e => {
   const oldHash = new URL(e.oldURL).hash
   if (location.hash.length > 1 && (oldHash === '' || oldHash === '#' || (oldHash === '#/notes' && location.hash.startsWith('#/book/'))))
     history.replaceState({ fromLibrary: true }, '')
+  // Between tabs the screen is replaced; it still came from the library.
+  if (keepFromLibrary) history.replaceState({ fromLibrary: true }, '')
+  keepFromLibrary = false
   route()
 })
 
@@ -363,7 +379,6 @@ function showSettings() {
   $('settingsScreen').scrollTop = 0
 }
 
-$('openSettings').addEventListener('click', () => { location.hash = '#/settings' })
 
 // Notes and quotes from every book. Tapping one opens its book at that place.
 let openAtCfi: string | null = null
@@ -381,7 +396,6 @@ function showNotes() {
   notesScreen.reset()
 }
 
-$('openNotes').addEventListener('click', () => { location.hash = '#/notes' })
 
 // ---------- Reading time, goals and stats ----------
 
@@ -457,6 +471,36 @@ function showLibrary() {
   library.refresh()
   offline.offerUpdate()
 }
+
+// ---------- The tab bar ----------
+// Library, Notes, Reading (stats) and Settings. Moving between them replaces the screen
+// instead of adding to the history, so Back always returns to the library.
+
+const TABS: Record<string, string> = { library: '', notes: '#/notes', stats: '#/stats', settings: '#/settings' }
+let keepFromLibrary = false
+const tabbar = $('tabbar')
+tabbar.querySelectorAll<HTMLButtonElement>('.tab').forEach(tab => tab.addEventListener('click', () => {
+  const view = tab.dataset.view!
+  if (view === ui.app.dataset.view) return
+  haptic()
+  if (view === 'library') return goToLibrary()
+  if (ui.app.dataset.view === 'library') { location.hash = TABS[view]; return }
+  keepFromLibrary = !!history.state?.fromLibrary
+  location.replace(TABS[view])
+}))
+function markTab() {
+  tabbar.querySelectorAll<HTMLElement>('.tab').forEach(tab => {
+    const on = tab.dataset.view === ui.app.dataset.view
+    tab.classList.toggle('selected', on)
+    on ? tab.setAttribute('aria-current', 'page') : tab.removeAttribute('aria-current')
+  })
+}
+// On phones the bar sits at the bottom of the screen; on wider screens, in the top bar.
+const placeTabbar = () => compact.matches
+  ? ui.app.append(tabbar)
+  : document.querySelector('.top-start')!.after(tabbar)
+compact.addEventListener('change', placeTabbar)
+placeTabbar()
 
 $('backToLibrary').addEventListener('click', goToLibrary)
 $('errorBack').addEventListener('click', goToLibrary)
@@ -653,6 +697,7 @@ function showReaderError(message: string) {
 
 function setProgress(fraction: number) {
   ui.progress.value = String(fraction)
+  fillRange(ui.progress)
   ui.progressText.textContent = ui.miniProgress.textContent = `${Math.round(fraction * 100)}%`
 }
 

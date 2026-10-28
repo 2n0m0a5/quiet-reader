@@ -1,5 +1,5 @@
 // Reading themes: the colours of the page, and which theme is in effect right now.
-import type { Settings, Theme } from '../settings'
+import type { DesignStyle, Settings, Theme } from '../settings'
 
 export interface Palette { bg: string; text: string; link: string; dark: boolean }
 
@@ -9,6 +9,18 @@ const PALETTES: Record<Exclude<Theme, 'custom' | 'system'>, Palette> = {
   sepia: { bg: '#f6eddc', text: '#43382b', link: '#85623d', dark: false },
   dark: { bg: '#1d201d', text: '#e5e4dc', link: '#b4c8aa', dark: true },
   black: { bg: '#000000', text: '#cfcfc8', link: '#a9c39f', dark: true },
+}
+
+// Each design style has its own paper and ink for Day and Night (Sepia and Black are shared).
+const STYLE_PALETTES: Record<DesignStyle, Partial<Record<Theme, Palette>>> = {
+  star: {
+    light: { bg: '#fcfbf8', text: '#1b1a17', link: '#24407a', dark: false },
+    dark: { bg: '#16181c', text: '#e3dfd6', link: '#8fa6d8', dark: true },
+  },
+  paper: {
+    light: { bg: '#fafaf7', text: '#111111', link: '#111111', dark: false },
+    dark: { bg: '#161513', text: '#e8e4da', link: '#e8e4da', dark: true },
+  },
 }
 
 const systemDark = matchMedia('(prefers-color-scheme: dark)')
@@ -25,7 +37,7 @@ export function onSystemThemeChange(fn: () => void) {
 
 export function paletteOf(s: Settings): Palette {
   const theme = effectiveTheme(s)
-  if (theme !== 'custom') return PALETTES[theme]
+  if (theme !== 'custom') return STYLE_PALETTES[s.style]?.[theme] ?? PALETTES[theme]
   const dark = luminance(s.customBg) < 0.4
   return { bg: s.customBg, text: s.customText, link: dark ? '#b4c8aa' : '#55704f', dark }
 }
