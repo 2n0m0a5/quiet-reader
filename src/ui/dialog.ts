@@ -1,6 +1,7 @@
 // Dialogs: a sheet from the bottom on phones, a centred window on larger screens.
 // Built on <dialog>, which handles focus and the Escape key.
 import { createElement, type IconNode } from 'lucide'
+import { draggableSheet } from './motion'
 
 // An icon element, sized by the app's CSS (svg.lucide).
 export const icon = (node: IconNode) => createElement(node, { class: 'lucide' })
@@ -19,6 +20,7 @@ export interface DialogHandle {
 }
 
 const open: DialogHandle[] = []
+const phone = matchMedia('(max-width: 600px)')
 
 // Closes the dialog on top, if any. Used by Android's back button.
 export function closeTopDialog(): boolean {
@@ -48,16 +50,22 @@ export function openDialog(options: {
   document.body.append(el)
 
   let closed = false
-  const close = () => {
+  // `dragged`: it was already dragged off the screen, so it goes without the closing animation.
+  const close = (dragged = false) => {
     if (closed) return
     closed = true
     open.splice(open.indexOf(dialog), 1)
-    el.classList.add('closing')
-    // Let the closing animation play, then remove it.
-    window.setTimeout(() => { el.close(); el.remove() }, 180)
+    if (dragged) { el.close(); el.remove() }
+    else {
+      el.classList.add('closing')
+      // Let the closing animation play, then remove it.
+      window.setTimeout(() => { el.close(); el.remove() }, 200)
+    }
     options.onClose?.()
   }
-  const dialog: DialogHandle = { el, body, close }
+  const dialog: DialogHandle = { el, body, close: () => close() }
+  // On phones it's a sheet: drag it down to close.
+  draggableSheet(el, { close: () => close(true), enabled: () => phone.matches, handle: [handle], scroller: body })
 
   el.addEventListener('cancel', e => { e.preventDefault(); close() })   // Escape
   el.addEventListener('click', e => { if (e.target === el) close() })    // backdrop

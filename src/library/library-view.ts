@@ -62,6 +62,7 @@ export class LibraryView {
   #menuButton = h('button', 'btn icon small')
   #chips = h('div', 'chips')
   #results = h('div')
+  #shown = ''
   #selectBar = h('div', 'select-bar')
   #selectCount = h('span', 'select-count')
 
@@ -254,6 +255,11 @@ export class LibraryView {
     this.#coverUrls = []
     const books = this.#sorted(this.#visible())
     this.#results.replaceChildren()
+    // When a different set of books shows (another filter or view, books added), they rise into place.
+    // Coming back to the same books doesn't replay it.
+    const shown = `${this.#filter}|${this.#prefs.view}|${this.#prefs.groupByAuthor}|${books.map(b => b.id).sort().join()}`
+    this.#results.classList.toggle('entering', shown !== this.#shown)
+    this.#shown = shown
     const collection = this.#currentCollection()
     if (collection) {
       const bar = h('div', 'collection-bar')
@@ -283,7 +289,11 @@ export class LibraryView {
     const list = h('div', view === 'grid' ? 'book-grid' : view === 'list' ? 'book-list' : 'book-shelf')
     if (view === 'shelf' && this.#prefs.shelfSize) list.style.setProperty('--col', `${this.#prefs.shelfSize}px`)
     list.classList.toggle('selecting', !!this.#selection)
-    for (const book of books) list.append(view === 'grid' ? this.#tile(book) : view === 'list' ? this.#row(book) : this.#shelfBook(book))
+    books.forEach((book, i) => {
+      const el = view === 'grid' ? this.#tile(book) : view === 'list' ? this.#row(book) : this.#shelfBook(book)
+      el.style.setProperty('--n', String(Math.min(i, 14)))
+      list.append(el)
+    })
     return list
   }
 

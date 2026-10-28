@@ -43,6 +43,8 @@ export interface ReadingDay {
   bookId: string
   seconds: number
   pages: number     // pages turned forward (a "page" is about 250 words, the same in every book)
+  hours?: number[]  // seconds read in each hour of the day, 0–23 (from 0.3.3; older records have none)
+  sittings?: number // how many times the book was opened and read that day (from 0.3.3)
 }
 
 export interface Collection {
@@ -260,12 +262,17 @@ export async function clearLibrary() {
 
 // ---------- Reading time ----------
 
-export async function addReading(day: string, bookId: string, seconds: number, pages: number) {
+// `hours`: the seconds read in each hour of the day; `newSitting`: the first save since the book was opened.
+export async function addReading(day: string, bookId: string, seconds: number, pages: number, hours: number[] = [], newSitting = false) {
   const tx = (await db()).transaction('reading', 'readwrite')
   const reading = tx.objectStore('reading')
   const id = `${day}|${bookId}`
   const record = await done<ReadingDay | undefined>(reading.get(id))
-  reading.put({ id, day, bookId, seconds: (record?.seconds ?? 0) + seconds, pages: (record?.pages ?? 0) + pages })
+  const total = Array.from({ length: 24 }, (_, h) => (record?.hours?.[h] ?? 0) + (hours[h] ?? 0))
+  reading.put({
+    id, day, bookId, seconds: (record?.seconds ?? 0) + seconds, pages: (record?.pages ?? 0) + pages,
+    hours: total, sittings: (record?.sittings ?? 0) + (newSitting ? 1 : 0),
+  } satisfies ReadingDay)
   await finished(tx)
 }
 

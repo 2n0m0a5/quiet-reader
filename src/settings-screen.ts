@@ -21,6 +21,7 @@ type Choice<K extends keyof Settings> = [Settings[K], string][]
 const STYLES: { id: DesignStyle, name: string, wordmark: string, text: string, action: string }[] = [
   { id: 'star', name: 'Quiet Star', wordmark: 'Quiet', text: 'Almost nothing, and one small star. Lapis blue, soft paper and rounded shapes.', action: 'Continue reading' },
   { id: 'paper', name: 'Paper', wordmark: 'quiet', text: 'Black ink on white paper. Nothing else. Hairlines, words instead of buttons, one red mark.', action: 'Continue reading' },
+  { id: 'lamp', name: 'Lamplight', wordmark: 'Quiet', text: 'Warm light for long reading, made from the research. Low blue light, amber ink at night, type made for screens.', action: 'Continue reading' },
 ]
 
 // The Settings screen: reading defaults, behaviour, storage, and About.
@@ -114,7 +115,7 @@ export class SettingsScreen {
     }
     const soon = h('div', 'style-soon')
     const more = h('div', 'style-soon-row')
-    more.append(h('div', 'settings-label', 'More styles are on the way'), h('div', 'settings-hint', 'New styles will arrive with updates, free, like these two.'))
+    more.append(h('div', 'settings-label', 'More styles are on the way'), h('div', 'settings-hint', 'New styles will arrive with updates, free, like these.'))
     const own = h('div', 'style-soon-row')
     const ownHead = h('div', 'style-soon-head')
     ownHead.append(h('div', 'settings-label', 'Build your own style'), h('span', 'soon-badge', 'Coming soon'))

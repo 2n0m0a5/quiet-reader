@@ -974,3 +974,65 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .quote-people { padding: 0 0 4px; margin: -4px 0 6px; }
 .quote-hint { margin: 0 0 4px; }
+
+/* ---------- Charts on the Reading screen (stats/charts.ts) ----------
+   One colour per chart (--chart, the accent unless a style sets a deeper one): full for the current
+   day, week or month, a lighter step of it for the rest. The heatmap's steps pass the dataviz
+   palette check (one hue, even steps, the lightest still clear of the page) in every style. Thin columns with a rounded top on a hairline baseline; values show in the line above. */
+.chart-readout { font-size: 12.5px; color: var(--muted); min-height: 1.5em; margin: 2px 0 8px; font-variant-numeric: tabular-nums; }
+.chart-columns { display: flex; align-items: stretch; gap: 2px; height: 128px; border-bottom: 1px solid var(--line); }
+.chart-columns.dense { gap: 1px; }
+.chart-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; position: relative; outline-offset: 2px; border-radius: 4px; cursor: default; touch-action: pan-y; }
+.chart-track { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+.chart-bar {
+  width: 100%; max-width: 24px; height: var(--h); min-height: 0; border-radius: 4px 4px 0 0;
+  background: color-mix(in srgb, var(--chart, var(--accent)) 50%, var(--panel));
+  transform-origin: bottom; transform: scaleY(0);
+  transition: transform var(--spring-ms, 500ms) var(--spring, cubic-bezier(.2, .9, .25, 1)) calc(var(--i) * 24ms), background .15s;
+}
+.chart-columns.grown .chart-bar { transform: none; }
+.chart-col.now .chart-bar { background: var(--chart, var(--accent)); }
+.chart-col.picked .chart-bar, .chart-col:hover .chart-bar { background: color-mix(in srgb, var(--chart, var(--accent)) 80%, var(--text)); }
+.chart-label { position: absolute; top: 100%; padding-top: 5px; font-size: 10px; color: var(--muted); white-space: nowrap; }
+.chart-col.now .chart-label { color: var(--text); font-weight: 650; }
+.chart-columns + *, .chart-columns:last-child { margin-top: 26px; }
+.chart-columns:last-child { margin-bottom: 18px; }
+.stats-card .chart-columns { margin-bottom: 22px; }
+
+.chart-heatmap-wrap { display: flex; flex-direction: column; gap: 8px; }
+.chart-heatmap { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, auto); grid-template-columns: repeat(26, minmax(0, 1fr)); gap: 3px; }
+.heat-cell {
+  aspect-ratio: 1; border-radius: 2px; background: color-mix(in srgb, var(--text) 7%, var(--panel));
+  opacity: 0; transform: scale(.6);
+  transition: opacity .3s ease calc(var(--i) * 14ms), transform var(--spring-ms, 500ms) var(--spring, ease-out) calc(var(--i) * 14ms);
+}
+.chart-heatmap.grown .heat-cell, .heat-legend .heat-cell { opacity: 1; transform: none; }
+.heat-cell[data-step="1"] { background: color-mix(in srgb, var(--chart, var(--accent)) 50%, var(--panel)); }
+.heat-cell[data-step="2"] { background: color-mix(in srgb, var(--chart, var(--accent)) 67%, var(--panel)); }
+.heat-cell[data-step="3"] { background: color-mix(in srgb, var(--chart, var(--accent)) 84%, var(--panel)); }
+.heat-cell[data-step="4"] { background: var(--chart, var(--accent)); }
+.heat-cell.future { background: transparent; }
+.heat-cell.picked, .heat-cell:hover { box-shadow: 0 0 0 1.5px var(--text); }
+.heat-legend { display: flex; align-items: center; justify-content: flex-end; gap: 3px; font-size: 10.5px; color: var(--muted); }
+.heat-legend .heat-cell { width: 10px; }
+.heat-legend span:first-child { margin-right: 3px; }
+.heat-legend span:last-child { margin-left: 3px; }
+
+.chart-numbers { font-size: 12.5px; }
+.chart-numbers summary { cursor: pointer; color: var(--muted); padding: 4px 0; width: max-content; }
+.chart-numbers[open] summary { margin-bottom: 6px; }
+.chart-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.chart-table th, .chart-table td { text-align: left; padding: 7px 8px 7px 0; border-bottom: 1px solid var(--line); font-weight: 400; }
+.chart-table thead th { font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 650; }
+.chart-table td { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.table-scroll { overflow-x: auto; margin: 0 -4px; padding: 0 4px; }
+.book-table tbody th { max-width: 150px; }
+.book-table-open {
+  border: 0; background: transparent; padding: 0; text-align: left; font: inherit; font-weight: 600; color: var(--text);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.book-table-open:hover { color: var(--accent); }
+.stats-sentence { font-family: var(--font-title); font-size: 17px; line-height: 1.4; margin: 0; }
+.stats-subchart { padding-top: 14px; border-top: 1px solid var(--line); }
+.stats-subchart .settings-label { margin-bottom: 2px; }
+.stats-grid:has(> :nth-child(3):last-child) > :last-child { grid-column: 1 / -1; }

@@ -135,6 +135,8 @@ export class Reader {
       renderer.setAttribute('max-inline-size', maxWidth)
       renderer.setAttribute('margin', settings.flow === 'paginated' ? '44px' : '28px')
       renderer.setAttribute('gap', gap)
+      // Pages slide when they turn, unless the device asks for less motion.
+      renderer.toggleAttribute('animated', !matchMedia('(prefers-reduced-motion: reduce)').matches)
     }
   }
 

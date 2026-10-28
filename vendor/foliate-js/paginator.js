@@ -16,6 +16,8 @@ const debounce = (f, wait, immediate) => {
 
 const lerp = (min, max, x) => x * (max - min) + min
 const easeOutQuad = x => 1 - (1 - x) * (1 - x)
+// Quiet: page turns move like a spring let go at speed (an exponential settle), not a fixed curve.
+const springOut = x => (1 - Math.exp(-6.9 * x)) / (1 - Math.exp(-6.9))
 const animate = (a, b, duration, ease, render) => new Promise(resolve => {
     let start
     const step = now => {
@@ -899,7 +901,7 @@ export class Paginator extends HTMLElement {
         // FIXME: vertical-rl only, not -lr
         if (this.scrolled && this.#vertical) offset = -offset
         if ((reason === 'snap' || smooth) && this.hasAttribute('animated')) return animate(
-            element[scrollProp], offset, 300, easeOutQuad,
+            element[scrollProp], offset, 420, springOut,
             x => element[scrollProp] = x,
         ).then(() => {
             this.#scrollBounds = [offset, this.atStart ? 0 : size, this.atEnd ? 0 : size]

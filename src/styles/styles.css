@@ -34,7 +34,7 @@ svg.khatam { width: 18px; height: 18px; fill: currentColor; flex-shrink: 0; }
 .logo-q { font-family: var(--font-reading); font-style: italic; line-height: 1; margin-top: -.12em; }
 .logo-dot { color: var(--mark); font-style: normal; }
 .star-only, .paper-only { display: contents; }
-:root:not([data-style="star"]) .star-only, :root:not([data-style="paper"]) .paper-only { display: none; }
+:root[data-style="paper"] .star-only, :root:not([data-style="paper"]) .paper-only { display: none; }
 
 /* ---------- The tab bar ---------- */
 .tabbar { display: flex; }
@@ -183,6 +183,9 @@ svg.khatam { width: 18px; height: 18px; fill: currentColor; flex-shrink: 0; }
 [data-style="star"] .choice-row:not(.theme-row) .choice.selected {
   background: var(--seg-on); color: var(--text); font-weight: 600; box-shadow: 0 1px 3px #0000001f, 0 0 0 .5px #00000010;
 }
+/* The raised part slides to the chosen option (motion.css). */
+[data-style="star"] .choice-row:not(.theme-row)[data-marked]::before { background: var(--seg-on); border-radius: 999px; box-shadow: 0 1px 3px #0000001f, 0 0 0 .5px #00000010; }
+[data-style="star"] .choice-row[data-marked]:not(.theme-row) .choice.selected { background: transparent; box-shadow: none; }
 [data-style="star"] .theme-choice { border-color: transparent; border-radius: 12px; }
 [data-style="star"] .theme-choice.selected { box-shadow: none; border-color: transparent; color: var(--accent); font-weight: 600; }
 [data-style="star"] .theme-choice.selected::before { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
@@ -310,6 +313,9 @@ svg.khatam { width: 18px; height: 18px; fill: currentColor; flex-shrink: 0; }
   box-shadow: none; color: var(--text); text-decoration: underline; text-underline-offset: 5px; text-decoration-thickness: 1px;
 }
 [data-style="paper"] .choice-row.many .choice { flex: 0 0 auto; }
+/* The underline slides to the chosen word (motion.css). */
+[data-style="paper"] .choice-row:not(.theme-row)[data-marked]::before { height: 1px; background: var(--text); transform: translate(var(--x), calc(var(--y) + var(--h) - 6px)); }
+[data-style="paper"] .choice-row[data-marked]:not(.theme-row) .choice.selected { text-decoration: none; }
 [data-style="paper"] .theme-choice { border-color: transparent; }
 [data-style="paper"] .theme-choice::before { border-radius: 0; }
 [data-style="paper"] .theme-choice.selected { box-shadow: none; text-decoration: underline; text-underline-offset: 4px; }
@@ -402,3 +408,153 @@ svg.khatam { width: 18px; height: 18px; fill: currentColor; flex-shrink: 0; }
   [data-style="paper"] .tab { flex: 0 0 auto; min-height: 54px; font-size: 17px; }
   [data-style="paper"] .app:is([data-view="notes"], [data-view="stats"], [data-view="settings"]) .top-title { font-weight: 400; font-size: 24px !important; }
 }
+
+/* ==================== Lamplight ====================
+   Warm light for long reading, built from the research in docs/research-0.3.3.md:
+   - by day, dark ink on warm paper (light backgrounds read better in daylight);
+   - by night, amber ink on warm black, with almost no blue light (blue-rich screens before bed
+     delay sleep; yellow text on dark tires the eyes least);
+   - bright, low-saturation colours (they feel pleasant and calm);
+   - Literata for books and titles, Atkinson Hyperlegible Next for the app, a little larger;
+   - soft, rounded shapes lifted by shadow instead of outlined. Its mark is a small lamp's glow. */
+
+:root[data-style="lamp"] {
+  --font-ui: 'Atkinson Hyperlegible Next Variable', 'Source Sans 3 Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-reading: 'Literata Variable', Georgia, serif;
+  --primary: var(--accent-strong); --on-primary: #fffaf0;
+  --track: color-mix(in srgb, var(--text) 7%, var(--bg));
+  --seg-on: var(--panel);
+  --glow: #e9a24a;
+  --radius-s: 12px; --radius-m: 14px; --radius-l: 20px;
+  --day-bg: #f7efe0; --day-ink: #2a2017; --night-bg: #15110c; --night-ink: #e6c690;
+  --lift: 0 1px 2px #2a20170f, 0 6px 18px #2a201712;
+}
+:root[data-style="lamp"][data-theme="light"] {
+  --bg: #f7efe0; --panel: #fdf8ee; --text: #2a2017; --muted: #6a5b49; --line: #e6dac5;
+  --accent: #b8692e; --accent-soft: #f2e2c9; --accent-strong: #8c4a1f; --on-accent: #fffaf0;
+  --reader-bg: #f7efe0; --reader-text: #2a2017; --reader-link: #8c4a1f;
+  --track: #ede2cf; --seg-on: #fdf8ee; --shadow: 0 16px 40px #2a20171f;
+  --chart: #8c4a1f;   /* amber is too pale on warm paper for the lightest chart step */
+}
+:root[data-style="lamp"][data-theme="dark"] {
+  --bg: #15110c; --panel: #1f1912; --text: #e6c690; --muted: #a8906c; --line: #33291d;
+  --accent: #e9a24a; --accent-soft: #3a2a17; --accent-strong: #f0b066; --on-accent: #15110c;
+  --reader-bg: #15110c; --reader-text: #e6c690; --reader-link: #f0b066;
+  --primary: #e9a24a; --on-primary: #15110c;
+  --track: #241d15; --seg-on: #362b1f; --shadow: 0 16px 40px #000a;
+  --lift: 0 1px 2px #0006, 0 6px 18px #0005;
+}
+
+[data-style="lamp"] body { font-size: 15px; }
+[data-style="lamp"] h1, [data-style="lamp"] h2, [data-style="lamp"] .dialog-title,
+[data-style="lamp"] .details-title, [data-style="lamp"] .welcome-title, [data-style="lamp"] .style-name { font-weight: 600; letter-spacing: -.01em; }
+[data-style="lamp"] h2 { font-size: 20px; }
+
+/* The mark: a small warm glow, and "Quiet" in Literata. */
+[data-style="lamp"] .brand-star { display: none; }
+[data-style="lamp"] .brand::before {
+  content: ''; width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; margin-right: 3px;
+  background: radial-gradient(circle at 40% 38%, #fff3d6, var(--glow) 60%);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--glow) 18%, transparent), 0 0 14px 3px color-mix(in srgb, var(--glow) 45%, transparent);
+}
+[data-style="lamp"] .brand-name { text-transform: capitalize; font-size: 20px; font-weight: 600; letter-spacing: -.01em; }
+[data-style="lamp"] .brand-dot { display: none; }
+[data-style="lamp"] .logo { background: radial-gradient(circle at 50% 45%, #3a2814, #15110c 70%); position: relative; }
+[data-style="lamp"] .logo .khatam, [data-style="lamp"] .logo-q { display: none; }
+[data-style="lamp"] .logo::after {
+  content: ''; position: absolute; inset: 34%; border-radius: 50%;
+  background: radial-gradient(circle at 42% 38%, #fff3d6, #e9a24a 62%);
+  box-shadow: 0 0 18px 6px #e9a24a88;
+}
+
+/* Soft, lifted shapes: cards float on the page instead of being outlined. */
+[data-style="lamp"] .settings-card, [data-style="lamp"] .continue-card, [data-style="lamp"] .reading-strip,
+[data-style="lamp"] .stats-tile, [data-style="lamp"] .style-card { border-color: transparent; box-shadow: var(--lift); border-radius: 20px; }
+[data-style="lamp"] .stats-tile { background: var(--panel); }
+[data-style="lamp"] .stats-card .stats-tile { background: color-mix(in srgb, var(--text) 4%, var(--panel)); box-shadow: none; border-radius: 14px; }
+[data-style="lamp"] .style-card.selected { box-shadow: var(--lift), inset 0 0 0 2px var(--accent); }
+[data-style="lamp"] dialog.dialog { border: 0; border-radius: 26px; }
+[data-style="lamp"] .settings-pop { border: 0; border-radius: 22px; }
+@media (max-width: 850px) { [data-style="lamp"] .settings-pop { border-radius: 26px 26px 0 0; } }
+@media (max-width: 600px) {
+  [data-style="lamp"] dialog.dialog, [data-style="lamp"] dialog.dialog.dialog-small, [data-style="lamp"] dialog.dialog.dialog-details { border-radius: 26px 26px 0 0; }
+}
+[data-style="lamp"] .select-bar { border: 0; border-radius: 24px; }
+[data-style="lamp"] .toast { border-radius: 16px; }
+
+/* Buttons: soft rounded, the main one filled with warm ink. */
+[data-style="lamp"] .btn { border-radius: 14px; padding-inline: 14px; }
+[data-style="lamp"] .btn.icon { border-radius: 50%; padding: 0; }
+[data-style="lamp"] .btn.primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); font-weight: 700; }
+[data-style="lamp"] .btn.primary:hover { background: color-mix(in srgb, var(--primary) 88%, var(--text)); }
+[data-style="lamp"] .chapter-button, [data-style="lamp"] .back-chip { border-radius: 14px; }
+
+/* Choices: a warm track, the chosen one lifted (it slides, see motion.css). */
+[data-style="lamp"] .choice-row:not(.theme-row) { background: var(--track); border-radius: 14px; padding: 3px; gap: 2px; }
+[data-style="lamp"] .choice-row:not(.theme-row) .choice { border: 0; border-radius: 11px; color: var(--muted); }
+[data-style="lamp"] .choice-row:not(.theme-row) .choice.selected { background: var(--seg-on); color: var(--text); font-weight: 700; box-shadow: 0 1px 3px #2a20171f; }
+[data-style="lamp"] .choice-row:not(.theme-row)[data-marked]::before { background: var(--seg-on); border-radius: 11px; box-shadow: 0 1px 3px #2a201726, 0 0 0 .5px #2a201710; }
+[data-style="lamp"] .choice-row[data-marked]:not(.theme-row) .choice.selected { background: transparent; box-shadow: none; }
+[data-style="lamp"] .theme-choice { border-color: transparent; border-radius: 14px; }
+[data-style="lamp"] .theme-choice::before { border-radius: 10px; }
+[data-style="lamp"] .theme-choice.selected { box-shadow: none; border-color: transparent; color: var(--accent-strong); font-weight: 700; }
+[data-style="lamp"] .theme-choice.selected::before { box-shadow: 0 0 0 2px var(--accent); }
+
+/* Filters: soft pills, the chosen one warm. */
+[data-style="lamp"] .chips { gap: 8px; }
+[data-style="lamp"] .chip { border-color: transparent; background: color-mix(in srgb, var(--text) 6%, var(--bg)); color: var(--muted); padding: 7px 14px; }
+[data-style="lamp"] .chip.selected { background: var(--accent-soft); border-color: transparent; color: var(--accent-strong); font-weight: 700; }
+[data-style="lamp"][data-theme="dark"] .chip.selected { color: var(--accent); }
+[data-style="lamp"] .chip-add { color: var(--accent-strong); }
+
+/* Inputs and sliders: round and soft, like iOS. */
+[data-style="lamp"] .field input, [data-style="lamp"] .field textarea, [data-style="lamp"] .search-input {
+  border-color: transparent; background: color-mix(in srgb, var(--text) 6%, var(--bg)); border-radius: 12px;
+}
+[data-style="lamp"] input[type=range] { --range-track: 4px; }
+[data-style="lamp"] input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 24px; height: 24px; margin-top: -10px; border-radius: 50%; border: 0;
+  background: #fffaf0; box-shadow: 0 1px 3px #2a201740, 0 3px 10px #2a201726, inset 0 0 0 .5px #2a20171a;
+}
+[data-style="lamp"] input[type=range]::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; border: 0; background: #fffaf0; box-shadow: 0 1px 3px #2a201740, 0 3px 10px #2a201726; }
+[data-style="lamp"][data-theme="dark"] input[type=range]::-webkit-slider-thumb { background: #e6c690; }
+[data-style="lamp"] .switch { width: 50px; height: 30px; }
+[data-style="lamp"] .switch::after { width: 24px; height: 24px; box-shadow: 0 2px 6px #2a201740; }
+[data-style="lamp"] .switch:checked::after { transform: translateX(20px); }
+
+/* Rating: warm filled stars. */
+[data-style="lamp"] .star.on { color: var(--accent); }
+
+/* Books without a cover: warm, quiet tones. */
+[data-style="lamp"] .generated-cover { background: var(--tone, #8c4a1f); color: #fbf1dd; }
+[data-style="lamp"] [data-tone="0"] { --tone: #8c4a1f; }
+[data-style="lamp"] [data-tone="1"] { --tone: #5e6b45; }
+[data-style="lamp"] [data-tone="2"] { --tone: #7a3b3b; }
+[data-style="lamp"] [data-tone="3"] { --tone: #3f5a5e; }
+[data-style="lamp"] [data-tone="4"] { --tone: #4a3a2c; }
+[data-style="lamp"] [data-tone="5"] { --tone: #a0742c; }
+[data-style="lamp"] [data-tone="6"] { --tone: #5d4566; }
+
+[data-style="lamp"] .quotes-list .note-item::before { color: var(--accent); }
+[data-style="lamp"] .quote-owner.character { color: var(--accent-strong); }
+[data-style="lamp"] .stats-streak.on svg.lucide { color: var(--accent); fill: color-mix(in srgb, var(--accent) 30%, transparent); }
+[data-style="lamp"] .note-item { border-color: transparent; background: var(--panel); box-shadow: var(--lift); border-radius: 14px; }
+
+/* Tab bar: a soft glass bar; the screen you're on in warm ink. */
+[data-style="lamp"] .tab.selected { color: var(--accent-strong); font-weight: 700; }
+[data-style="lamp"][data-theme="dark"] .tab.selected { color: var(--accent); }
+@media (max-width: 850px) {
+  [data-style="lamp"] .tabbar { border-top-color: transparent; background: color-mix(in srgb, var(--bg) 82%, transparent); -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4); box-shadow: 0 -1px 0 var(--line); }
+}
+@media (min-width: 851px) { [data-style="lamp"] .tab { border-radius: 12px; } [data-style="lamp"] .tab.selected { background: var(--accent-soft); } }
+
+/* The Style picker's preview card. */
+[data-preview="lamp"] .style-art { background: #f7efe0; color: #2a2017; border-radius: 16px; font-family: 'Atkinson Hyperlegible Next Variable', system-ui, sans-serif; box-shadow: inset 0 0 0 1px #e6dac5; }
+[data-preview="lamp"] .khatam { display: none; }
+[data-preview="lamp"] .style-art-mark::before {
+  content: ''; width: 11px; height: 11px; border-radius: 50%; margin-right: 3px;
+  background: radial-gradient(circle at 40% 38%, #fff3d6, #e9a24a 60%); box-shadow: 0 0 10px 2px #e9a24a88;
+}
+[data-preview="lamp"] .style-art-name { font: 600 19px/1 'Literata Variable', Georgia, serif; }
+[data-preview="lamp"] .style-art-text { font: 16px/1.45 'Literata Variable', Georgia, serif; }
+[data-preview="lamp"] .style-art-action { padding: 7px 14px; border-radius: 12px; background: #8c4a1f; color: #fffaf0; font-weight: 700; }

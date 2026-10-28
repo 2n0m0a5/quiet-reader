@@ -6,9 +6,12 @@ import '@fontsource-variable/figtree'
 import '@fontsource-variable/newsreader'
 import '@fontsource-variable/newsreader/wght-italic.css'
 import '@fontsource-variable/libre-franklin'
+import '@fontsource-variable/literata/wght-italic.css'
+import '@fontsource-variable/atkinson-hyperlegible-next'
 import './styles/tokens.css'
 import './styles/app.css'
 import './styles/styles.css'
+import './styles/motion.css'
 import {
   createIcons, AArrowDown, AArrowUp, AlignJustify, AlignLeft, ArrowLeft, BookOpen, ChevronDown,
   ChevronLeft, ChevronRight, ChevronUp, Download, Library, List, Moon, Plus, Settings2, Sun, Sunset,
@@ -47,6 +50,7 @@ import { computeStats, readingTime } from './stats/stats'
 import { listBooks, listReading } from './library/db'
 import { greet } from './app/onboarding'
 import { fillRange } from './ui/range'
+import { draggableSheet, installSprings, pop, transition, watchMarks, type Navigation } from './ui/motion'
 
 createIcons({
   icons: {
@@ -97,6 +101,9 @@ const ui = {
   timeLeft: $('timeLeft'),
 }
 
+installSprings()
+watchMarks()
+
 const toc = new TocView($('toc'))
 const coverPlaceholder = ui.cover.innerHTML
 let settings = loadSettings()
@@ -115,10 +122,16 @@ const overlays = new ReadingOverlays(ui.stage, settings, rulerY => {
 // ---------- Settings ----------
 
 function update(patch: Partial<Settings>) {
+  const before = settings
   settings = { ...settings, ...patch }
   saveSettings(settings)
-  render()
-  reader?.apply(settings)
+  const apply = () => {
+    render()
+    reader?.apply(settings)
+  }
+  // A new theme or style cross-fades over the whole screen instead of snapping.
+  if (patch.theme && patch.theme !== before.theme || patch.style && patch.style !== before.style) transition('fade', apply)
+  else apply()
   applyReadingSession()
 }
 
@@ -223,6 +236,13 @@ ui.settingsToggle.addEventListener('click', e => {
 })
 ui.settings.addEventListener('click', e => e.stopPropagation())
 ui.sheetScrim.addEventListener('click', () => setSettingsOpen(false))
+// On phones the reading settings are a sheet: drag it down to close. The backdrop lightens with it.
+draggableSheet(ui.settings, {
+  close: () => setSettingsOpen(false),
+  enabled: () => compact.matches,
+  handle: [ui.settings.querySelector<HTMLElement>('.sheet-handle')!],
+  onDrag: f => { ui.sheetScrim.style.opacity = f > 0 && f < 1 ? String(1 - f) : '' },
+})
 document.addEventListener('click', () => setSettingsOpen(false))
 
 // ---------- Controls on a phone ----------
@@ -276,6 +296,13 @@ $('tocToggle').addEventListener('click', () => {
   try { localStorage.setItem(SIDEBAR_KEY, hidden ? '1' : '0') } catch { /* storage unavailable */ }
 })
 ui.scrim.addEventListener('click', () => setSidebar(false))
+// The contents drawer on phones: drag it back to the left to close.
+draggableSheet(ui.sidebar, {
+  axis: 'left',
+  close: () => setSidebar(false),
+  enabled: () => compact.matches && ui.sidebar.classList.contains('open'),
+  onDrag: f => { ui.scrim.style.opacity = f > 0 && f < 1 ? String(1 - f) : '' },
+})
 
 // ---------- Side panel: contents, bookmarks, notes, search ----------
 
@@ -341,14 +368,23 @@ function goToLibrary() {
   else location.hash = ''
 }
 
+// A book slides in from the right and goes back the way it came; the tabs cross-fade.
+let started = false
 function route() {
   const match = location.hash.match(/^#\/book\/(.+)$/)
-  if (match) showReader(decodeURIComponent(match[1]))
-  else if (location.hash === '#/settings') showSettings()
-  else if (location.hash === '#/notes') showNotes()
-  else if (location.hash === '#/stats') showStats()
-  else showLibrary()
-  markTab()
+  const from = ui.app.dataset.view
+  const to = match ? 'reader' : ({ '#/settings': 'settings', '#/notes': 'notes', '#/stats': 'stats' } as Record<string, string>)[location.hash] ?? 'library'
+  const kind: Navigation = to === 'reader' && from !== 'reader' ? 'push' : from === 'reader' && to !== 'reader' ? 'pop' : 'fade'
+  const show = () => {
+    if (match) showReader(decodeURIComponent(match[1]))
+    else if (to === 'settings') showSettings()
+    else if (to === 'notes') showNotes()
+    else if (to === 'stats') showStats()
+    else showLibrary()
+    markTab()
+  }
+  if (!started || (from === to && !match)) { started = true; show() }
+  else transition(kind, show)
 }
 
 window.addEventListener('hashchange', e => {
@@ -483,6 +519,7 @@ tabbar.querySelectorAll<HTMLButtonElement>('.tab').forEach(tab => tab.addEventLi
   const view = tab.dataset.view!
   if (view === ui.app.dataset.view) return
   haptic()
+  pop(tab.querySelector('svg') ?? tab)
   if (view === 'library') return goToLibrary()
   if (ui.app.dataset.view === 'library') { location.hash = TABS[view]; return }
   keepFromLibrary = !!history.state?.fromLibrary

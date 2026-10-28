@@ -15,7 +15,8 @@ export class ReadingTracker {
   #bookId: string
   #lastActivity = Date.now()
   #lastPage: number | null = null
-  #unsaved = { seconds: 0, pages: 0 }
+  #unsaved = { seconds: 0, pages: 0, hours: [] as number[] }
+  #firstSave = true
   #session = { seconds: 0, pages: 0 }
   #timer: number
   #lastSave = Date.now()
@@ -53,17 +54,21 @@ export class ReadingTracker {
   #tick() {
     const reading = document.visibilityState === 'visible' && Date.now() - this.#lastActivity < IDLE
     if (!reading) return
+    const hour = new Date().getHours()
     this.#unsaved.seconds += TICK / 1000
+    this.#unsaved.hours[hour] = (this.#unsaved.hours[hour] ?? 0) + TICK / 1000
     this.#session.seconds += TICK / 1000
     if (Date.now() - this.#lastSave >= SAVE_EVERY) this.save()
   }
 
   async save() {
     this.#lastSave = Date.now()
-    const { seconds, pages } = this.#unsaved
+    const { seconds, pages, hours } = this.#unsaved
     if (!seconds && !pages) return
-    this.#unsaved = { seconds: 0, pages: 0 }
-    await addReading(dayKey(), this.#bookId, seconds, pages)
+    this.#unsaved = { seconds: 0, pages: 0, hours: [] }
+    const newSitting = this.#firstSave && seconds > 0
+    if (newSitting) this.#firstSave = false
+    await addReading(dayKey(), this.#bookId, seconds, pages, hours, newSitting)
     this.#saved()
   }
 

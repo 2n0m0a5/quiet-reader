@@ -1,7 +1,7 @@
 // Reading preferences, remembered between visits.
 
 // The design style: how the whole app looks (fonts, colours, shapes, controls).
-export type DesignStyle = 'star' | 'paper'
+export type DesignStyle = 'star' | 'paper' | 'lamp'
 
 export type Theme = 'light' | 'sepia' | 'dark' | 'black' | 'custom' | 'system'
 export type Flow = 'scrolled' | 'paginated'

@@ -1,0 +1,133 @@
+/* Motion: how things move in Quiet, for every style. See ui/motion.ts and docs/research-0.3.3.md.
+   --spring, --spring-quick and --spring-bounce are Apple-style springs worked out into CSS curves by
+   ui/motion.ts; the cubic-bezier values below are used until then (or where linear() isn't supported).
+   Reduce Motion on the device turns all of it into nearly instant changes (see app.css). */
+
+:root {
+  --spring: cubic-bezier(.2, .9, .25, 1); --spring-ms: 520ms;
+  --spring-quick: cubic-bezier(.25, .9, .3, 1); --spring-quick-ms: 280ms;
+  --spring-bounce: cubic-bezier(.2, 1.15, .4, 1); --spring-bounce-ms: 560ms;
+}
+
+/* ---------- Pressing ----------
+   Things answer the finger at once: they press in on touch-down and spring back on release. */
+:is(.btn, .tab, .choice, .chip, .star, .selection-action, .color-dot, .panel-tab, .sort button, .link-button,
+    .tile-menu, .row-menu, .note-tool, .select-tool, .percent, .chapter-button, .welcome-dot, .back-chip button) {
+  transition: transform var(--spring-quick-ms) var(--spring-quick), background-color .15s, color .15s, border-color .15s, box-shadow .15s, opacity .15s;
+}
+:is(.btn, .tab, .chip, .star, .selection-action, .color-dot, .sort button, .tile-menu, .row-menu, .note-tool, .select-tool, .chapter-button, .welcome-dot):active:not(:disabled) {
+  transform: scale(.94); transition-duration: 90ms, .15s, .15s, .15s, .15s, .15s;
+}
+.choice:active, .panel-tab:active, .link-button:active, .percent:active { transform: scale(.97); transition-duration: 90ms; }
+:is(.continue-card, .style-card, .reading-strip, .menu-item, .row-open, .note-open, .toc-item, .search-hit, .check-row, .stats-cover, .book-table-open) {
+  transition: transform var(--spring-quick-ms) var(--spring-quick), background-color .15s, border-color .15s, box-shadow .15s, color .15s;
+}
+:is(.continue-card, .style-card, .reading-strip, .menu-item, .row-open, .note-open, .toc-item, .search-hit, .check-row):active {
+  transform: scale(.985); transition-duration: 90ms;
+}
+.tile-open .book-cover, .stats-cover { transition: transform var(--spring-quick-ms) var(--spring-quick), box-shadow .2s; }
+.tile-open:active .book-cover, .stats-cover:active { transform: scale(.96); transition-duration: 90ms; }
+.shelf-book { transition: transform var(--spring-ms) var(--spring); }
+.shelf-book:active { transform: translateY(-2px) scale(.97); transition-duration: 90ms; }
+
+/* ---------- Sheets, dialogs, menus ----------
+   Sheets rise from the bottom and settle without bouncing; they leave faster than they came. */
+dialog.dialog { animation: dialog-in var(--spring-ms) var(--spring); }
+dialog.dialog::backdrop { animation: fade-in .25s ease; }
+dialog.dialog.closing { animation: dialog-out .2s cubic-bezier(.4, 0, .8, .6) forwards; }
+@keyframes dialog-in { from { opacity: 0; transform: translateY(10px) scale(.96); } }
+@keyframes dialog-out { to { opacity: 0; transform: translateY(6px) scale(.97); } }
+@media (max-width: 600px) {
+  dialog.dialog, dialog.dialog.dialog-small, dialog.dialog.dialog-details { animation: sheet-in var(--spring-ms) var(--spring); }
+  dialog.dialog.closing { animation: sheet-out .22s cubic-bezier(.4, 0, .9, .6) forwards; }
+  @keyframes sheet-in { from { transform: translateY(100%); } }
+  @keyframes sheet-out { to { transform: translateY(100%); } }
+  dialog .sheet-handle { padding: 8px 40px; margin: 2px auto -6px; background-clip: content-box; box-sizing: content-box; touch-action: none; cursor: grab; }
+}
+.dragging { transition: none !important; animation: none !important; user-select: none; }
+dialog.dragging .sheet-handle { background-color: var(--muted); }
+
+@media (max-width: 850px) {
+  .settings-pop { transition: transform var(--spring-ms) var(--spring), visibility var(--spring-ms); }
+  .settings-pop:not(.open) { transition-duration: .24s, .24s; transition-timing-function: cubic-bezier(.4, 0, .9, .6); }
+  /* The grab handle stays at the top while the sheet scrolls, so it can always be dragged. */
+  .settings-pop .sheet-handle {
+    position: sticky; top: -10px; z-index: 3; width: auto; height: 28px; margin: -10px -20px 6px; border-radius: 0;
+    background: var(--panel); touch-action: none; cursor: grab;
+  }
+  .settings-pop .sheet-handle::after { content: ''; display: block; width: 36px; height: 4px; border-radius: 4px; background: var(--line); margin: 12px auto 0; }
+  .settings-pop.dragging .sheet-handle::after { background: var(--muted); }
+  .sheet-scrim { transition: opacity .3s ease; }
+  .sidebar { transition: transform var(--spring-ms) var(--spring); }
+  .sidebar:not(.open) { transition-duration: .26s; transition-timing-function: cubic-bezier(.4, 0, .9, .6); }
+  .scrim { transition: opacity .3s ease; }
+  /* The reading controls fade and slide by a few pixels; the book never moves under them. */
+  .app[data-view="reader"] .topbar,
+  .app[data-view="reader"] .reader-toolbar,
+  .app[data-view="reader"] .reader-footer {
+    transition: opacity .2s ease, transform var(--spring-ms) var(--spring), visibility .2s;
+  }
+}
+
+/* The selection menu grows from where you selected. */
+.selection-menu { animation: menu-in var(--spring-quick-ms) var(--spring-quick); transform-origin: 50% 100%; }
+@keyframes menu-in { from { opacity: 0; transform: scale(.92); } }
+
+.toast {
+  transform: translate(-50%, 14px) scale(.96);
+  transition: opacity .2s ease, transform var(--spring-bounce-ms) var(--spring-bounce);
+}
+.toast.show { transform: translate(-50%, 0); }
+
+.select-bar { transition: transform var(--spring-bounce-ms) var(--spring-bounce), visibility var(--spring-ms); }
+.back-chip { animation: chip-in var(--spring-bounce-ms) var(--spring-bounce); }
+
+/* ---------- Choosing ----------
+   In a row of choices the mark slides to the new one (ui/motion.ts places it). Each style draws
+   the mark its own way in styles.css; here is only how it moves. */
+.choice-row { position: relative; }
+.choice-row > .choice { position: relative; z-index: 1; }
+.choice-row:not(.theme-row)[data-marked]::before {
+  content: ''; position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none;
+  width: var(--w); height: var(--h); transform: translate(var(--x), var(--y));
+  transition: transform var(--spring-ms) var(--spring), width var(--spring-ms) var(--spring), height var(--spring-ms) var(--spring);
+}
+.choice-row.no-slide::before { transition: none !important; }
+
+.switch::after { transition: transform var(--spring-quick-ms) var(--spring-bounce); }
+.switch:active::after { width: 24px; }
+.switch:checked:active::after { transform: translateX(14px); }
+.welcome-dot { transition: width var(--spring-ms) var(--spring), background .2s; }
+.welcome-slide { animation: welcome-in var(--spring-ms) var(--spring); }
+.check-mark { transition: transform var(--spring-quick-ms) var(--spring-bounce), background .15s, border-color .15s; }
+.stats-ring-fill { transition: stroke-dashoffset 1s var(--spring); }
+.bar span, .cover-progress span { transition: width var(--spring-ms) var(--spring); }
+
+/* Done: a small spring pop (bookmarking a page). */
+#bookmarkToggle.marked :is(svg.lucide, .bookmark-star) { animation: pop var(--spring-bounce-ms) var(--spring-bounce); }
+@keyframes pop { from { transform: scale(.7); } }
+
+/* ---------- Lists ----------
+   When a different set of books shows, they rise into place one after another. */
+.entering :is(.book-tile, .book-row, .shelf-slot) { animation: rise var(--spring-ms) var(--spring) both; animation-delay: calc(var(--n, 0) * 22ms); }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+
+/* ---------- Screens ----------
+   A book slides in from the right over the library, which moves back a little and dims;
+   leaving reverses it exactly. Tabs cross-fade, and the tab bar stays put. */
+::view-transition-group(root) { animation-duration: var(--spring-ms); }
+.tabbar { view-transition-name: tabbar; }
+:root[data-nav="fade"]::view-transition-old(root), :root[data-nav="fade"]::view-transition-new(root) { animation-duration: .2s; }
+:root[data-nav="push"]::view-transition-old(root) { animation: nav-back var(--spring-ms) var(--spring) both; }
+:root[data-nav="push"]::view-transition-new(root) { animation: nav-in var(--spring-ms) var(--spring) both; }
+:root[data-nav="pop"]::view-transition-old(root) { animation: nav-out var(--spring-ms) var(--spring) both; z-index: 2; }
+:root[data-nav="pop"]::view-transition-new(root) { animation: nav-return var(--spring-ms) var(--spring) both; }
+@keyframes nav-in { from { transform: translateX(100%); } }
+@keyframes nav-back { to { transform: translateX(-24%); filter: brightness(.92); } }
+@keyframes nav-out { to { transform: translateX(100%); } }
+@keyframes nav-return { from { transform: translateX(-24%); filter: brightness(.92); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .chart-bar, .heat-cell { transform: none !important; opacity: 1 !important; }
+  *, *::before, *::after { animation-delay: 0s !important; transition-delay: 0s !important; }
+}

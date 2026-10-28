@@ -9,6 +9,8 @@ const fontRule = (stack: string) => `
     }`
 
 // CSS injected into every chapter of the book.
+// Lamplight sets the text a little larger at every size (readability rises up to about 18 pt:
+// Rello, Pielot & Marcos, CHI 2016).
 export function bookCSS(settings: Settings) {
   const { font, fontSize, lineHeight, align, hyphenate, fontWeight, paragraphSpacing, indent, style } = settings
   const c = paletteOf(settings)
@@ -20,7 +22,7 @@ export function bookCSS(settings: Settings) {
       color-scheme: ${c.dark ? 'dark' : 'light'};
       background: ${c.bg} !important;
       color: ${c.text} !important;
-      font-size: ${fontSize}% !important;
+      font-size: ${style === 'lamp' ? Math.round(fontSize * 1.08) : fontSize}% !important;
     }
     body { background: transparent !important; color: inherit !important; }
     ${fontWeight !== 400 ? `html body { font-weight: ${fontWeight} !important; }` : ''}
