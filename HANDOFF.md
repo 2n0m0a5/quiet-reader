@@ -4,6 +4,19 @@
 Quiet is a calm, private e-book reader (EPUB, PDF, MOBI, FB2, Word, comics and more). It's a Vite + TypeScript web app, wrapped as an Android app with Capacitor. The owner (a frontend developer, not a software engineer, on Windows with a Redmi Note 13 Pro) wants it to feel Apple-like: fluid springy motion, physical gestures, several distinct design styles. It's headed for Google Play later.
 
 ## 2. Current status
+- **Working on 0.4.0** (one release: fixes + Radio redesign + new structure). Plan and progress:
+  `docs/plan-0.4.0.md` (read its "Progress" section first). F1–F9 are done and pushed; next is
+  backup and restore, then the redesign. Design canvas (page "Radio"): https://claude.ai/artifact/63xpVE679aXM9svyeBvaGk
+- New in the code since 0.3.4 (all under test in `tests/`):
+  - `src/library/safety.ts`: safety copy of the library in Android private storage + automatic
+    recovery (native `safetyWrite/Commit/Info/List/Delete`; OPFS stand-in for tests via
+    localStorage `quiet:test-safety`). Must start only after `recoverLibrary()` (main.ts does this).
+  - `src/reader/legibility.ts`: book text too faint for the page gets the theme colour.
+  - Motion setting (`settings.motion`, `<html data-motion>`; `reducedMotion` in motion.ts is now an
+    object with `.matches`). Curl needs page mode (choosing it switches). Sepia removed.
+  - Clicks during a View Transition skip it and are replayed (`trackTransition` in motion.ts).
+  - Toasts are popovers (top layer), so they show above dialogs.
+  - New curl: `curlFrames` in reader.ts + `.curl-flap/.curl-shade` in motion.css.
 - **The full feature list (1–70, plus the owner's ideas A and B), with each item's status, is in `docs/roadmap.md`.** Everything else the owner asked to remember is in `docs/ideas-and-plans.md`: the video promotion plan and content strategy, the showcase repos, design inspirations, the apps to study, store and money facts, and how they like to work. **Read both before planning anything.**
 - **Done and pushed:** every version up to **0.3.4** (commit `5d93a1b` on `main`).
   - After 0.3.4, on 3 November: the session tools went into the repo. That's `tests/` (suites, sample-book generator, runner), `scripts/setup-session.sh` and `scripts/build-apk.sh`. All 3 suites pass, and a fresh APK build matches the owner's 0.3.4 APK (same size, versionCode 340, signer `305b375e`).
@@ -49,7 +62,7 @@ Quiet is a calm, private e-book reader (EPUB, PDF, MOBI, FB2, Word, comics and m
   - Push with `git push -u origin main`.
   - End each commit message with:
     `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`
-    `Claude-Session: https://claude.ai/code/session_01UYSpM1pTMri1hxiemdKhDJ` (use the link the current session gives)
+    `Claude-Session: <the link the current session gives>`
 - **Website:** https://quiet-reader-bgz.pages.dev (Cloudflare Pages, deploys on every push).
 - **Android:** app ID `app.quietreader`; current version **0.3.4 / versionCode 340** (`android/app/build.gradle`, `package.json`).
   - Test signing key: `android/app/quiet-test.keystore`. Its SHA-256 starts with `305b375e`.

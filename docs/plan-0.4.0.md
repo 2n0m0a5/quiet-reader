@@ -1,5 +1,27 @@
 # Quiet 0.4.0 — plan
 
+## Progress (updated 3 November 2026)
+- ✅ F1–F9 fixed, tested, pushed (see the commits "0.4.0 F1…F9"). Test suites: safety, legibility,
+  motion-settings, desktop, quote-save, curl (+ smoke, formats, gestures). All pass.
+- ⏭ Next: backup and restore (section 2). Design notes for it:
+  - One `.quietbackup` file = a stored (uncompressed) zip: `quiet-backup.json` (same records as the
+    safety copy's library.json: books without covers, collections, annotations, reading, font
+    records, `quiet:*` settings) + `books/<id>`, `books/<id>.cover-<size>`, `fonts/<id>`.
+  - Refactor `src/library/safety.ts` so backup and the safety copy share one "collect everything"
+    function. Small zip writer/reader in `src/library/zip.ts` (store only; read deflate via
+    DecompressionStream for safety).
+  - Android: save with ACTION_CREATE_DOCUMENT (the reader picks where), written in chunks through
+    the bridge (like safetyWrite). Website: a download.
+  - Restore merges (adds and updates, never deletes); settings are restored only into an empty library.
+  - Settings: "Back up library", "Restore from a backup", "Last backup: …" (localStorage
+    `quiet:last-backup`), and the "No backup in N days" reminder.
+- Then: sections 3–6 (Radio design, structure, reader bar, book info, settings, about, tour, report).
+- Owner's answers: one release (0.4.0, no 0.3.5); reader keys Contents · Day/Night · Light · Text ·
+  More; tab name Stats; About says "made by extrasolarions on howling dark"; curl like Apple Books
+  (done); data loss happened after installing over the old APK, EPUB, plenty of storage; phone's
+  "Remove animations" is off.
+- Still to ask the owner: if the desktop reading-settings button still fails after 0.4.0, which browser.
+
 0.4.0 = the fixes you reported + the new **Radio** design + the new app structure.
 Design canvas: https://claude.ai/artifact/63xpVE679aXM9svyeBvaGk (page "Radio").
 Size: big (L). Version 0.4.0 / versionCode 400.
@@ -51,7 +73,7 @@ Because of F1, this moves into 0.4.0.
 - **Top:** Back, chapter name, Bookmark.
 - **Bottom (within your thumb's reach):**
   - Progress as a tuning scale: chapters are the stations, the needle is your place, with the page and minutes left.
-  - Five keys: **Contents · Light · Text · Search · More** (you can change the first four).
+  - Five keys: **Contents · Day/Night · Light · Text · More** (you can change the first four).
 - **More panel:**
   - Day / Night / Follow phone
   - Brightness (new)
@@ -119,7 +141,7 @@ Option: steps 1–2 can go out first as a 0.3.5 test APK, so you're protected fr
 
 ## 7. Open questions
 
-1. Default reader keys: Contents · Light · Text · Search · More — or swap Search for Day/Night?
+1. ✅ Answered: Contents · Day/Night · Light · Text · More (Search lives in More).
 2. Tab name "Stats" — OK?
 3. "Made by" line in About: your name and city?
 4. About the data loss: had you just installed a new APK over the old one? Was the phone low on storage? Which book format?
