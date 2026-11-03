@@ -5,7 +5,8 @@ Quiet is a calm, private e-book reader (EPUB, PDF, MOBI, FB2, Word, comics and m
 
 ## 2. Current status
 - **The full feature list (1–70, plus the owner's ideas A and B), with each item's status, is in `docs/roadmap.md`.** Everything else the owner asked to remember is in `docs/ideas-and-plans.md`: the video promotion plan and content strategy, the showcase repos, design inspirations, the apps to study, store and money facts, and how they like to work. **Read both before planning anything.**
-- **Done and pushed:** every version up to **0.3.4** (commit `5d93a1b` on `main`; the working tree is clean).
+- **Done and pushed:** every version up to **0.3.4** (commit `5d93a1b` on `main`).
+  - After 0.3.4, on 3 November: the session tools went into the repo. That's `tests/` (suites, sample-book generator, runner), `scripts/setup-session.sh` and `scripts/build-apk.sh`. All 3 suites pass, and a fresh APK build matches the owner's 0.3.4 APK (same size, versionCode 340, signer `305b375e`).
   - 0.3.0: v3 phases 1–7.
   - 0.3.1: book folders and quote owners.
   - 0.3.2: Quiet Star and Paper styles, tab bar.
@@ -48,23 +49,26 @@ Quiet is a calm, private e-book reader (EPUB, PDF, MOBI, FB2, Word, comics and m
   - Push with `git push -u origin main`.
   - End each commit message with:
     `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`
-    `Claude-Session: https://claude.ai/code/session_01Ndr9g78Q5XsLXGvGGhVDz1`
+    `Claude-Session: https://claude.ai/code/session_01UYSpM1pTMri1hxiemdKhDJ` (use the link the current session gives)
 - **Website:** https://quiet-reader-bgz.pages.dev (Cloudflare Pages, deploys on every push).
 - **Android:** app ID `app.quietreader`; current version **0.3.4 / versionCode 340** (`android/app/build.gradle`, `package.json`).
   - Test signing key: `android/app/quiet-test.keystore`. Its SHA-256 starts with `305b375e`.
-- **Build:**
+- **New session? Run `bash scripts/setup-session.sh` first.** It installs npm packages, the Android SDK at `/home/user/android-sdk` and the Gradle mirror, and makes the sample books. It's safe to run again.
+- **APK in one step:** `bash scripts/build-apk.sh` builds the APK, checks its version and signer, and writes `dist-apk/Quiet-<ver>.apk` (git ignores it).
+- **Build by hand:**
   1. `npm run build`
   2. `npm run android` (build + cap sync)
   3. `cd android && ANDROID_HOME=/home/user/android-sdk ./gradlew assembleDebug --no-daemon -q`
   4. Copy `android/app/build/outputs/apk/debug/app-debug.apk` to `Quiet-<ver>.apk` and send it.
   5. Verify the signer with `/home/user/android-sdk/build-tools/36.0.0/apksigner verify --print-certs`, and the version with `aapt2 dump badging`.
-- **Preview server for tests:** `npx vite preview --port 4173 --strictPort`. Run it in the background with a long timeout; it dies after 2 h.
-- **Tests:** Playwright scripts are run as `node <name>.cjs <scratchpad>`.
-  - They use `require('./common.cjs')(await chromium.launch())` (a returning reader: sets `quiet:welcome-seen` and `quiet:seen-version`), and CDP `Input.dispatchTouchEvent` for touches.
+- **Tests (`tests/`, see `tests/README.md`):** run `npm run build`, then `node tests/run-all.cjs`, or `node tests/<suite>.cjs` for one suite.
+  - `common.cjs` starts `vite preview` on 4173 if needed and opens a phone-sized page as a returning reader. Its helpers: `addBooks`, `waitForReader`, `bookText`, `showBars`, `backToLibrary`, and `touch` (CDP touches).
   - Suites:
-    - Older: phone, library2, formats, reader2, settings, offline, phase1–8, fixes4.
-    - New: motion, stats3, physics, formats3, fonts, series, quoteimg, curl, motion2.
-  - Sample files: `books/` and `books/formats/` (made by `gen/mkformats.py`, which includes a hand-written stored RAR4 writer).
+    - `smoke`: library, reader, Contents, tabs, styles, reload.
+    - `formats`: 15 formats.
+    - `gestures`: long-press and swipe back.
+  - The old session's suites (phase1–8, motion, curl, physics…) were lost with its scratchpad. Add new suites as features are touched.
+  - Sample books: `tests/gen/mkbooks.py` writes them to `tests/books/` (git ignores it). It covers every format except CB7, and includes a hand-written stored RAR4.
 - **Key code:**
   - Main app wiring: `src/main.ts` (routing, tab bar, lens, swipe back, rubber bands, font choices).
   - Motion: `src/ui/motion.ts` (springs, drag sheets, marks, symbol effects, rollNumbers, animateLayout, rubberBand).
@@ -113,7 +117,10 @@ Quiet is a calm, private e-book reader (EPUB, PDF, MOBI, FB2, Word, comics and m
 - **0.3.3 (`756ad5f`, fix `109f318`):** `src/stats/charts.ts`, `src/reader/chapter-pull.ts`, `src/ui/motion.ts`, `src/styles/motion.css`, the Tashkent block in `styles.css`; tracker records hours and sittings.
 
 ## 6. Problems and gotchas
-- **The test scripts and sample books live only in the old session's scratchpad.** That's `/tmp/claude-0/.../scratchpad/test`, `books` and `gen`. A new session won't have them. Recreate them, or better, add a `tests/` folder to the repo.
+- **Maven Central answers 429 to cloud containers.** Gradle then fails on its first download. `scripts/setup-session.sh` adds `~/.gradle/init.d/maven-mirror.gradle`, which points at Google's mirror. It's machine-only; the repo's Gradle files are unchanged.
+- **While reading, the top bar hides.** Tests must tap the middle of the page (`showBars`) before pressing Back or Contents.
+- **Series aren't read from the book file.** EPUBs carry `calibre:series` / `belongs-to-collection`, and foliate-js parses them as `metadata.series`. `import.ts` ignores that, so series come only from Edit. That's a cheap improvement to offer the owner.
+- **Cloud sessions start without the repo.** Add it with GitHub access for the session (the owner allowed all their repos), then clone it to `/home/user/quiet-reader`.
 - **View Transitions:** the update callback must not wait for `requestAnimationFrame`, or it's aborted with "timeout in DOM update". The fix: race the change against a timeout (`transition()` in `motion.ts`, `#curl` in `reader.ts`).
 - **Chrome** draws a backdrop-filter element square while capturing it for a View Transition, and doesn't clip it on the zoomed tab bar. Frost uses `clip-path` and turns off the tab bar's own `view-transition-name`.
 - **Inside the book iframe,** CDP touches report `screenY` 0. `chapter-pull.ts` computes the position from the frame's rect plus `clientY`.
@@ -126,7 +133,7 @@ Quiet is a calm, private e-book reader (EPUB, PDF, MOBI, FB2, Word, comics and m
 - **The owner must do on the phone:** the checks listed in section 2.
 
 ## 7. Next steps
-1. Copy the regression test scripts and sample-file generators into the repo (for example `tests/` and `tests/gen/mkformats.py`), so future sessions have them. Commit that.
+1. ✅ Done (3 November): tests, sample books and setup/build scripts are in the repo. Run `bash scripts/setup-session.sh` at the start of each new session.
 2. Read `docs/roadmap.md` and `docs/ideas-and-plans.md`, and keep them updated whenever a feature ships or is chosen.
 3. Ask the owner for phone results on 0.3.4 (section 2 list) and fix what they report.
 4. Start 3.x:
@@ -136,4 +143,4 @@ Quiet is a calm, private e-book reader (EPUB, PDF, MOBI, FB2, Word, comics and m
 7. Later, when asked: more styles (unused canvas ideas: House of Wisdom, Samarkand, Alhambra, Atlas silk), build-your-own style, iOS via Capacitor (item 56), Play Store setup (68), landing page (70), languages (62).
 
 ## 8. Starter prompt
-Read `/home/user/quiet-reader/HANDOFF.md`, `docs/roadmap.md` and `docs/ideas-and-plans.md` first. It's the full context for my e-book reader Quiet: repo `2n0m0a5/quiet-reader`, branch `main`, current version 0.3.4. Then continue from step 1 of "Next steps". Keep explanations plain and short, send me an APK whenever a version is built, and tell me what to check on my phone.
+Read `/home/user/quiet-reader/HANDOFF.md`, `docs/roadmap.md` and `docs/ideas-and-plans.md` first. It's the full context for my e-book reader Quiet: repo `2n0m0a5/quiet-reader`, branch `main`, current version 0.3.4. Run `bash scripts/setup-session.sh`, then continue from the first open step of "Next steps". Keep explanations plain and short, send me an APK whenever a version is built, and tell me what to check on my phone.

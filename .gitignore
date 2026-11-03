@@ -7,3 +7,8 @@ dist/
 
 # Copied from node_modules by scripts/copy-pdfjs.mjs
 public/pdfjs/
+
+# Sample books made by tests/gen/mkbooks.py, and test output
+tests/books/
+tests/out/
+dist-apk/
