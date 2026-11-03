@@ -4,7 +4,7 @@
 import type { Annotation, BookRecord } from '../library/db'
 import { button, h, openDialog } from './dialog'
 import { toast } from './toast'
-import { saveImage, shareImage } from '../app/native'
+import { isNativeApp, saveImage, shareImage } from '../app/native'
 
 type Shape = 'post' | 'square' | 'story'
 const SIZES: Record<Shape, [number, number]> = { post: [1080, 1350], square: [1080, 1080], story: [1080, 1920] }
@@ -33,7 +33,16 @@ export function showQuoteImage(a: Annotation, book?: BookRecord) {
   })
   const save = button('Save picture', '', async () => {
     if (!blob) return
-    try { await saveImage(blob, fileName()); toast('Saved to Pictures.') } catch { toast('Couldn’t save the picture.') }
+    const label = save.textContent
+    try {
+      await saveImage(blob, fileName())
+      const where = isNativeApp ? 'Saved to Pictures/Quiet' : 'Downloaded'
+      save.textContent = `✓ ${where}`
+      toast(isNativeApp ? 'Saved to Pictures/Quiet. Your gallery shows it.' : 'The picture was downloaded.')
+      setTimeout(() => { save.textContent = label }, 2500)
+    } catch {
+      toast('Couldn’t save the picture.')
+    }
   })
   actions.append(save, share)
   const frame = h('div', 'quote-image-frame')

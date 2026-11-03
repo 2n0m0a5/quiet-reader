@@ -249,6 +249,8 @@ h2 .count { color: var(--muted); font-weight: 400; font-size: 14px; letter-spaci
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
 .toast { display: flex; align-items: center; gap: 14px; }
+/* As a popover (top layer, see toast.ts): undo the browser's popover box. */
+.toast[popover] { top: auto; right: auto; margin: 0; border: 0; overflow: visible; }
 .toast-action { border: 0; background: transparent; color: var(--accent); font-weight: 650; padding: 2px 0; }
 [data-dark] .toast-action { color: #55704f; }
 
