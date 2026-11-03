@@ -60,6 +60,37 @@ export interface Mark { value: string; color: string; style?: MarkStyle }
 const QUOTE_OUTLINE = '#b08d57'
 
 // One open book on screen. Create a new Reader for each book.
+const CURL_MS = 620
+
+// The frames of a page curl on a page w × h px. The fold line goes from the outer edge (x = w) to
+// the spine (x = 0); `back` plays it the other way (laying the previous page down).
+//   page:  the turning page, cut off at the fold line
+//   flap:  the back of the turned part, mirrored onto the page beside the fold, a little narrower
+//          than the part it is (the paper bends over a curve), as a slanted strip
+//   shade: the shadow on the page underneath, just beyond the fold
+export function curlFrames(w: number, h: number, back = false, steps = 24) {
+  // A gentle start (the corner is lifted at once), steady through the middle, settling at the end.
+  const ease = (t: number) => 0.5 - 0.5 * Math.cos(Math.PI * t)
+  const page: Keyframe[] = [], flap: Keyframe[] = [], shade: Keyframe[] = []
+  for (let i = 0; i <= steps; i++) {
+    const t = back ? 1 - i / steps : i / steps
+    const p = ease(t)
+    const fold = w * (1 - p) * 1.03 - w * 0.03                // ends a little past the spine, so it finishes clean
+    const tilt = w * 0.14 * Math.sin(Math.PI * Math.min(1, p ** 0.6)) // the lower corner lifts first and leads
+    const top = fold + tilt / 2, bottom = fold - tilt / 2
+    const width = Math.max(0, w - fold) * (0.86 + 0.1 * p)
+    const offset = i / steps
+    page.push({ offset, clipPath: `polygon(0 0, ${top.toFixed(1)}px 0, ${bottom.toFixed(1)}px ${h}px, 0 ${h}px)` })
+    // The flap's picture has its crease at its right edge; squeeze it to `width` and slant it so the
+    // crease lies on the fold line.
+    const sx = Math.max(0.0001, width / w)
+    const skew = (bottom - top) / h
+    flap.push({ offset, transform: `matrix(${sx.toFixed(4)}, 0, ${skew.toFixed(4)}, 1, ${(top - width).toFixed(1)}, 0)`, opacity: width < 2 ? 0 : 1 })
+    shade.push({ offset, transform: `matrix(1, 0, ${skew.toFixed(4)}, 1, ${top.toFixed(1)}, 0)`, opacity: Math.sin(Math.PI * p) * 0.9 })
+  }
+  return { page, flap, shade }
+}
+
 export class Reader {
   readonly view: FoliateView
   #events: ReaderEvents
@@ -350,25 +381,43 @@ export class Reader {
   goRight() { return this.#curl(this.#rtl ? -1 : 1, () => this.view.goRight()) }
   get #rtl() { return (this.view.book as { dir?: string })?.dir === 'rtl' }
 
-  // The page curl: the page on screen is captured as it is, and that picture turns away from the
-  // spine like a sheet of paper while the next page shows underneath it (going back, the previous
-  // page is laid down on top). Drawn with the View Transitions API; see .page-curl in motion.css.
+  // The page curl, like a sheet of paper: the page on screen is captured, a fold line sweeps across
+  // it from the outer edge (a little tilted, the lower corner leading), the part already turned
+  // shows its back (lighter at the crease, shaded where it bends), and the next page lies
+  // underneath in the curl's shadow. Going back, the previous page is laid down on top the same
+  // way, in reverse. Drawn with the View Transitions API; the frames are worked out in curlFrames.
   async #curl(dir: 1 | -1, turn: () => Promise<unknown>) {
-    const doc = document as Document & { startViewTransition?: (cb: () => Promise<void>) => { finished: Promise<void>; updateCallbackDone: Promise<void> } }
+    const doc = document as Document & { startViewTransition?: (cb: () => Promise<void>) => { finished: Promise<void>; updateCallbackDone: Promise<void>; ready: Promise<void> } }
     const r = this.view.renderer
     if (this.#pageTurn !== 'curl' || !r || r.scrolled || !doc.startViewTransition || this.#curling || document.hidden
       || reducedMotion.matches) return turn()
     this.#curling = true
     const root = document.documentElement
+    const stage = (this.view.closest('.reader-stage') ?? this.view) as HTMLElement
+    const box = stage.getBoundingClientRect()
     root.dataset.curl = dir > 0 ? 'next' : 'prev'
+    // The back of the turning page, and the shadow it casts: there only in the new picture.
+    const flap = document.createElement('div')
+    flap.className = 'curl-flap'
+    const shade = document.createElement('div')
+    shade.className = 'curl-shade'
+    for (const el of [flap, shade]) Object.assign(el.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px` })
     // (The page is drawn again only after this returns, so it mustn't wait for a frame; foliate's
     // turn can, so it gets a moment and the curl starts anyway.)
     let turned: Promise<unknown> = Promise.resolve()
     const t = doc.startViewTransition(async () => {
+      document.body.append(flap, shade)
       turned = turn()
       await Promise.race([turned, new Promise(resolve => setTimeout(resolve, 350))])
     })
-    t.finished.catch(() => {}).finally(() => { delete root.dataset.curl; this.#curling = false })
+    t.ready.then(() => {
+      const frames = curlFrames(box.width, box.height, dir < 0)
+      const timing = { duration: CURL_MS, easing: 'linear', fill: 'both' as const }
+      root.animate(frames.page, { ...timing, pseudoElement: `::view-transition-${dir > 0 ? 'old' : 'new'}(page)` })
+      root.animate(frames.flap, { ...timing, pseudoElement: '::view-transition-new(curl-flap)' })
+      root.animate(frames.shade, { ...timing, pseudoElement: '::view-transition-new(curl-shade)' })
+    }).catch(() => {})
+    t.finished.catch(() => {}).finally(() => { flap.remove(); shade.remove(); delete root.dataset.curl; this.#curling = false })
     await t.updateCallbackDone.catch(() => {})
     return turned
   }
