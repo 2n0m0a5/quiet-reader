@@ -1,6 +1,6 @@
 # Quiet roadmap: every feature idea and plan
 
-This is the full list we've discussed, kept in one place. The numbers 1–70 are from the original list; the owner chooses features by number.
+This is the full list we've discussed, kept in one place. Non-feature plans (videos, showcase repos, design inspirations, stores) are in [ideas-and-plans.md](ideas-and-plans.md). The numbers 1–70 are from the original list; the owner chooses features by number.
 Sizes: **S** = hours, **M** = a day or two, **L** = several days or more.
 Status: ✅ done (with the version) · ⏭ next · 🕒 placed in a later version · ○ not chosen yet · ✕ dropped.
 

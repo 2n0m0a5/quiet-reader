@@ -4,7 +4,7 @@
 Quiet is a calm, private e-book reader (EPUB, PDF, MOBI, FB2, Word, comics and more). It's a Vite + TypeScript web app, wrapped as an Android app with Capacitor. The owner (a frontend developer, not a software engineer, on Windows with a Redmi Note 13 Pro) wants it to feel Apple-like: fluid springy motion, physical gestures, several distinct design styles. It's headed for Google Play later.
 
 ## 2. Current status
-- **The full feature list (1–70, plus the owner's ideas A and B), with each item's status, is in `docs/roadmap.md`. Read it before planning anything.**
+- **The full feature list (1–70, plus the owner's ideas A and B), with each item's status, is in `docs/roadmap.md`.** Everything else the owner asked to remember is in `docs/ideas-and-plans.md`: the video promotion plan and content strategy, the showcase repos, design inspirations, the apps to study, store and money facts, and how they like to work. **Read both before planning anything.**
 - **Done and pushed:** every version up to **0.3.4** (commit `5d93a1b` on `main`; the working tree is clean).
   - 0.3.0: v3 phases 1–7.
   - 0.3.1: book folders and quote owners.
@@ -87,6 +87,7 @@ Quiet is a calm, private e-book reader (EPUB, PDF, MOBI, FB2, Word, comics and m
   - `paginator.js`: `swipe-turn` attribute, spring page slide, overscroll none.
   - `comic-book.js`: case-blind natural sort, junk skip.
   - Type stubs: `vendor/foliate-js/*.d.ts` and `vendor/foliate-js/vendor/zip.d.ts`.
+- **Ideas and plans:** `docs/ideas-and-plans.md`. Content strategy: https://claude.ai/artifact/PGHx9eLqqXn8jADtMLurik. Design canvas: https://claude.ai/artifact/Grn4yeEzztYdj9LLeS5vzR. Showcase repos: `2n0m0a5/quiet-reader-version-1` to `-5`.
 - **Roadmap:** `docs/roadmap.md`. Every feature number, its status, the design plans, the open questions and the owner's to-dos.
 - **Docs:** `docs/release-notes-0.3.0`–`0.3.4.md`, `docs/research-0.3.3.md`, `docs/research-0.3.4.md` (sources: WWDC 2018/2023/2024/2025 and reading studies).
 - **Owner's preferences:**
@@ -126,7 +127,7 @@ Quiet is a calm, private e-book reader (EPUB, PDF, MOBI, FB2, Word, comics and m
 
 ## 7. Next steps
 1. Copy the regression test scripts and sample-file generators into the repo (for example `tests/` and `tests/gen/mkformats.py`), so future sessions have them. Commit that.
-2. Read `docs/roadmap.md`, and keep it updated whenever a feature ships or is chosen.
+2. Read `docs/roadmap.md` and `docs/ideas-and-plans.md`, and keep them updated whenever a feature ships or is chosen.
 3. Ask the owner for phone results on 0.3.4 (section 2 list) and fix what they report.
 4. Start 3.x:
    - **Library backup and restore (1):** export books, files, positions, notes, quotes, stats, fonts and settings to one file; import it on another phone. Needed before the switch to the Play Store, which requires uninstalling.
@@ -135,4 +136,4 @@ Quiet is a calm, private e-book reader (EPUB, PDF, MOBI, FB2, Word, comics and m
 7. Later, when asked: more styles (unused canvas ideas: House of Wisdom, Samarkand, Alhambra, Atlas silk), build-your-own style, iOS via Capacitor (item 56), Play Store setup (68), landing page (70), languages (62).
 
 ## 8. Starter prompt
-Read `/home/user/quiet-reader/HANDOFF.md` and `docs/roadmap.md` first. It's the full context for my e-book reader Quiet: repo `2n0m0a5/quiet-reader`, branch `main`, current version 0.3.4. Then continue from step 1 of "Next steps". Keep explanations plain and short, send me an APK whenever a version is built, and tell me what to check on my phone.
+Read `/home/user/quiet-reader/HANDOFF.md`, `docs/roadmap.md` and `docs/ideas-and-plans.md` first. It's the full context for my e-book reader Quiet: repo `2n0m0a5/quiet-reader`, branch `main`, current version 0.3.4. Then continue from step 1 of "Next steps". Keep explanations plain and short, send me an APK whenever a version is built, and tell me what to check on my phone.
