@@ -21,6 +21,7 @@ node tests/smoke.cjs            # one suite
 | `smoke` | Adding books, opening one, Contents, the four tabs, the four styles, and a reload |
 | `formats` | Every sample format opens (EPUB, FB2, FBZ, CBZ, CBT, CBR, DOCX, ODT, RTF, TXT, MD, HTML, HTMLZ, PDB, PDF) |
 | `gestures` | Long-press for details; swipe back from the left edge (short springs back, long leaves) |
+| `safety` | The library database is wiped and comes back from the safety copy; "Delete everything" stays deleted |
 
 To add a suite, make `tests/<name>.cjs` with `require('./common.cjs').suite('<name>', async ({ page, check, shot }) => { … })`.
 `run-all` picks it up by itself.

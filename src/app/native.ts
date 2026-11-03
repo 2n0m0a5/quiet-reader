@@ -46,6 +46,11 @@ interface QuietNativePlugin {
   scanFolder(options: { uri: string }): Promise<{ name: string; files: FolderFile[] }>
   copyFile(options: { uri: string; name: string }): Promise<{ path: string; name: string; type: string }>
   forgetFolder(options: { uri: string }): Promise<void>
+  safetyWrite(options: { name: string; data: string; append: boolean }): Promise<void>
+  safetyCommit(options: { name: string }): Promise<void>
+  safetyInfo(options: { name: string }): Promise<{ exists: boolean; path: string; size: number }>
+  safetyList(options: { dir: string }): Promise<{ names: string[] }>
+  safetyDelete(options: { name: string }): Promise<void>
 }
 
 export interface FolderFile { uri: string; name: string; size: number; modified: number }
@@ -143,6 +148,78 @@ export const forgetFolder = (uri: string) => quietly(QuietNative.forgetFolder({ 
 export function openExternal(url: string) {
   if (isNativeApp) window.location.href = url
   else window.open(url, '_blank', 'noopener')
+}
+
+// ---------- Safety copy: files in Quiet's private app storage (library/safety.ts) ----------
+// In the app these are files in Android's private app storage. Browsers have no such place, so the
+// website doesn't keep a safety copy; the tests turn one on (localStorage "quiet:test-safety") and
+// it then uses the browser's private file system, to run the same code.
+
+export const safetyCopyAvailable = isNativeApp || (() => { try { return !!localStorage.getItem('quiet:test-safety') } catch { return false } })()
+
+const CHUNK = 3 * 1024 * 1024 // bytes per bridge call; base64 makes each call about 4 MB
+
+async function opfsFile(name: string, create: boolean): Promise<FileSystemFileHandle | null> {
+  let dir = await (await navigator.storage.getDirectory()).getDirectoryHandle('safety', { create: true })
+  const parts = name.split('/')
+  try {
+    for (const part of parts.slice(0, -1)) dir = await dir.getDirectoryHandle(part, { create })
+    return await dir.getFileHandle(parts[parts.length - 1], { create })
+  } catch {
+    return null
+  }
+}
+
+// Writes a whole blob, in chunks, then swaps it in, so a half-written file never replaces a good one.
+export async function safetyWrite(name: string, blob: Blob) {
+  if (!isNativeApp) {
+    const writable = await (await opfsFile(name, true))!.createWritable()
+    await writable.write(blob)
+    await writable.close()
+    return
+  }
+  if (!blob.size) await QuietNative.safetyWrite({ name, data: '', append: false })
+  for (let start = 0; start < blob.size; start += CHUNK)
+    await QuietNative.safetyWrite({ name, data: await base64(blob.slice(start, start + CHUNK)), append: start > 0 })
+  await QuietNative.safetyCommit({ name })
+}
+
+export async function safetyRead(name: string): Promise<Blob | null> {
+  if (!isNativeApp) {
+    const handle = await opfsFile(name, false)
+    return handle ? handle.getFile() : null
+  }
+  const info = await QuietNative.safetyInfo({ name })
+  if (!info.exists) return null
+  return (await fetch(Capacitor.convertFileSrc(`file://${info.path}`))).blob()
+}
+
+export async function safetyList(dir: string): Promise<string[]> {
+  if (!isNativeApp) {
+    try {
+      const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('safety', { create: true })
+      const handle = await root.getDirectoryHandle(dir, { create: true })
+      const names: string[] = []
+      for await (const key of (handle as unknown as { keys(): AsyncIterable<string> }).keys()) names.push(key)
+      return names
+    } catch {
+      return []
+    }
+  }
+  return (await QuietNative.safetyList({ dir })).names
+}
+
+export async function safetyDelete(name: string) {
+  if (!isNativeApp) {
+    const parts = name.split('/')
+    try {
+      let dir = await (await navigator.storage.getDirectory()).getDirectoryHandle('safety')
+      for (const part of parts.slice(0, -1)) dir = await dir.getDirectoryHandle(part)
+      await dir.removeEntry(parts[parts.length - 1])
+    } catch { /* already gone */ }
+    return
+  }
+  await QuietNative.safetyDelete({ name })
 }
 
 // A picture (a quote card): Android's share sheet, or the browser's (or a download) on the website.

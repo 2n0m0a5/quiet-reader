@@ -47,9 +47,9 @@ function ensureBooks() {
 }
 
 // A fresh browser context that looks like a returning reader on a phone.
-async function newPage(browser, { size = PHONE, touch = true, fresh = false, settings = null } = {}) {
-  const context = await browser.newContext({ viewport: size, hasTouch: touch, isMobile: touch, deviceScaleFactor: 1 })
-  await context.addInitScript(([version, fresh, settings]) => {
+async function newPage(browser, { size = PHONE, touch = true, fresh = false, settings = null, storage = {}, context: extra = {} } = {}) {
+  const context = await browser.newContext({ viewport: size, hasTouch: touch, isMobile: touch, deviceScaleFactor: 1, ...extra })
+  await context.addInitScript(([version, fresh, settings, storage]) => {
     if (sessionStorage.getItem('quiet-test-init')) return
     sessionStorage.setItem('quiet-test-init', '1')
     if (!fresh) {
@@ -57,7 +57,8 @@ async function newPage(browser, { size = PHONE, touch = true, fresh = false, set
       localStorage.setItem('quiet:seen-version', version)
     }
     if (settings) localStorage.setItem('quiet:settings', JSON.stringify(settings))
-  }, [pkg.version, fresh, settings])
+    for (const [key, value] of Object.entries(storage)) localStorage.setItem(key, value)
+  }, [pkg.version, fresh, settings, storage])
   const page = await context.newPage()
   page.errors = []
   page.on('pageerror', e => page.errors.push(e.message))
@@ -142,6 +143,7 @@ async function touch(page) {
 
 // Runs one suite and prints the result. Exit code 1 if anything failed.
 async function suite(name, fn, options = {}) {
+  // options: passed to newPage (size, touch, fresh, settings, storage, context: extra browser-context options)
   ensureBooks()
   const server = await ensureServer()
   const browser = await chromium.launch()

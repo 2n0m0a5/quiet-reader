@@ -3,6 +3,7 @@
 // new books by itself. A website can't watch a folder, so there the books are added once.
 import { FolderOpen } from 'lucide'
 import { addToLibrary } from './import'
+import { countBooks } from './db'
 import { button, h, icon, openDialog } from '../ui/dialog'
 import { toast } from '../ui/toast'
 import { forgetFolder, isNativeApp, pickFolder, readFolderFile, scanFolder, type FolderFile } from '../app/native'
@@ -108,7 +109,9 @@ export async function scanFolders(changed: () => void, { only, announce = false 
         continue
       }
       const key = (f: FolderFile) => `${f.uri}|${f.size}|${f.modified}`
-      const seen = new Set(folder.seen)
+      // "Seen" means "already added once". If the library is empty (it was deleted, or lost),
+      // that no longer holds, so every book in the folder counts as new again.
+      const seen = new Set(await countBooks() > 0 ? folder.seen : [])
       const fresh = files.filter(f => !seen.has(key(f)))
       if (!fresh.length) {
         if (announce) toast(files.length ? `No new books in “${folder.name}”.` : `No books in “${folder.name}” yet.`, 4000)

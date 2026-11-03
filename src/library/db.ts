@@ -112,10 +112,47 @@ function db(): Promise<IDBDatabase> {
       }
       if (!d.objectStoreNames.contains('fonts')) d.createObjectStore('fonts', { keyPath: 'id' })
     }
-    request.onsuccess = () => resolve(request.result)
+    request.onsuccess = () => {
+      const d = request.result
+      // Every finished change is announced, so the safety copy (safety.ts) can follow it.
+      const transaction = d.transaction.bind(d)
+      d.transaction = ((names: string | string[], mode?: IDBTransactionMode, options?: IDBTransactionOptions) => {
+        const tx = transaction(names, mode, options)
+        if (mode === 'readwrite') tx.addEventListener('complete', () => changeListeners.forEach(fn => fn()))
+        return tx
+      }) as typeof d.transaction
+      resolve(d)
+    }
     request.onerror = () => reject(request.error)
   })
   return dbPromise
+}
+
+const changeListeners = new Set<() => void>()
+export const onLibraryChange = (fn: () => void) => { changeListeners.add(fn) }
+
+// ---------- Whole-store export and import (safety copy, backup) ----------
+
+export type DataStore = 'books' | 'collections' | 'annotations' | 'reading' | 'fonts'
+
+export async function countBooks(): Promise<number> {
+  return done((await store('books')).count())
+}
+
+export async function readStore<T = unknown>(name: DataStore): Promise<T[]> {
+  return done((await store(name)).getAll()) as Promise<T[]>
+}
+
+// Puts records back as they are (same ids). Book files go in with `putFile`.
+export async function writeStore(name: DataStore, records: unknown[]) {
+  const tx = (await db()).transaction(name, 'readwrite')
+  const s = tx.objectStore(name)
+  for (const record of records) s.put(record)
+  await finished(tx)
+}
+
+export async function putFile(id: string, file: Blob) {
+  await done((await store('files', 'readwrite')).put(file, id))
 }
 
 const done = <T>(request: IDBRequest<T>) => new Promise<T>((resolve, reject) => {
@@ -128,7 +165,7 @@ const finished = (tx: IDBTransaction) => new Promise<void>((resolve, reject) => 
   tx.onerror = tx.onabort = () => reject(tx.error)
 })
 
-type StoreName = 'books' | 'files' | 'collections' | 'annotations' | 'reading' | 'fonts'
+type StoreName = DataStore | 'files'
 
 async function store(name: StoreName, mode: IDBTransactionMode = 'readonly') {
   return (await db()).transaction(name, mode).objectStore(name)

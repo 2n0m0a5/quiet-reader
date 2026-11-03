@@ -385,6 +385,97 @@ public class QuietNativePlugin extends Plugin {
         call.resolve();
     }
 
+    // ---------- Safety copy (src/library/safety.ts) ----------
+    // A copy of the library in Quiet's private app storage, outside the WebView's database, so the
+    // library can be brought back if the WebView loses its data. Names are relative paths such as
+    // "library.json" or "books/<id>"; a file is written in chunks to "<name>.tmp", then committed.
+
+    private File safetyDir() {
+        File dir = new File(getContext().getFilesDir(), "safety");
+        dir.mkdirs();
+        return dir;
+    }
+
+    private File safetyFile(String name) throws Exception {
+        if (name == null || name.isEmpty()) throw new Exception("No name");
+        File root = safetyDir();
+        File file = new File(root, name);
+        if (!file.getCanonicalPath().startsWith(root.getCanonicalPath() + File.separator)) throw new Exception("Bad name");
+        return file;
+    }
+
+    // { name, data (base64), append }: writes a chunk to the file's .tmp twin.
+    @PluginMethod
+    public void safetyWrite(PluginCall call) {
+        String name = call.getString("name");
+        String data = call.getString("data", "");
+        boolean append = Boolean.TRUE.equals(call.getBoolean("append", false));
+        new Thread(() -> {
+            try {
+                File tmp = safetyFile(name + ".tmp");
+                File parent = tmp.getParentFile();
+                if (parent != null) parent.mkdirs();
+                try (OutputStream out = new FileOutputStream(tmp, append)) { out.write(Base64.decode(data, Base64.DEFAULT)); }
+                call.resolve();
+            } catch (Exception e) {
+                call.reject("Couldn't write " + name + ": " + e.getMessage());
+            }
+        }).start();
+    }
+
+    // { name }: replaces the file with its finished .tmp twin.
+    @PluginMethod
+    public void safetyCommit(PluginCall call) {
+        try {
+            File file = safetyFile(call.getString("name"));
+            File tmp = safetyFile(call.getString("name") + ".tmp");
+            if (!tmp.exists()) throw new Exception("Nothing written");
+            if (file.exists() && !file.delete()) throw new Exception("Can't replace");
+            if (!tmp.renameTo(file)) throw new Exception("Can't rename");
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Couldn't save: " + e.getMessage());
+        }
+    }
+
+    // { name } → { exists, path, size }. The path can be read with fetch(convertFileSrc(...)).
+    @PluginMethod
+    public void safetyInfo(PluginCall call) {
+        try {
+            File file = safetyFile(call.getString("name"));
+            JSObject result = new JSObject();
+            result.put("exists", file.isFile());
+            result.put("path", file.getAbsolutePath());
+            result.put("size", file.isFile() ? file.length() : 0);
+            call.resolve(result);
+        } catch (Exception e) {
+            call.reject(e.getMessage());
+        }
+    }
+
+    // { dir } → { names }: the finished files in one folder of the safety copy.
+    @PluginMethod
+    public void safetyList(PluginCall call) {
+        JSArray names = new JSArray();
+        try {
+            File[] files = safetyFile(call.getString("dir", "books")).listFiles();
+            if (files != null) for (File f : files) if (f.isFile() && !f.getName().endsWith(".tmp")) names.put(f.getName());
+        } catch (Exception ignored) {}
+        JSObject result = new JSObject();
+        result.put("names", names);
+        call.resolve(result);
+    }
+
+    // { name }: deletes one file of the safety copy.
+    @PluginMethod
+    public void safetyDelete(PluginCall call) {
+        try {
+            File file = safetyFile(call.getString("name"));
+            if (file.exists()) file.delete();
+        } catch (Exception ignored) {}
+        call.resolve();
+    }
+
     // ---------- Pictures of quotes ----------
 
     // Shares a PNG (given as base64) through Android's share sheet.

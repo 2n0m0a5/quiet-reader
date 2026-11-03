@@ -35,6 +35,7 @@ import { LibraryView } from './library/library-view'
 import { showBookDetails } from './library/details'
 import { closeTopDialog, formDialog, icon, menuDialog } from './ui/dialog'
 import { addFolder, scanFolders } from './library/folders'
+import { libraryEmptiedOnPurpose, recoverLibrary, startSafetyCopy } from './library/safety'
 import { BookNotes, BookSearch } from './reader/notes'
 import { hideSelectionMenu } from './reader/selection-menu'
 import { duration, percent } from './ui/format'
@@ -466,7 +467,7 @@ const settingsScreen = new SettingsScreen($('settingsScreen'), {
   get: () => settings,
   update,
   addFonts: () => chooseFonts(),
-  libraryCleared: () => library.refresh(),
+  libraryCleared: () => { libraryEmptiedOnPurpose(); library.refresh() },
 })
 
 function showSettings() {
@@ -1000,6 +1001,12 @@ onBackButton(() => {
 })
 
 render()
-route()
-listBooks().then(books => greet(books.length > 0, chooseFiles))
-checkFolders()
+// The safety copy (Android): if the library database came back empty, put the books back first,
+// and only then start following changes, so an empty library never overwrites a good copy.
+recoverLibrary().catch(err => { console.error('Could not restore the library:', err); return 0 }).then(restored => {
+  startSafetyCopy()
+  route()
+  if (restored) toast(`Your library had gone missing. Quiet put back ${restored} ${restored === 1 ? 'book' : 'books'} from its safety copy, with your notes and reading time.`, 9000)
+  listBooks().then(books => greet(books.length > 0, chooseFiles))
+  checkFolders()
+})
