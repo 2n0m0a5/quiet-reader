@@ -1,4 +1,5 @@
 import { clearLibrary, listBooks } from './library/db'
+import { phoneWantsLessMotion } from './ui/motion'
 import { limits, type DesignStyle, type Settings } from './settings'
 import { confirmDialog, h, icon } from './ui/dialog'
 import { fileSize, timeAgo } from './ui/format'
@@ -42,7 +43,7 @@ export class SettingsScreen {
     inner.append(
       this.#styles(),
       this.#section('Appearance', 'System follows your device: Day while it’s light, Night while it’s in dark mode.', [
-        this.#choices('Theme', 'theme', [['system', 'System'], ['light', 'Day'], ['sepia', 'Sepia'], ['dark', 'Night'], ['black', 'Black'], ['custom', 'Custom']]),
+        this.#choices('Theme', 'theme', [['system', 'System'], ['light', 'Day'], ['dark', 'Night'], ['black', 'Black'], ['custom', 'Custom']]),
         this.#customColours(),
       ]),
       this.#section('Reading', 'These are also in the reading settings while a book is open.', [
@@ -67,6 +68,10 @@ export class SettingsScreen {
       ]),
       this.#section('App', '', [
         this.#choices('Text size', 'uiScale', [[90, 'Small'], [100, 'Default'], [115, 'Large'], [130, 'Larger']]),
+        this.#choices('Motion', 'motion', [['system', 'Follow phone'], ['full', 'Full'], ['reduced', 'Reduced']]),
+        h('div', 'settings-hint motion-hint', phoneWantsLessMotion()
+          ? 'Your phone is asking apps for less motion right now (Battery saver or “Remove animations”). Choose Full to keep Quiet’s animations anyway.'
+          : 'Your phone isn’t asking for less motion, so Follow phone means full motion.'),
         ...(isNativeApp ? [
           this.#choices('Screen rotation', 'orientation', [['auto', 'Automatic'], ['portrait', 'Portrait'], ['landscape', 'Landscape']]),
           this.#toggle('Vibration', 'A light tap when you bookmark, highlight or change a setting.', 'haptics'),

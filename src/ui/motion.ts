@@ -4,7 +4,22 @@
 // worked out here into a CSS linear() curve, so CSS transitions and animations move like it.
 // See docs/research-0.3.3.md.
 
-export const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')
+// Less motion: when the reader chose Reduced in Settings, or chose "Follow phone" and the phone asks
+// for less motion (Android's "Remove animations", and on many phones Battery saver too).
+// <html data-motion="reduced"> carries it to the CSS.
+const phoneAsksLessMotion = matchMedia('(prefers-reduced-motion: reduce)')
+let motionChoice: 'full' | 'reduced' | 'system' = 'system'
+export const reducedMotion = {
+  get matches() { return motionChoice === 'reduced' || (motionChoice === 'system' && phoneAsksLessMotion.matches) },
+}
+export const phoneWantsLessMotion = () => phoneAsksLessMotion.matches
+const markMotion = () => { document.documentElement.dataset.motion = reducedMotion.matches ? 'reduced' : 'full' }
+export function setMotion(choice: 'full' | 'reduced' | 'system') {
+  motionChoice = choice
+  markMotion()
+}
+phoneAsksLessMotion.addEventListener('change', markMotion)
+markMotion()
 
 // The position (0 → 1) of a spring at time t, starting at rest or with velocity v (in lengths a second).
 function springAt(t: number, duration: number, bounce: number, v = 0) {

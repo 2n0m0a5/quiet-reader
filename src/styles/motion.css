@@ -137,10 +137,8 @@ dialog.dragging .sheet-handle { background-color: var(--muted); }
 @keyframes nav-out { to { transform: translateX(100%); } }
 @keyframes nav-return { from { transform: translateX(-24%); filter: brightness(.92); } }
 
-@media (prefers-reduced-motion: reduce) {
-  .chart-bar, .heat-cell { transform: none !important; opacity: 1 !important; }
-  *, *::before, *::after { animation-delay: 0s !important; transition-delay: 0s !important; }
-}
+:root[data-motion="reduced"] :is(.chart-bar, .heat-cell) { transform: none !important; opacity: 1 !important; }
+:root[data-motion="reduced"] *, :root[data-motion="reduced"] *::before, :root[data-motion="reduced"] *::after { animation-delay: 0s !important; transition-delay: 0s !important; }
 
 /* ---------- Pulling on to the next chapter (reader/chapter-pull.ts) ----------
    A small sign in the space the page leaves behind. --progress goes 0 → 1 up to the point where

@@ -1,3 +1,4 @@
+import { reducedMotion } from '../ui/motion'
 import '../../vendor/foliate-js/view.js'
 import { Overlayer } from '../../vendor/foliate-js/overlayer.js'
 import * as CFI from '../../vendor/foliate-js/epubcfi.js'
@@ -159,7 +160,7 @@ export class Reader {
       renderer.setAttribute('margin', settings.flow === 'paginated' ? '44px' : '28px')
       renderer.setAttribute('gap', gap)
       // Pages slide when they turn (if chosen), unless the device asks for less motion.
-      renderer.toggleAttribute('animated', this.#pageTurn === 'slide' && !matchMedia('(prefers-reduced-motion: reduce)').matches)
+      renderer.toggleAttribute('animated', this.#pageTurn === 'slide' && !reducedMotion.matches)
     }
   }
 
@@ -356,7 +357,7 @@ export class Reader {
     const doc = document as Document & { startViewTransition?: (cb: () => Promise<void>) => { finished: Promise<void>; updateCallbackDone: Promise<void> } }
     const r = this.view.renderer
     if (this.#pageTurn !== 'curl' || !r || r.scrolled || !doc.startViewTransition || this.#curling || document.hidden
-      || matchMedia('(prefers-reduced-motion: reduce)').matches) return turn()
+      || reducedMotion.matches) return turn()
     this.#curling = true
     const root = document.documentElement
     root.dataset.curl = dir > 0 ? 'next' : 'prev'

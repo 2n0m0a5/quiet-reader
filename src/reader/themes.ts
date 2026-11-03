@@ -6,12 +6,11 @@ export interface Palette { bg: string; text: string; link: string; dark: boolean
 // Colours used inside the book itself. They mirror the reader tokens in tokens.css.
 const PALETTES: Record<Exclude<Theme, 'custom' | 'system'>, Palette> = {
   light: { bg: '#fffdf9', text: '#292923', link: '#55704f', dark: false },
-  sepia: { bg: '#f6eddc', text: '#43382b', link: '#85623d', dark: false },
   dark: { bg: '#1d201d', text: '#e5e4dc', link: '#b4c8aa', dark: true },
   black: { bg: '#000000', text: '#cfcfc8', link: '#a9c39f', dark: true },
 }
 
-// Each design style has its own paper and ink for Day and Night (Sepia and Black are shared).
+// Each design style has its own paper and ink for Day and Night (Black is shared).
 const STYLE_PALETTES: Record<DesignStyle, Partial<Record<Theme, Palette>>> = {
   star: {
     light: { bg: '#fcfbf8', text: '#1b1a17', link: '#24407a', dark: false },

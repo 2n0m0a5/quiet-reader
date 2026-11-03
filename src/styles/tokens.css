@@ -22,20 +22,6 @@
   --font-reading: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
 }
 
-[data-theme="sepia"] {
-  --bg: #f0e6d2;
-  --panel: #f7efdf;
-  --text: #43382b;
-  --muted: #6e5f49;   /* 4.9:1 on --bg */
-  --line: #e0d2b9;
-  --accent: #92734f;
-  --accent-soft: #eadcc3;
-  --accent-strong: #6b5236;
-  --reader-bg: #f6eddc;
-  --reader-text: #43382b;
-  --reader-link: #85623d;
-}
-
 /* Night, and a dark Custom theme (whose page colours main.ts sets itself). */
 [data-theme="dark"], [data-theme="black"], [data-theme="custom"][data-dark] {
   --bg: #181a18;

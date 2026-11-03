@@ -54,7 +54,7 @@ import { listBooks, listReading } from './library/db'
 import { greet } from './app/onboarding'
 import { FONT_ACCEPT, addFonts, customFamilies, load as loadFonts, onFontsChange } from './reader/custom-fonts'
 import { fillRange } from './ui/range'
-import { draggableSheet, installSprings, pop, rubberBand, spring, transition, watchMarks, watchSymbols, reducedMotion, type Navigation } from './ui/motion'
+import { draggableSheet, installSprings, pop, rubberBand, spring, transition, watchMarks, watchSymbols, reducedMotion, setMotion, type Navigation } from './ui/motion'
 
 createIcons({
   icons: {
@@ -128,6 +128,11 @@ const overlays = new ReadingOverlays(ui.stage, settings, rulerY => {
 
 function update(patch: Partial<Settings>) {
   const before = settings
+  // Curl turns pages, so it needs page mode: choosing it in scroll mode switches to pages.
+  if (patch.pageTurn === 'curl' && (patch.flow ?? settings.flow) === 'scrolled') {
+    patch = { ...patch, flow: 'paginated' }
+    toast('Curl turns pages, so the book now shows pages instead of scrolling.', 5000)
+  }
   settings = { ...settings, ...patch }
   saveSettings(settings)
   const apply = () => {
@@ -169,6 +174,7 @@ function render() {
     getComputedStyle(root).getPropertyValue('--panel').trim())
   setSystemBarsTheme(palette.dark)
   setHaptics(settings.haptics)
+  setMotion(settings.motion)
   if (appliedOrientation !== settings.orientation) setOrientation(appliedOrientation = settings.orientation)
 
   ui.fontRange.value = String(settings.fontSize)

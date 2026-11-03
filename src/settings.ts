@@ -4,10 +4,12 @@
 export type DesignStyle = 'star' | 'paper' | 'tashkent' | 'frost'
 export const DESIGN_STYLES: DesignStyle[] = ['star', 'paper', 'tashkent', 'frost']
 
-export type Theme = 'light' | 'sepia' | 'dark' | 'black' | 'custom' | 'system'
+export type Theme = 'light' | 'dark' | 'black' | 'custom' | 'system'
 export type Flow = 'scrolled' | 'paginated'
 // How a page turns in page mode.
 export type PageTurn = 'slide' | 'curl' | 'none'
+// Full: always move. Reduced: almost no movement. System: follow the phone's "less motion" setting.
+export type Motion = 'full' | 'reduced' | 'system'
 // `custom:<family>` is a font you added (reader/custom-fonts.ts).
 export type FontChoice = 'original' | 'serif' | 'sans' | `custom:${string}`
 export type Margins = 'narrow' | 'normal' | 'wide'
@@ -44,6 +46,7 @@ export interface Settings {
   uiScale: number         // percent: size of the app's own text and controls (not the book)
   orientation: Orientation // Android app
   haptics: boolean        // Android app
+  motion: Motion
   dailyGoal: number       // minutes of reading a day; 0 for no goal
   yearGoal: number        // books to finish this year; 0 for no goal
 }
@@ -77,6 +80,7 @@ export const defaults: Settings = {
   uiScale: 100,
   orientation: 'auto',
   haptics: true,
+  motion: 'system',
   dailyGoal: 0,
   yearGoal: 0,
 }
@@ -102,6 +106,8 @@ export function loadSettings(): Settings {
     void nightTheme
     // A style that's no longer offered (Lamplight, in an early 0.3.3) falls back to the default.
     if (saved.style && !DESIGN_STYLES.includes(saved.style)) delete saved.style
+    // Sepia was removed in 0.4.0: it becomes Day.
+    if (saved.theme === 'sepia') saved.theme = 'light'
     return { ...defaults, ...saved }
   } catch {
     return { ...defaults }
