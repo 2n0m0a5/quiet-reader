@@ -9,6 +9,10 @@ import { addBionic, removeBionic } from './bionic'
 import { inkOf } from './selection-menu'
 import { loadBook } from '../formats/load'
 import { ChapterPull } from './chapter-pull'
+import { keepTextReadable } from './legibility'
+
+// After the current work, without waiting long (the check reads every element's colour).
+const whenIdle = (fn: () => void) => 'requestIdleCallback' in window ? requestIdleCallback(fn, { timeout: 500 }) : setTimeout(fn, 50)
 
 
 // Side margin (percent of the page) and widest text column (px) for each margin setting.
@@ -120,6 +124,7 @@ export class Reader {
     view.addEventListener('load', e => {
       const { doc, index } = (e as CustomEvent<{ doc: Document; index: number }>).detail
       if (this.#bionic && !view.isFixedLayout) addBionic(doc)
+      if (!view.isFixedLayout) whenIdle(() => keepTextReadable(doc))
       this.#listenTo(doc)
       this.#watchSelection(doc, () => index)
     })
@@ -145,6 +150,8 @@ export class Reader {
     // Curl: a swipe asks for a turn (drawn by #curl) instead of dragging the page along.
     renderer.toggleAttribute('swipe-turn', this.#pageTurn === 'curl')
     if (settings.bionic !== this.#bionic) this.#setBionic(settings.bionic)
+    // The theme may have changed: check the book's own text colours against the new page.
+    if (!this.view.isFixedLayout) whenIdle(() => { for (const { doc } of renderer.getContents?.() ?? []) if (doc) keepTextReadable(doc) })
     if (!this.view.isFixedLayout) {
       const { gap, maxWidth } = MARGINS[settings.margins] ?? MARGINS.normal
       renderer.setAttribute('flow', settings.flow)

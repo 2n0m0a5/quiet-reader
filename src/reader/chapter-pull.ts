@@ -9,6 +9,7 @@ import { rubber, settle, spring, reducedMotion } from '../ui/motion'
 
 const ARM = 88          // px the page has to move before letting go turns the chapter
 const WHEEL_STOP = 160  // ms without wheel movement that counts as letting go
+const TURN_LIMIT = 4000 // ms to wait for the next chapter before showing the page again
 
 type Edges = () => { active: boolean; atStart: boolean; atEnd: boolean }
 
@@ -173,7 +174,8 @@ export class ChapterPull {
       { transform: `translateY(${-dir * h * 0.35}px)`, opacity: 0 },
     ], { duration: reducedMotion.matches ? 1 : 200, easing: 'cubic-bezier(.4, 0, 1, 1)', fill: 'forwards' })
     await out.finished.catch(() => {})
-    try { await this.#turn(dir) } finally {
+    // If the next chapter never arrives, don't leave the page faded out: come back after 4 s.
+    try { await Promise.race([this.#turn(dir), new Promise(resolve => setTimeout(resolve, TURN_LIMIT))]) } finally {
       const s = spring(0.42, 0)
       const enter = this.#view.animate([
         { transform: `translateY(${dir * h * 0.3}px)`, opacity: 0 },

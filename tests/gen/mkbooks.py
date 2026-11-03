@@ -56,7 +56,7 @@ def cover_png(title, color=(46, 64, 87)):
 
 # ---------- EPUB ----------
 
-def epub(title, author, chapters=5, series=None, index=None, footnote=True, lang='en'):
+def epub(title, author, chapters=5, series=None, index=None, footnote=True, lang='en', chapter_css=None):
     ident = f'urn:quiet-test:{title.lower().replace(" ", "-")}'
     series_meta = ''
     if series:
@@ -73,7 +73,8 @@ def epub(title, author, chapters=5, series=None, index=None, footnote=True, lang
             body = ('<p>A sentence with a note<a epub:type="noteref" href="notes.xhtml#n1" id="r1">1</a>.</p>' + body)
         files[f'OEBPS/ch{c}.xhtml'] = (
             '<?xml version="1.0" encoding="utf-8"?><html xmlns="http://www.w3.org/1999/xhtml" '
-            f'xmlns:epub="http://www.idpf.org/2007/ops" lang="{lang}"><head><title>Chapter {c}</title></head>'
+            f'xmlns:epub="http://www.idpf.org/2007/ops" lang="{lang}"><head><title>Chapter {c}</title>'
+            f'<style>{(chapter_css or {}).get(c, "")}</style></head>'
             f'<body><h1>Chapter {c}</h1>{body}</body></html>')
         items.append(f'<item id="ch{c}" href="ch{c}.xhtml" media-type="application/xhtml+xml"/>')
         spine.append(f'<itemref idref="ch{c}"/>')
@@ -299,6 +300,13 @@ def main():
     made.append(write('quiet-river-2.epub', epub('The Long Bridge', 'Ada Lane', series='River Tales', index=2), OUT))
     made.append(write('lamp-and-clock.epub', epub('The Lamp and the Clock', 'Omar Vale', chapters=8), OUT))
     made.append(write('short-notes.epub', epub('Short Notes', 'Lina Moss', chapters=2, footnote=False), OUT))
+    # Books that colour or hide their own text (the "invisible chapter" bug).
+    made.append(write('colours.epub', epub('Coloured Ink', 'Iris Hue', chapters=4, footnote=False, chapter_css={
+        1: 'p { color: #000000; }',
+        2: 'p { color: #ffffff; }',
+        3: 'body { opacity: 0; animation: fade 9s; } @keyframes fade { to { opacity: 1 } }',
+        4: 'h1 { color: #b0302a; }',
+    }), OUT))
 
     pgs = pages()
     for name, data in [

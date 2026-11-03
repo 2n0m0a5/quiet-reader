@@ -26,6 +26,10 @@ export function bookCSS(settings: Settings) {
       font-size: ${fontSize}% !important;
     }
     body { background: transparent !important; color: inherit !important; }
+    /* A book can't hide or fade its whole page (some do, waiting for scripts that never run here),
+       and its own animations don't play: they only distract and cost battery. */
+    html, body { opacity: 1 !important; visibility: visible !important; }
+    html body, html body * { animation: none !important; transition: none !important; }
     ${fontWeight !== 400 ? `html body { font-weight: ${fontWeight} !important; }` : ''}
     p, li, blockquote, dd {
       line-height: ${lineHeight} !important;
