@@ -332,7 +332,11 @@ dialog.dialog.dialog-details { width: min(560px, calc(100% - 32px)); }
 dialog.dialog::backdrop { background: #0005; animation: fade-in .18s ease; }
 dialog.dialog.closing { animation: dialog-out .18s ease forwards; }
 dialog.dialog.closing::backdrop { animation: fade-out .18s ease forwards; }
-.dialog-body { padding: 22px; overflow-y: auto; max-height: inherit; }
+/* The body is what scrolls, at every size: the dialog is a column, and the body takes what's left
+   under the handle. (When the dialog itself scrolled, a mouse wheel over the body did nothing: the
+   body's rubber band stops scrolling from passing on to the dialog.) */
+dialog.dialog[open] { display: flex; flex-direction: column; overflow: hidden; }
+.dialog-body { padding: 22px; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
 dialog .sheet-handle { display: none; }
 .dialog-title { margin-bottom: 12px; }
 .dialog-text { color: var(--muted); line-height: 1.55; margin: 0 0 18px; }

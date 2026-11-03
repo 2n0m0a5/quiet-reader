@@ -19,6 +19,7 @@ node tests/smoke.cjs            # one suite
 | Suite | What it checks |
 | --- | --- |
 | `smoke` | Adding books, opening one, Contents, the four tabs, the four styles, and a reload |
+| `desktop` | Mouse wheel scrolls What’s new, the library and Settings; the reading settings button works, even clicked during the opening animation |
 | `formats` | Every sample format opens (EPUB, FB2, FBZ, CBZ, CBT, CBR, DOCX, ODT, RTF, TXT, MD, HTML, HTMLZ, PDB, PDF) |
 | `gestures` | Long-press for details; swipe back from the left edge (short springs back, long leaves) |
 | `legibility` | Book text coloured black (Night), white (Day) or faded out by the book stays readable; a readable red heading keeps its colour |

@@ -76,9 +76,38 @@ export function transition(kind: Navigation, change: () => void | Promise<unknow
   const t = doc.startViewTransition(async () => {
     // Waits for the new screen, but not forever (a slow book still zooms in while it loads).
     await Promise.race([Promise.resolve(change()), new Promise(resolve => setTimeout(resolve, 600))])
-  }) as { finished: Promise<void> }
+  }) as Running
+  trackTransition(t)
   t.finished.catch(() => {}).finally(() => { delete document.documentElement.dataset.nav; done?.() })
 }
+
+// ---------- Taps during a screen change ----------
+// While a View Transition plays (about half a second), the browser shows a picture of the page and
+// sends every press to the page root, so a tap on a button right after opening a book did nothing.
+// Now a press during a transition ends it at once, and the tap goes to whatever is under it.
+type Running = { skipTransition(): void; finished: Promise<void> }
+let running: Running | null = null
+let pendingTap: { x: number; y: number } | null = null
+
+export function trackTransition(t: Running) {
+  running = t
+  t.finished.catch(() => {}).finally(() => { if (running === t) running = null })
+}
+
+document.addEventListener('pointerdown', e => {
+  if (!running) { pendingTap = null; return }
+  pendingTap = { x: e.clientX, y: e.clientY }
+  running.skipTransition()
+}, true)
+
+document.addEventListener('click', e => {
+  const tap = pendingTap
+  pendingTap = null
+  if (!tap || e.target !== document.documentElement) return
+  e.stopImmediatePropagation()
+  const target = document.elementFromPoint(tap.x, tap.y) as HTMLElement | null
+  target?.closest<HTMLElement>('button, a, input, select, label, summary, [role="button"], [tabindex]')?.click()
+}, true)
 
 // ---------- Sheets you can drag ----------
 // Drag a sheet down to close it, like iOS. The drag starts after 10 px (so taps and scrolling
@@ -475,6 +504,7 @@ export function animateLayout(container: HTMLElement, selector: string, idOf: (e
     clear()
     await change()
     container.querySelectorAll<HTMLElement>(selector).forEach(name)
-  })
+  }) as unknown as Running
+  trackTransition(t)
   t.finished.catch(() => {}).finally(() => { clear(); delete document.documentElement.dataset.layout })
 }
