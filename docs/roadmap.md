@@ -111,7 +111,7 @@ Status: ✅ done (with the version) · ⏭ next · 🕒 placed in a later versio
 ## Owner's own later ideas
 - **No AI features** (owner, 0.4.0: no "AI washing"). About says so.
 - **A. AI voiceover / read aloud with excellent voices.** (On hold: see No AI features.) Only if the quality is truly natural. It would probably be a paid online service that sends text out (a privacy change), so possibly a Quiet+ feature. Placed in 🕒 v4.
-- **B. Fully native Android app (Kotlin, no Capacitor).** Idea only: we agreed the current approach is better for now.
+- **B. Fully native Android app (Kotlin, no Capacitor).** ⏭ Started 4 Nov 2026 at the owner's request, in layers L0–L8 (`docs/plan-native.md`). L0 done.
 - ✅ Done from the owner's small requests: Contents button moved, app-wide text size, whole-word line breaks (hyphenation off by default), Quotes.
 
 ## Design and motion

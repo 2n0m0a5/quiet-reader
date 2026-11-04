@@ -1,0 +1,91 @@
+package app.quietreader
+
+import android.content.Context
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
+import androidx.test.core.app.ApplicationProvider
+import app.quietreader.ui.AppState
+import app.quietreader.ui.QuietApp
+import app.quietreader.ui.QuietTheme
+import app.quietreader.ui.SettingsPage
+import app.quietreader.ui.Tab
+import com.github.takahirom.roborazzi.captureRoboImage
+import org.junit.Assert.assertEquals
+import org.junit.Before
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
+
+/**
+ * Every L0 screen in Day and Night, saved as pictures (build/outputs/roborazzi/), plus the
+ * basics: tabs switch, Settings pages open and go back, the theme is remembered.
+ * Robolectric runs this on the JVM: the cloud machine can't run an Android emulator.
+ */
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(sdk = [35], qualifiers = "w393dp-h852dp-xxhdpi")
+class ScreensTest {
+    @get:Rule val compose = createComposeRule()
+    private lateinit var settings: QuietSettings
+
+    @Before fun setUp() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        context.getSharedPreferences("quiet", Context.MODE_PRIVATE).edit().clear().commit()
+        settings = QuietSettings(context)
+    }
+
+    private fun show(state: AppState) = compose.setContent { QuietTheme(settings, null) { QuietApp(settings, state) } }
+
+    private fun shot(name: String) {
+        compose.mainClock.advanceTimeBy(1500)
+        compose.onRoot().captureRoboImage("build/outputs/roborazzi/$name.png")
+    }
+
+    @Test fun everyScreenDayAndNight() {
+        val state = AppState()
+        show(state)
+        for (theme in listOf(ThemeMode.Day, ThemeMode.Night)) {
+            val tag = theme.label.lowercase()
+            compose.runOnIdle { settings.theme = theme }
+            for (tab in Tab.entries) {
+                compose.runOnIdle { state.tab = tab; state.page = SettingsPage.Home }
+                shot("$tag-${tab.name.lowercase()}")
+            }
+            compose.runOnIdle { state.tab = Tab.Settings; state.page = SettingsPage.Interface }
+            shot("$tag-interface")
+            compose.runOnIdle { state.page = SettingsPage.About }
+            shot("$tag-about")
+        }
+    }
+
+    @Test fun tabsAndPagesWork() {
+        val state = AppState()
+        show(state)
+        compose.onNodeWithText("Make yourself at home.").assertIsDisplayed()
+        compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithText("Interface").performClick()
+        compose.onNodeWithText("Screen rotation").assertIsDisplayed()
+        compose.onNodeWithText("Night").performClick()
+        compose.runOnIdle { assertEquals(ThemeMode.Night, settings.theme) }
+        // Remembered: a fresh settings object reads the same value back.
+        val again = QuietSettings(ApplicationProvider.getApplicationContext<Context>())
+        assertEquals(ThemeMode.Night, again.theme)
+        compose.runOnIdle { state.page = SettingsPage.Home }
+        compose.onNodeWithText("About Quiet").performClick()
+        compose.onNodeWithText("made by extrasolarions on howling dark").assertExists()
+        compose.onNodeWithText("Notes").performClick()
+        compose.onNodeWithText("Your notes will gather here.").assertIsDisplayed()
+    }
+
+    @Test fun textSizeScalesTheApp() {
+        settings.textSize = TextSize.Larger
+        show(AppState(Tab.Settings, SettingsPage.Interface))
+        shot("day-interface-larger-text")
+    }
+}

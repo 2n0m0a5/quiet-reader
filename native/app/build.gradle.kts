@@ -1,0 +1,93 @@
+// Quiet, the native Android app (Kotlin + Jetpack Compose). See docs/plan-native.md.
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
+    id("io.github.takahirom.roborazzi")
+}
+
+// The layer being built. The switch (end of L8) drops it and moves to app.quietreader.
+val quietVersion = "0.5.0"
+val quietLayer = "L0"
+
+android {
+    namespace = "app.quietreader"
+    compileSdk = 36
+
+    defaultConfig {
+        applicationId = "app.quietreader.n"
+        minSdk = 26
+        targetSdk = 36
+        versionCode = 500
+        versionName = "$quietVersion $quietLayer"
+        buildConfigField("String", "QUIET_VERSION", "\"$quietVersion\"")
+        buildConfigField("String", "QUIET_LAYER", "\"$quietLayer\"")
+    }
+
+    signingConfigs {
+        // The same test key as the Capacitor app, so the switch can install over 0.4.2.
+        create("test") {
+            storeFile = file("../../android/app/quiet-test.keystore")
+            storePassword = "quiet-test"
+            keyAlias = "quiet-test"
+            keyPassword = "quiet-test"
+        }
+    }
+    buildTypes {
+        debug { signingConfig = signingConfigs.getByName("test") }
+        release {
+            // Optimized: Compose runs much smoother in a release build than in a debug one.
+            signingConfig = signingConfigs.getByName("test")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+        }
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            all {
+                // Robolectric downloads Android jars from Maven Central, which rate-limits cloud
+                // machines; Google's mirror of it doesn't.
+                it.systemProperty("robolectric.dependency.repo.url", "https://maven-central.storage-download.googleapis.com/maven2")
+                it.systemProperty("robolectric.dependency.repo.id", "central-mirror")
+                it.maxHeapSize = "3g"
+            }
+        }
+    }
+}
+
+kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
+
+dependencies {
+    val composeBom = platform("androidx.compose:compose-bom:2025.10.01")
+    implementation(composeBom)
+    implementation("androidx.core:core-ktx:1.17.0")
+    implementation("androidx.activity:activity-compose:1.11.0")
+    implementation("androidx.core:core-splashscreen:1.2.0")
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.foundation:foundation")
+    implementation("androidx.compose.material3:material3")
+    debugImplementation("androidx.compose.ui:ui-tooling")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
+
+    testImplementation(composeBom)
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.16.1")
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi:1.50.0")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:1.50.0")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi-junit-rule:1.50.0")
+}
+
+dependencies {
+    testImplementation("androidx.test:core:1.7.0")
+}

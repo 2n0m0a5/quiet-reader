@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The window behind the app: the Radio casing. -->
+    <style name="Theme.Quiet" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/casing</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <!-- The splash: the knob on the casing, then the app. -->
+    <style name="Theme.Quiet.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/casing</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.Quiet</item>
+    </style>
+</resources>

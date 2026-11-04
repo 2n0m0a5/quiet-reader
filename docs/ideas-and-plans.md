@@ -94,6 +94,13 @@ It's gathered from every "remember this" and every topic the owner was keen on, 
   - Reader controls: day/night, chapters, brightness, font size, search, visual options, customize the bar.
   - More book info.
 
+## The native app (4 November)
+- The owner asked for a fully native app ("no Capacitor, fully on the phone"), built in layers
+  like the web → Capacitor path, but on its own route. Agreed: Kotlin + Compose, Android first,
+  Readium for book pages, iPhone later as its own Swift app. Same name, icon and design; only the
+  app ID differs while building (`app.quietreader.n`). Versions `0.5.0 L0`, `L1`… and plain
+  `0.5.0` at the switch. Plan: `docs/plan-native.md`.
+
 ## No AI ("no AI washing")
 - The owner doesn't want AI features in the reader (like greenwashing: "AI washing"). About says "No AI features". AI voiceover (idea A) is on hold.
 
