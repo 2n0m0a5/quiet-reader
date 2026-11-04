@@ -1,4 +1,4 @@
-// The page curl: a tap on the right side curls the page away (a fold with the page's back and a
+// The page curl: a tap on the right side curls the page away (and a swipe curls it under the finger) (a fold with the page's back and a
 // shadow), the next page is there afterwards, nothing is left behind; going back works too.
 const path = require('path')
 const t = require('./common.cjs')
@@ -25,6 +25,31 @@ t.suite('curl', async ({ page, check, shot, newPage }) => {
   await page.mouse.click(20, height / 2)
   await page.waitForTimeout(1200)
   check(Math.abs(await position(page) - start) < 1e-6, 'tapping the left side curls back to the first page')
+
+  // The curl follows the finger: a short drag settles back on the same page, a long one turns.
+  const tch = await t.touch(page)
+  const y = height / 2
+  const dragTo = async (toX, release = true) => {
+    await tch.send('touchStart', [[width - 30, y]])
+    for (let i = 1; i <= 10; i++) { await page.waitForTimeout(30); await tch.send('touchMove', [[width - 30 - (width - 30 - toX) * i / 10, y]]) }
+    await page.waitForTimeout(250)
+    const held = await page.evaluate(() => ({ curl: document.documentElement.dataset.curl, fold: parseFloat(document.documentElement.style.getPropertyValue('--curl-fold')) }))
+    if (release) await tch.send('touchEnd', [])
+    return held
+  }
+  const before = await position(page)
+  let held = await dragTo(width - 110)
+  check(held.curl === 'next' && held.fold > width * 0.8 && held.fold < width * 0.97, 'a short drag curls the page part of the way, following the finger', JSON.stringify(held))
+  await page.waitForTimeout(1000)
+  check(Math.abs(await position(page) - before) < 1e-6, 'letting go early settles back on the same page')
+  check(await page.evaluate(() => !document.documentElement.dataset.curl && !document.querySelector('.curl-flap')), 'and the curl is gone')
+  held = await dragTo(60, false)
+  check(held.fold < width * 0.72, 'a long drag curls the page far over', JSON.stringify(held))
+  await shot(page, '2-held-curl')
+  await tch.send('touchEnd', [])
+  await page.waitForTimeout(1000)
+  check(await position(page) > before, 'letting go after a long drag turns the page')
+  check(await page.evaluate(() => !document.documentElement.dataset.curl && !document.querySelector('.curl-flap')), 'and the curl is gone')
 
   // A PDF on the Night page (fixed pages, smaller than the screen): only the page curls, and the
   // back of the page is paper-coloured, not the dark screen.

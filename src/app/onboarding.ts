@@ -7,7 +7,7 @@ const WELCOME_KEY = 'quiet:welcome-seen'
 const VERSION_KEY = 'quiet:seen-version'
 
 // The last version with something to tell: What's new shows once to anyone updating from before it.
-const NEWS = '0.4.1'
+const NEWS = '0.4.2'
 
 // "0.3.0-dev.5" → [0, 3, 0], for comparing versions.
 const parts = (version: string) => version.split('-')[0].split('.').map(Number)
@@ -112,6 +112,9 @@ export function showWelcome(addBooks: () => void) {
 // What's new in this version. Also opened from Settings → About.
 // `since`: the version the reader had before; what's newer than that comes first.
 export function showWhatsNew(since = '0.3.3') {
+  const v042: [typeof BookOpen, string, string][] = [
+    [BookOpen, 'A page you can hold', 'With Curl, the page now follows your finger: swipe and hold, and the corner stays under your fingertip. Let go past about 40% (or flick) to turn; less, and it settles back. Settings → Reader → Pages and Curl.'],
+  ]
   const v041: [typeof BookOpen, string, string][] = [
     [ChartColumn, 'Stats, like a radio', 'Today on a needle meter against your daily goal, the week as level lights, and your streak, pace and books this year as readouts. The year, hours, pace and every book are one tap below.'],
   ]
@@ -150,7 +153,7 @@ export function showWhatsNew(since = '0.3.3') {
     [ChartColumn, 'Reading stats', 'Time read, a gentle streak, daily and yearly goals, and how many pages you read.'],
   ]
   const list = h('div', 'whats-new')
-  const rows = [...v041, ...older(since, '0.4.0') ? v040 : [], ...older(since, '0.3.4') ? latest : [], ...older(since, '0.3.3') ? v033 : [], ...older(since, '0.3.2') ? v032 : [], ...older(since, '0.3.1') ? before : [], ...older(since, '0.3.0') ? items : []]
+  const rows = [...v042, ...older(since, '0.4.1') ? v041 : [], ...older(since, '0.4.0') ? v040 : [], ...older(since, '0.3.4') ? latest : [], ...older(since, '0.3.3') ? v033 : [], ...older(since, '0.3.2') ? v032 : [], ...older(since, '0.3.1') ? before : [], ...older(since, '0.3.0') ? items : []]
   for (const [symbol, title, text] of rows) {
     const row = h('div', 'whats-new-item')
     const badge = h('div', 'whats-new-icon')

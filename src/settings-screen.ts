@@ -482,7 +482,7 @@ export class SettingsScreen {
       links.append(b)
     }
     add('Take the tour', () => this.#actions.tour(), true)
-    add('What’s new', () => showWhatsNew('0.4.0'))
+    add('What’s new', () => showWhatsNew('0.4.1'))
     add('Report a problem', () => this.#report())
 
     // Your data, all on this phone.

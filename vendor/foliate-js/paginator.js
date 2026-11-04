@@ -423,6 +423,12 @@ class View {
 }
 
 // NOTE: everything here assumes the so-called "negative scroll type" for RTL
+// Quiet: a touch's position on the screen, from inside a book's frame too (screenX/Y can be 0
+// there). The frame moves when the page turns underneath a curl, so its offset is added.
+const frameOf = e => e.view?.frameElement?.getBoundingClientRect()
+const pageX = (e, t) => t ? t.clientX + (frameOf(e)?.left ?? 0) : 0
+const pageY = (e, t) => t ? t.clientY + (frameOf(e)?.top ?? 0) : 0
+
 export class Paginator extends HTMLElement {
     static observedAttributes = [
         'flow', 'gap', 'margin',
@@ -572,10 +578,12 @@ export class Paginator extends HTMLElement {
         this.addEventListener('touchstart', this.#onTouchStart.bind(this), opts)
         this.addEventListener('touchmove', this.#onTouchMove.bind(this), opts)
         this.addEventListener('touchend', this.#onTouchEnd.bind(this))
+        this.addEventListener('touchcancel', this.#onTouchEnd.bind(this)) // Quiet: a cancelled drag lets go too
         this.addEventListener('load', ({ detail: { doc } }) => {
             doc.addEventListener('touchstart', this.#onTouchStart.bind(this), opts)
             doc.addEventListener('touchmove', this.#onTouchMove.bind(this), opts)
             doc.addEventListener('touchend', this.#onTouchEnd.bind(this))
+            doc.addEventListener('touchcancel', this.#onTouchEnd.bind(this))
         })
 
         this.addEventListener('relocate', ({ detail }) => {
@@ -832,6 +840,8 @@ export class Paginator extends HTMLElement {
             vx: 0, xy: 0,
             // Quiet: how far the finger moved in all (for "swipe-turn", below).
             totalX: 0, totalY: 0,
+            // Quiet: the drag in the page's own coordinates (screenX/Y can be 0 inside a frame).
+            cx: pageX(e, touch), cy: pageY(e, touch), dragX: 0, dragY: 0, dragging: false,
         }
     }
     #onTouchMove(e) {
@@ -858,13 +868,28 @@ export class Paginator extends HTMLElement {
         this.#touchScrolled = true
         // Quiet: with the "swipe-turn" attribute, a swipe doesn't drag the page; it asks for a
         // page turn when the finger lifts (the page curl in Quiet's reader is drawn that way).
-        if (this.hasAttribute('swipe-turn')) return
+        // While the finger moves sideways, "swipe-drag" reports how far, so the curl can follow it.
+        if (this.hasAttribute('swipe-turn')) {
+            state.dragX = state.cx - pageX(e, touch)
+            state.dragY = state.cy - pageY(e, touch)
+            if (!state.dragging && Math.abs(state.dragX) > 12 && Math.abs(state.dragX) > Math.abs(state.dragY)) {
+                state.dragging = true
+                this.dispatchEvent(new CustomEvent('swipe-drag', { detail: { phase: 'start', dx: state.dragX } }))
+            } else if (state.dragging)
+                this.dispatchEvent(new CustomEvent('swipe-drag', { detail: { phase: 'move', dx: state.dragX } }))
+            return
+        }
         this.scrollBy(dx, dy)
     }
     #onTouchEnd() {
         this.#touchScrolled = false
         if (this.scrolled) return
         if (this.hasAttribute('swipe-turn')) {
+            if (this.#touchState.dragging) {
+                this.#touchState.dragging = false
+                this.dispatchEvent(new CustomEvent('swipe-drag', { detail: { phase: 'end', dx: this.#touchState.dragX, vx: this.#touchState.vx } }))
+                return
+            }
             const { totalX, totalY, vx } = this.#touchState
             if (Math.abs(totalX) > Math.abs(totalY) && (Math.abs(totalX) > 40 || Math.abs(vx) > 0.3))
                 this.dispatchEvent(new CustomEvent('swipe-turn', { detail: { side: totalX > 0 ? 'right' : 'left' } }))

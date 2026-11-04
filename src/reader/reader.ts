@@ -68,34 +68,46 @@ const CURL_MS = 620
 //   flap:  the back of the turned part, mirrored onto the page beside the fold, a little narrower
 //          than the part it is (the paper bends over a curve), as a slanted strip
 //   shade: the shadow on the page underneath, just beyond the fold
-export function curlFrames(w: number, h: number, back = false, steps = 24, shift = 0) {
+export function curlFrame(w: number, h: number, p: number, shift = 0): Record<string, string> {
+  const fold = w * (1 - p) * 1.03 - w * 0.03                // ends a little past the spine, so it finishes clean
+  const tilt = w * 0.14 * Math.sin(Math.PI * Math.min(1, Math.max(0, p) ** 0.6)) // the lower corner lifts first and leads
+  const top = fold + tilt / 2, bottom = fold - tilt / 2
+  const width = Math.max(0, w - fold) * (0.86 + 0.1 * p)
+  return {
+    // The turning page is cut off at the fold (in the screen's coordinates: `shift` is where the
+    // page starts on screen, for books with fixed pages that don't fill it).
+    '--curl-top': `${(top + shift).toFixed(1)}px`,
+    '--curl-bottom': `${(bottom + shift).toFixed(1)}px`,
+    // The back of the page: its picture has the crease at its right edge; squeezed to `width`,
+    // slanted so the crease lies on the fold line.
+    '--curl-sx': Math.max(0.0001, width / w).toFixed(4),
+    '--curl-skew': ((bottom - top) / h).toFixed(4),
+    '--curl-tx': `${(top - width).toFixed(1)}px`,
+    '--curl-fold': `${top.toFixed(1)}px`,
+    '--curl-flap': width < 2 ? '0' : '1',
+    '--curl-shade': (Math.sin(Math.PI * p) * 0.9).toFixed(3),
+  }
+}
+
+// The frames of a whole curl, for playing by itself. `back` plays it the other way (laying the
+// previous page down). From and to: how far turned (0 → 1), for finishing a curl the finger began.
+export function curlFrames(w: number, h: number, back = false, steps = 24, shift = 0, from = 0, to = 1) {
   // A gentle start (the corner is lifted at once), steady through the middle, settling at the end.
   const ease = (t: number) => 0.5 - 0.5 * Math.cos(Math.PI * t)
   const frames: Keyframe[] = []
   for (let i = 0; i <= steps; i++) {
-    const t = back ? 1 - i / steps : i / steps
-    const p = ease(t)
-    const fold = w * (1 - p) * 1.03 - w * 0.03                // ends a little past the spine, so it finishes clean
-    const tilt = w * 0.14 * Math.sin(Math.PI * Math.min(1, p ** 0.6)) // the lower corner lifts first and leads
-    const top = fold + tilt / 2, bottom = fold - tilt / 2
-    const width = Math.max(0, w - fold) * (0.86 + 0.1 * p)
-    frames.push({
-      offset: i / steps,
-      // The turning page is cut off at the fold (in the screen's coordinates: `shift` is where the
-      // page starts on screen, for books with fixed pages that don't fill it).
-      '--curl-top': `${(top + shift).toFixed(1)}px`,
-      '--curl-bottom': `${(bottom + shift).toFixed(1)}px`,
-      // The back of the page: its picture has the crease at its right edge; squeezed to `width`,
-      // slanted so the crease lies on the fold line.
-      '--curl-sx': Math.max(0.0001, width / w).toFixed(4),
-      '--curl-skew': ((bottom - top) / h).toFixed(4),
-      '--curl-tx': `${(top - width).toFixed(1)}px`,
-      '--curl-fold': `${top.toFixed(1)}px`,
-      '--curl-flap': width < 2 ? '0' : '1',
-      '--curl-shade': (Math.sin(Math.PI * p) * 0.9).toFixed(3),
-    })
+    const q = from + (to - from) * (from === 0 && to === 1 ? ease(i / steps) : 1 - (1 - i / steps) ** 2)
+    frames.push({ offset: i / steps, ...curlFrame(w, h, back ? 1 - q : q, shift) })
   }
   return frames
+}
+
+// A curl on screen: played by itself (taps, keys) or following a finger (a swipe).
+interface CurlControl {
+  set(q: number): void                                   // how far turned, 0 → 1
+  play(from: number, to: number, ms: number): Promise<void>
+  turned: Promise<unknown>                               // the page turn underneath
+  end(): void
 }
 
 export class Reader {
@@ -174,6 +186,7 @@ export class Reader {
     this.apply(settings)
     await view.init({ lastLocation: lastPosition ?? undefined })
     this.#watchScroll()
+    view.renderer?.addEventListener('swipe-drag', e => this.#onSwipeDrag((e as CustomEvent).detail))
     view.renderer?.addEventListener('swipe-turn', e => {
       this.#events.onUserMove()
       ;(e as CustomEvent<{ side: 'left' | 'right' }>).detail.side === 'right' ? this.goRight() : this.goLeft()
@@ -394,10 +407,20 @@ export class Reader {
   // underneath in the curl's shadow. Going back, the previous page is laid down on top the same
   // way, in reverse. Drawn with the View Transitions API; the frames are worked out in curlFrames.
   async #curl(dir: 1 | -1, turn: () => Promise<unknown>) {
+    const c = this.#beginCurl(dir, turn)
+    if (!c) return turn()
+    c.play(0, 1, CURL_MS).then(() => c.end())
+    return c.turned
+  }
+
+  // Starts a curl: the page on screen is captured and the turn happens underneath it; then `set`
+  // or `play` decide how far the page is turned, and `end` shows the real page again. Null when a
+  // curl isn't possible (scroll mode, reduced motion, a browser without View Transitions).
+  #beginCurl(dir: 1 | -1, turn: () => Promise<unknown>): CurlControl | null {
     const doc = document as Document & { startViewTransition?: (cb: () => Promise<void>) => { finished: Promise<void>; updateCallbackDone: Promise<void>; ready: Promise<void> } }
     const r = this.view.renderer
     if (this.#pageTurn !== 'curl' || !r || r.scrolled || !doc.startViewTransition || this.#curling || document.hidden
-      || reducedMotion.matches) return turn()
+      || reducedMotion.matches) return null
     this.#curling = true
     const root = document.documentElement
     const stage = (this.view.closest('.reader-stage') ?? this.view) as HTMLElement
@@ -425,29 +448,97 @@ export class Reader {
     const shade = document.createElement('div')
     shade.className = 'curl-shade'
     for (const el of [flap, shade]) Object.assign(el.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px` })
+    const shift = box.left - area.left
+    const frameAt = (q: number) => curlFrame(box.width, box.height, dir > 0 ? q : 1 - q, shift)
+    const apply = (frame: Record<string, string>) => { for (const [k, v] of Object.entries(frame)) root.style.setProperty(k, v) }
+    // The first frame at once, so nothing shows uncut before the curl starts.
+    apply(frameAt(0))
     // (The page is drawn again only after this returns, so it mustn't wait for a frame; foliate's
     // turn can, so it gets a moment and the curl starts anyway.)
     let turned: Promise<unknown> = Promise.resolve()
-    const frames = curlFrames(box.width, box.height, dir < 0, 24, box.left - area.left)
-    // The first frame at once, so nothing shows uncut before the animation starts.
-    for (const [k, v] of Object.entries(frames[0])) if (k.startsWith('--')) root.style.setProperty(k, String(v))
     const t = doc.startViewTransition(async () => {
       document.body.append(flap, shade)
       turned = turn()
       await Promise.race([turned, new Promise(resolve => setTimeout(resolve, 350))])
     })
-    // One animation of custom properties on the page root; the curl's pseudo-elements read them
-    // (motion.css). Phones handle this more reliably than animating the pseudo-elements directly.
-    const play = root.animate(frames, { duration: CURL_MS, easing: 'linear', fill: 'forwards' })
-    t.ready.catch(() => {})
-    t.finished.catch(() => {}).finally(() => {
-      play.cancel()
-      for (const k of Object.keys(frames[0])) if (k.startsWith('--')) root.style.removeProperty(k)
+    // Keeps the transition open while a finger holds the page (it ends in `end`).
+    let keep: Animation | null = null
+    t.ready.then(() => {
+      keep = root.animate([{ opacity: 1 }, { opacity: 1 }], { duration: 600_000, pseudoElement: '::view-transition-group(page)' })
+    }).catch(() => {})
+    let playing: Animation | null = null
+    let ended = false
+    const cleanup = () => {
+      playing?.cancel()
+      for (const k of Object.keys(frameAt(0))) root.style.removeProperty(k)
       flap.remove(); shade.remove(); delete root.dataset.curl; this.#curling = false
-    })
-    await t.updateCallbackDone.catch(() => {})
-    return turned
+    }
+    t.finished.catch(() => {}).finally(cleanup)
+    let turnedResolve!: (v: unknown) => void
+    const turnedAll = new Promise(resolve => { turnedResolve = resolve })
+    t.updateCallbackDone.catch(() => {}).then(() => turned).then(turnedResolve, turnedResolve)
+    return {
+      turned: turnedAll,
+      set: q => { if (!ended) { playing?.cancel(); playing = null; apply(frameAt(Math.min(1, Math.max(0, q)))) } },
+      play: (from, to, ms) => {
+        playing?.cancel()
+        // One animation of custom properties on the page root; the curl's pseudo-elements read
+        // them (motion.css). Phones handle this more reliably than animating pseudo-elements.
+        const frames = curlFrames(box.width, box.height, dir < 0, 24, shift, from, to)
+        playing = root.animate(frames, { duration: Math.max(1, ms), easing: 'linear', fill: 'forwards' })
+        const done = playing
+        return done.finished.then(() => apply(frameAt(to)), () => {})
+      },
+      end: () => {
+        if (ended) return
+        ended = true
+        keep?.cancel()
+        // (If the transition isn't ready yet, it ends by itself after its first frame.)
+        ;(t as unknown as { skipTransition?: () => void }).skipTransition?.()
+      },
+    }
   }
+
+  // A swipe in page mode with Curl: the page curls as the finger moves, and on letting go it
+  // either turns (dragged about 40% across, or flicked) or settles back flat on the same page.
+  #drag: { c: CurlControl; side: 'left' | 'right'; q: number } | null = null
+  #onSwipeDrag({ phase, dx, vx = 0 }: { phase: 'start' | 'move' | 'end'; dx: number; vx?: number }) {
+    const width = this.view.getBoundingClientRect().width || innerWidth
+    if (phase === 'start') {
+      const side = dx > 0 ? 'right' : 'left'   // the finger moving left turns to the right-hand page
+      const forward = (side === 'right') !== this.#rtl
+      const c = this.#beginCurl(forward ? 1 : -1, () => side === 'right' ? this.view.goRight() : this.view.goLeft())
+      this.#events.onUserMove()
+      if (c) this.#drag = { c, side, q: 0 }
+      return
+    }
+    const drag = this.#drag
+    if (!drag) {
+      // No curl possible: turn on letting go, as a plain swipe.
+      if (phase === 'end' && (Math.abs(dx) > 40 || Math.abs(vx) > 0.3)) dx > 0 ? this.goRight() : this.goLeft()
+      return
+    }
+    // Like real paper, the corner you hold stays under your finger: the fold lies between the
+    // finger and the page's edge, so it moves at about half the finger's speed. (Matches curlFrame:
+    // the back of the page reaches 0.9 × the turned part beyond the fold.)
+    const along = Math.max(0, drag.side === 'right' ? dx : -dx)
+    const fold = (width - Math.min(width, along) + 0.9 * width) / 1.9
+    drag.q = Math.min(1, Math.max(0, 1 - (fold + 0.03 * width) / (1.03 * width)))
+    if (phase === 'move') { drag.c.set(drag.q); return }
+    this.#drag = null
+    const flick = (drag.side === 'right' ? vx : -vx) > 0.45
+    const turn = drag.q > 0.2 || (flick && drag.q > 0.04)
+    const ms = Math.round(CURL_MS * 0.7 * (turn ? 1 - drag.q : drag.q)) + 80
+    drag.c.play(drag.q, turn ? 1 : 0, ms).then(async () => {
+      if (!turn) {
+        // The page underneath already turned: turn it back before the real page shows again.
+        await drag.c.turned
+        await (drag.side === 'right' ? this.view.goLeft() : this.view.goRight())
+      }
+      drag.c.end()
+    })
+  }
+
   goTo(href: string) { return this.view.goTo(href) }
   goToFraction(fraction: number) { return this.view.goToFraction(fraction) }
 
