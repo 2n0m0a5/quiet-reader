@@ -1,5 +1,13 @@
 # Quiet 0.5.0 L4 — notes (native test build)
 
+## 0.5.0 L4.1 (fix)
+- **Translate showed MyMemory's error message as the translation.** Google refused the app's
+  requests, and the backup service (MyMemory) was asked to detect the language, which it can't.
+  Now: requests look like a browser's, a second Google address is tried, MyMemory gets the
+  source language (guessed from the letters), and an error or quota message is never shown as
+  a translation. If every service refuses, the sheet says so plainly and offers **Try again**
+  and **Open in Google Translate** (the text goes to the Google Translate app or site).
+
 Layer 4 (`docs/plan-native.md`). Installs over L3b.1, next to 0.4.2.
 
 ## What's new

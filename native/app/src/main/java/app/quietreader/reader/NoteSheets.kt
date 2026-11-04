@@ -181,8 +181,10 @@ fun TranslateSheet(text: String, onClose: () -> Unit) {
     val quiet = LocalQuiet.current
     val c = LocalColors.current
     val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
     var target by remember { mutableStateOf(quiet.settings.translateTo) }
-    val result by produceState<Result<Translate.Result>?>(null, target) {
+    var attempt by remember { mutableStateOf(0) }
+    val result by produceState<Result<Translate.Result>?>(null, target, attempt) {
         value = null
         value = runCatching { Translate.translate(text, target) }
     }
@@ -195,7 +197,16 @@ fun TranslateSheet(text: String, onClose: () -> Unit) {
             val r = result
             when {
                 r == null -> Text("Translating…", style = Type.body.copy(color = c.muted))
-                r.isFailure -> Text("Couldn’t translate: ${r.exceptionOrNull()?.message ?: "no connection"}. Translation needs the internet.", style = Type.body.copy(color = c.danger))
+                r.isFailure -> {
+                    Text(r.exceptionOrNull()?.message ?: "Couldn’t translate just now.", style = Type.body.copy(color = c.text))
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextKey("Try again", { attempt++ }, Modifier.weight(1f))
+                        TextKey("Open in Google Translate", {
+                            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(Translate.webUrl(text, target)))) }
+                        }, Modifier.weight(1.6f), kind = KeyKind.Primary)
+                    }
+                }
                 else -> {
                     val t = r.getOrThrow()
                     Text(t.text, style = Type.reading.copy(color = c.text, fontSize = 19.sp, lineHeight = 27.sp))
