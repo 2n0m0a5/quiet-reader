@@ -68,10 +68,10 @@ const CURL_MS = 620
 //   flap:  the back of the turned part, mirrored onto the page beside the fold, a little narrower
 //          than the part it is (the paper bends over a curve), as a slanted strip
 //   shade: the shadow on the page underneath, just beyond the fold
-export function curlFrames(w: number, h: number, back = false, steps = 24) {
+export function curlFrames(w: number, h: number, back = false, steps = 24, shift = 0) {
   // A gentle start (the corner is lifted at once), steady through the middle, settling at the end.
   const ease = (t: number) => 0.5 - 0.5 * Math.cos(Math.PI * t)
-  const page: Keyframe[] = [], flap: Keyframe[] = [], shade: Keyframe[] = []
+  const frames: Keyframe[] = []
   for (let i = 0; i <= steps; i++) {
     const t = back ? 1 - i / steps : i / steps
     const p = ease(t)
@@ -79,16 +79,23 @@ export function curlFrames(w: number, h: number, back = false, steps = 24) {
     const tilt = w * 0.14 * Math.sin(Math.PI * Math.min(1, p ** 0.6)) // the lower corner lifts first and leads
     const top = fold + tilt / 2, bottom = fold - tilt / 2
     const width = Math.max(0, w - fold) * (0.86 + 0.1 * p)
-    const offset = i / steps
-    page.push({ offset, clipPath: `polygon(0 0, ${top.toFixed(1)}px 0, ${bottom.toFixed(1)}px ${h}px, 0 ${h}px)` })
-    // The flap's picture has its crease at its right edge; squeeze it to `width` and slant it so the
-    // crease lies on the fold line.
-    const sx = Math.max(0.0001, width / w)
-    const skew = (bottom - top) / h
-    flap.push({ offset, transform: `matrix(${sx.toFixed(4)}, 0, ${skew.toFixed(4)}, 1, ${(top - width).toFixed(1)}, 0)`, opacity: width < 2 ? 0 : 1 })
-    shade.push({ offset, transform: `matrix(1, 0, ${skew.toFixed(4)}, 1, ${top.toFixed(1)}, 0)`, opacity: Math.sin(Math.PI * p) * 0.9 })
+    frames.push({
+      offset: i / steps,
+      // The turning page is cut off at the fold (in the screen's coordinates: `shift` is where the
+      // page starts on screen, for books with fixed pages that don't fill it).
+      '--curl-top': `${(top + shift).toFixed(1)}px`,
+      '--curl-bottom': `${(bottom + shift).toFixed(1)}px`,
+      // The back of the page: its picture has the crease at its right edge; squeezed to `width`,
+      // slanted so the crease lies on the fold line.
+      '--curl-sx': Math.max(0.0001, width / w).toFixed(4),
+      '--curl-skew': ((bottom - top) / h).toFixed(4),
+      '--curl-tx': `${(top - width).toFixed(1)}px`,
+      '--curl-fold': `${top.toFixed(1)}px`,
+      '--curl-flap': width < 2 ? '0' : '1',
+      '--curl-shade': (Math.sin(Math.PI * p) * 0.9).toFixed(3),
+    })
   }
-  return { page, flap, shade }
+  return frames
 }
 
 export class Reader {
@@ -394,30 +401,50 @@ export class Reader {
     this.#curling = true
     const root = document.documentElement
     const stage = (this.view.closest('.reader-stage') ?? this.view) as HTMLElement
-    const box = stage.getBoundingClientRect()
+    const area = stage.getBoundingClientRect()
+    // Books with fixed pages (PDFs, comics) show the page smaller than the screen: only the page curls.
+    let box: DOMRect = area
+    if (this.view.isFixedLayout) {
+      const frames = (r.getContents?.() ?? []).map(({ doc }) => doc?.defaultView?.frameElement?.getBoundingClientRect())
+        .filter((b): b is DOMRect => !!b && b.width > 0 && b.right > area.left && b.left < area.right)
+      if (frames.length) {
+        const left = Math.max(area.left, Math.min(...frames.map(b => b.left))), right = Math.min(area.right, Math.max(...frames.map(b => b.right)))
+        const top = Math.max(area.top, Math.min(...frames.map(b => b.top))), bottom = Math.min(area.bottom, Math.max(...frames.map(b => b.bottom)))
+        box = new DOMRect(left, top, right - left, bottom - top)
+      }
+    }
+    // The back of the page has the colour of the paper: the page's own (white for a PDF).
+    const doc0 = r.getContents?.()[0]?.doc
+    const bg = doc0 ? getComputedStyle(doc0.documentElement).backgroundColor : ''
+    const paper = !bg || bg === 'transparent' || /rgba\(.*,\s*0\)$/.test(bg) ? (this.view.isFixedLayout ? '#ffffff' : getComputedStyle(root).getPropertyValue('--reader-bg')) : bg
     root.dataset.curl = dir > 0 ? 'next' : 'prev'
     // The back of the turning page, and the shadow it casts: there only in the new picture.
     const flap = document.createElement('div')
     flap.className = 'curl-flap'
+    flap.style.setProperty('--paper', paper)
     const shade = document.createElement('div')
     shade.className = 'curl-shade'
     for (const el of [flap, shade]) Object.assign(el.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px` })
     // (The page is drawn again only after this returns, so it mustn't wait for a frame; foliate's
     // turn can, so it gets a moment and the curl starts anyway.)
     let turned: Promise<unknown> = Promise.resolve()
+    const frames = curlFrames(box.width, box.height, dir < 0, 24, box.left - area.left)
+    // The first frame at once, so nothing shows uncut before the animation starts.
+    for (const [k, v] of Object.entries(frames[0])) if (k.startsWith('--')) root.style.setProperty(k, String(v))
     const t = doc.startViewTransition(async () => {
       document.body.append(flap, shade)
       turned = turn()
       await Promise.race([turned, new Promise(resolve => setTimeout(resolve, 350))])
     })
-    t.ready.then(() => {
-      const frames = curlFrames(box.width, box.height, dir < 0)
-      const timing = { duration: CURL_MS, easing: 'linear', fill: 'both' as const }
-      root.animate(frames.page, { ...timing, pseudoElement: `::view-transition-${dir > 0 ? 'old' : 'new'}(page)` })
-      root.animate(frames.flap, { ...timing, pseudoElement: '::view-transition-new(curl-flap)' })
-      root.animate(frames.shade, { ...timing, pseudoElement: '::view-transition-new(curl-shade)' })
-    }).catch(() => {})
-    t.finished.catch(() => {}).finally(() => { flap.remove(); shade.remove(); delete root.dataset.curl; this.#curling = false })
+    // One animation of custom properties on the page root; the curl's pseudo-elements read them
+    // (motion.css). Phones handle this more reliably than animating the pseudo-elements directly.
+    const play = root.animate(frames, { duration: CURL_MS, easing: 'linear', fill: 'forwards' })
+    t.ready.catch(() => {})
+    t.finished.catch(() => {}).finally(() => {
+      play.cancel()
+      for (const k of Object.keys(frames[0])) if (k.startsWith('--')) root.style.removeProperty(k)
+      flap.remove(); shade.remove(); delete root.dataset.curl; this.#curling = false
+    })
     await t.updateCallbackDone.catch(() => {})
     return turned
   }

@@ -240,6 +240,14 @@ dialog.dragging .sheet-handle { background-color: var(--muted); }
    the next page lies underneath in its shadow. The frames come from curlFrames (reader.ts); here
    the default cross-fades are switched off, and the back and the shadow get their look. */
 :root[data-curl] .reader-stage { view-transition-name: page; }
+@property --curl-top { syntax: '<length>'; inherits: true; initial-value: 0px; }
+@property --curl-bottom { syntax: '<length>'; inherits: true; initial-value: 0px; }
+@property --curl-tx { syntax: '<length>'; inherits: true; initial-value: 0px; }
+@property --curl-fold { syntax: '<length>'; inherits: true; initial-value: 0px; }
+@property --curl-sx { syntax: '<number>'; inherits: true; initial-value: 1; }
+@property --curl-skew { syntax: '<number>'; inherits: true; initial-value: 0; }
+@property --curl-flap { syntax: '<number>'; inherits: true; initial-value: 0; }
+@property --curl-shade { syntax: '<number>'; inherits: true; initial-value: 0; }
 .curl-flap, .curl-shade { position: fixed; z-index: 0; pointer-events: none; }
 .curl-flap { view-transition-name: curl-flap; }
 .curl-shade { view-transition-name: curl-shade; }
@@ -247,20 +255,30 @@ dialog.dragging .sheet-handle { background-color: var(--muted); }
 :root[data-curl]::view-transition-group(curl-flap),
 :root[data-curl]::view-transition-group(curl-shade) { animation: none; }
 :root[data-curl]::view-transition-image-pair(page) { isolation: auto; }
-:root[data-curl]::view-transition-old(page), :root[data-curl]::view-transition-new(page) { animation: none; mix-blend-mode: normal; }
-:root[data-curl="next"]::view-transition-old(page) { z-index: 1; }
-:root[data-curl]::view-transition-new(curl-flap), :root[data-curl]::view-transition-new(curl-shade) { animation: none; transform-origin: 0 0; }
+/* Both pictures fully opaque (no cross-fade): only the fold decides what shows. */
+:root[data-curl]::view-transition-old(page), :root[data-curl]::view-transition-new(page) { animation: none; mix-blend-mode: normal; opacity: 1; }
+:root[data-curl="next"]::view-transition-old(page),
+:root[data-curl="prev"]::view-transition-new(page) { z-index: 1; clip-path: polygon(0 0, var(--curl-top) 0, var(--curl-bottom) 100%, 0 100%); }
+:root[data-curl]::view-transition-new(curl-flap), :root[data-curl]::view-transition-new(curl-shade) { animation: none; mix-blend-mode: normal; transform-origin: 0 0; }
+:root[data-curl]::view-transition-new(curl-flap) {
+  transform: translateX(var(--curl-tx)) matrix(var(--curl-sx), 0, var(--curl-skew), 1, 0, 0);
+  opacity: var(--curl-flap); filter: drop-shadow(-4px 0 8px rgb(0 0 0 / .22));
+}
+:root[data-curl]::view-transition-new(curl-shade) {
+  transform: translateX(var(--curl-fold)) matrix(1, 0, var(--curl-skew), 1, 0, 0); opacity: var(--curl-shade);
+}
 :root[data-curl]::view-transition-group(curl-shade) { z-index: 2; overflow: hidden; }
 :root[data-curl]::view-transition-group(curl-flap) { z-index: 3; overflow: hidden; }
-:root[data-curl]::view-transition-new(curl-flap) { filter: drop-shadow(-4px 0 8px rgb(0 0 0 / .22)); }
-/* The back of the page: paper, a bright crease at the fold (right edge), shaded where it bends. */
+/* The back of the page: paper (the page's own colour), a bright crease at the fold (right edge),
+   shaded where it bends. */
 .curl-flap {
+  --paper: var(--reader-bg);
   background: linear-gradient(to left,
-    color-mix(in srgb, var(--reader-bg) 72%, #000) 0,
-    color-mix(in srgb, var(--reader-bg) 70%, #fff) 2.5%,
-    color-mix(in srgb, var(--reader-bg) 96%, #000) 12%,
-    var(--reader-bg) 45%,
-    color-mix(in srgb, var(--reader-bg) 93%, #000) 100%);
+    color-mix(in srgb, var(--paper) 72%, #000) 0,
+    color-mix(in srgb, var(--paper) 70%, #fff) 2.5%,
+    color-mix(in srgb, var(--paper) 96%, #000) 12%,
+    var(--paper) 45%,
+    color-mix(in srgb, var(--paper) 93%, #000) 100%);
 }
 /* The shadow beyond the fold, on the page underneath: deep at the fold, gone a fifth of the way across. */
 .curl-shade { background: linear-gradient(to right, rgb(0 0 0 / .32), rgb(0 0 0 / .1) 6%, transparent 22%); }
