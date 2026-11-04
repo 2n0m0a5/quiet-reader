@@ -10,6 +10,8 @@ t.suite('motion-settings', async ({ page, check, shot }) => {
 
   await page.click('#openSettings')
   await page.waitForTimeout(400)
+  await page.click('.settings-home-row[data-page="interface"]')
+  await page.waitForTimeout(300)
   check(/asking apps for less motion right now/.test(await page.locator('.motion-hint').innerText()), 'the hint says the phone asks for less motion')
   await page.click('.choice[data-key="motion"][data-value="full"]')
   check(await motion(page) === 'full', 'Full: motion is back even though the phone asks for less')
@@ -19,6 +21,9 @@ t.suite('motion-settings', async ({ page, check, shot }) => {
 
   check(await page.locator('.choice[data-key="theme"][data-value="sepia"], .theme-choice[data-value="sepia"]').count() === 0, 'no Sepia choice anywhere')
 
+  await page.click('[aria-label="All settings"]')
+  await page.click('.settings-home-row[data-page="reader"]')
+  await page.waitForTimeout(300)
   await page.click('.choice[data-key="flow"][data-value="scrolled"]')
   await page.click('.choice[data-key="pageTurn"][data-value="curl"]')
   await page.waitForTimeout(300)

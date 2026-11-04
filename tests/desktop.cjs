@@ -37,6 +37,8 @@ t.suite('desktop', async ({ page, check, shot }) => {
 
   await page.click('#openSettings')
   await page.waitForTimeout(500)
+  await page.click('.settings-home-row[data-page="reader"]')
+  await page.waitForTimeout(300)
   r = await wheelScrolls(page, '#settingsScreen')
   check(r === 'scrolled', 'mouse wheel scrolls Settings', r)
 

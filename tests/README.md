@@ -18,6 +18,7 @@ node tests/smoke.cjs            # one suite
 
 | Suite | What it checks |
 | --- | --- |
+| `settings-pages` | Settings sections, About (made by, promises, data), Report a problem, the tour for new readers |
 | `smoke` | Adding books, opening one, Contents, the four tabs, the four styles, and a reload |
 | `backup` | Back up to one file; restore on a fresh phone (books, place, notes, settings); restoring again adds nothing twice |
 | `curl` | Page curl: fold with the page's back and shadow, next page after, nothing left behind, back works |

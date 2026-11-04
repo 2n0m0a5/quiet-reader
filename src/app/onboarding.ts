@@ -20,13 +20,14 @@ const older = (a: string, b: string) => {
 const read = (key: string) => { try { return localStorage.getItem(key) } catch { return null } }
 const write = (key: string, value: string) => { try { localStorage.setItem(key, value) } catch { /* storage unavailable */ } }
 
-// On start: a new reader sees the welcome; someone updating sees What's new (once).
-export function greet(hasBooks: boolean, addBooks: () => void) {
+// On start: a new reader gets the tour (0.4.0; it replaced the welcome); someone updating sees
+// What's new (once).
+export function greet(hasBooks: boolean, tour: () => void) {
   const seen = read(VERSION_KEY)
   write(VERSION_KEY, __APP_VERSION__)
   if (!read(WELCOME_KEY) && !hasBooks) {
     write(WELCOME_KEY, '1')
-    return showWelcome(addBooks)
+    return tour()
   }
   write(WELCOME_KEY, '1')
   // Versions before 0.3 didn't remember themselves; having books means it's an update.

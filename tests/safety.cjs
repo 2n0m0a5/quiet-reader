@@ -55,6 +55,8 @@ t.suite('safety', async ({ page, check, shot }) => {
   // "Delete everything" must not come back.
   await page.click('#openSettings')
   await page.waitForTimeout(400)
+  await page.click('.settings-home-row[data-page="files"]')
+  await page.waitForTimeout(300)
   await page.getByRole('button', { name: 'Delete', exact: true }).click()
   await page.getByRole('button', { name: 'Delete everything' }).click()
   for (let i = 0; i < 20 && await safetyBooks(page) !== 0; i++) await page.waitForTimeout(500)

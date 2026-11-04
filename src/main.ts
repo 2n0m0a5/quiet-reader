@@ -29,6 +29,8 @@ import { asFile, importBook, ImportError } from './library/import'
 import { LibraryView } from './library/library-view'
 import { showBookDetails } from './library/details'
 import { customizeBar, renderMoreGrid, renderReaderKeys, type KeyActions } from './reader-keys'
+import { startTour, tourDone } from './app/tour'
+import './app/report'
 import { closeTopDialog, formDialog, icon, menuDialog } from './ui/dialog'
 import { addFolder, scanFolders } from './library/folders'
 import { libraryEmptiedOnPurpose, recoverLibrary, startSafetyCopy } from './library/safety'
@@ -510,6 +512,8 @@ const settingsScreen = new SettingsScreen($('settingsScreen'), {
   update,
   addFonts: () => chooseFonts(),
   libraryCleared: () => { libraryEmptiedOnPurpose(); library.refresh() },
+  customizeBar: () => customizeBar(settings.readerKeys, keys => { update({ readerKeys: keys }); drawReaderKeys() }),
+  tour: () => startTour({ library: () => { if (ui.app.dataset.view !== 'library') location.hash = '' }, settings: () => { location.hash = '#/settings' } }),
 })
 
 function showSettings() {
@@ -1014,6 +1018,7 @@ onIncomingFile(file => addFiles([file]), name => toast(`Couldn’t open “${nam
 onBackButton(() => {
   if (closeTopDialog()) return true
   if (ui.settings.classList.contains('open')) { setSettingsOpen(false); return true }
+  if (ui.app.dataset.view === 'settings' && settingsScreen.back()) return true
   if (ui.sidebar.classList.contains('open')) { setSidebar(false); return true }
   if (ui.app.dataset.view === 'library' && library.closeSelection()) return true
   if (ui.app.dataset.view !== 'library') { goToLibrary(); return true }
@@ -1027,6 +1032,6 @@ recoverLibrary().catch(err => { console.error('Could not restore the library:', 
   startSafetyCopy()
   route()
   if (restored) toast(`Your library had gone missing. Quiet put back ${restored} ${restored === 1 ? 'book' : 'books'} from its safety copy, with your notes and reading time.`, 9000)
-  listBooks().then(books => greet(books.length > 0, chooseFiles))
+  listBooks().then(books => greet(books.length > 0, () => { if (!tourDone()) startTour({ library: () => {}, settings: () => {} }) }))
   checkFolders()
 })

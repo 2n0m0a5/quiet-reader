@@ -3,7 +3,7 @@
 const path = require('path')
 const t = require('./common.cjs')
 
-const settingsScreen = async page => { await page.click('#openSettings'); await page.waitForTimeout(500) }
+const settingsScreen = async page => { await page.click('#openSettings'); await page.waitForTimeout(500); await page.click('.settings-home-row[data-page="files"]'); await page.waitForTimeout(300) }
 
 t.suite('backup', async ({ page, check, shot, newPage }) => {
   await t.addBooks(page, ['quiet-river-1.epub', 'lamp-and-clock.epub', 'short-notes.epub'].map(f => path.join(t.BOOKS, f)))

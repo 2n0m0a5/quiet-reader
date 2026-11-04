@@ -1,0 +1,40 @@
+// Settings as sections, About, Report a problem, and the tour.
+const t = require('./common.cjs')
+
+t.suite('settings-pages', async ({ page, check, shot, newPage }) => {
+  await page.click('#openSettings')
+  await page.waitForTimeout(400)
+  const pages = await page.$$eval('.settings-home-row[data-page]', rows => rows.map(r => r.dataset.page))
+  check(pages.join() === 'interface,reader,library,files,privacy', 'Settings lists its sections', pages.join())
+  for (const p of pages) {
+    await page.click(`.settings-home-row[data-page="${p}"]`)
+    await page.waitForTimeout(250)
+    const ok = await page.evaluate(() => document.querySelectorAll('#settingsScreen .settings-section').length > 0)
+    check(ok, `the ${p} page has its settings`)
+    await page.click('[aria-label="All settings"]')
+    await page.waitForTimeout(200)
+  }
+  await page.getByText('About Quiet').click()
+  await page.waitForTimeout(600)
+  const about = await page.locator('#settingsScreen').innerText()
+  check(/made by extrasolarions on howling dark/.test(about) && /No AI features/.test(about) && /Last backup/i.test(about), 'About: made by, promises, your data')
+  await shot(page, '1-about')
+  await page.getByRole('button', { name: 'Report a problem' }).click()
+  await page.waitForTimeout(500)
+  const report = await page.locator('dialog[open] .report-text').innerText()
+  check(/^Quiet \d/.test(report) && /Browser engine/.test(report) && /Books: 0/.test(report), 'Report a problem shows the whole report first', report.slice(0, 80))
+  await page.keyboard.press('Escape')
+
+  // A new reader gets the tour; Skip ends it for good.
+  const fresh = await newPage({ fresh: true, context: { serviceWorkers: 'block' } })
+  await fresh.waitForSelector('.tour-tip', { timeout: 8000 }).catch(() => {})
+  check(await fresh.locator('.tour-tip').count() === 1, 'a new reader gets the tour')
+  await fresh.getByRole('button', { name: 'Next' }).click()
+  await fresh.waitForTimeout(400)
+  const ring = await fresh.evaluate(() => { const r = document.querySelector('.tour-ring').getBoundingClientRect(), b = document.getElementById('openFile').getBoundingClientRect(); return Math.abs(r.left + 6 - b.left) < 2 && Math.abs(r.top + 6 - b.top) < 2 })
+  check(ring, 'step 2 lights up the Add books button')
+  await fresh.getByRole('button', { name: 'Skip tour' }).click()
+  await fresh.reload()
+  await fresh.waitForTimeout(1500)
+  check(await fresh.locator('.tour-tip').count() === 0, 'after Skip, the tour doesn’t come back')
+}, { context: { serviceWorkers: 'block' } })
