@@ -151,6 +151,13 @@ private fun BookPage(id: String, state: AppState, onClose: () -> Unit) {
         kotlinx.coroutines.delay(500)
         if (quiet.library.get(id)?.json?.optString("review") != review) update { it.with({ put("review", review) }) }
     }
+    var askNew by remember(id) { mutableStateOf(false) }
+    if (askNew) ConfirmDialog(
+        "Mark as new?",
+        "Your place in this book (${(book.progress * 100).roundToInt()}%) will be cleared and it will start from the beginning. Your highlights, notes and bookmarks stay.",
+        "Mark as new",
+        { askNew = false },
+    ) { askNew = false; update { it.withStatus(Status.New) }; state.toast("“${book.title}” is new again.") }
     val allTags = remember(books) { books.flatMap { it.tags }.distinct().sortedBy { it.lowercase() } }
     // Pages (Readium positions) and words, counted once and kept in the record.
     val counts by produceState(book.json.optInt("pages", 0) to book.json.optInt("words", 0), id) {
@@ -175,7 +182,11 @@ private fun BookPage(id: String, state: AppState, onClose: () -> Unit) {
             }
             Label("Status")
             ChoiceRow(listOf(Status.Want to "Want", Status.Reading to "Reading", Status.Finished to "Finished", Status.New to "New"),
-                book.status(), { s -> update { it.withStatus(s) } })
+                book.status(), { s ->
+                    // Back to New clears the reading place: ask first.
+                    if (s == Status.New && (book.lastOpenedAt != null || book.progress > 0)) askNew = true
+                    else update { it.withStatus(s) }
+                })
             Label("Rating")
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 (1..5).forEach { n ->
@@ -245,6 +256,10 @@ private fun BookPage(id: String, state: AppState, onClose: () -> Unit) {
                 "Hours, sittings" to "in L6 (Stats)",
             ))
             Spacer(Modifier.height(18.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextKey("Select several books", { onClose(); state.selecting = true; state.selected = setOf(id) }, Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextKey("Edit", { state.librarySheet = "edit" }, Modifier.weight(1f))
                 TextKey("Cover", { state.pickCover(id) }, Modifier.weight(1f))

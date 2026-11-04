@@ -1,5 +1,11 @@
 # Quiet 0.5.0 L5 — organizing (native test build)
 
+## 0.5.0 L5.2
+- **Status can go back to New**, after you confirm: "Mark as new? Your place (42%) will be cleared
+  and it will start from the beginning. Your highlights, notes and bookmarks stay."
+- **Select several books** is now also on a book's page (hold a book): it starts selecting with
+  that book ticked; tap other covers to tick them. (It's also in the library's ⋯ → Select books.)
+
 ## 0.5.0 L5.1 (your fixes)
 - **A collection (or status, or rating) chosen on a book's page didn't stay.** Closing the page
   saved the copy of the book it had opened with, undoing the change. Now every change is saved the

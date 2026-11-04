@@ -16,12 +16,17 @@ fun Book.status(): Status = when {
 }
 
 /** Sets a status by hand (Finished stays finished whatever the progress; Want is a wish). */
-fun Book.withStatus(status: Status): Book = with({
+fun Book.withStatus(status: Status): Book = (if (status == Status.New) Book(json, null) else this).with({
     when (status) {
         Status.Finished -> { put("finished", true); put("wantToRead", false); if (!has("finishedAt") || isNull("finishedAt")) put("finishedAt", System.currentTimeMillis()) }
         Status.Want -> { put("finished", JSONObject.NULL); put("wantToRead", true) }
         Status.Reading -> { put("finished", false); put("wantToRead", false); if (lastOpenedAt == null) put("lastOpenedAt", System.currentTimeMillis()) }
-        Status.New -> { put("finished", false); put("wantToRead", false) }
+        // New means never opened: the place is cleared and the book starts from the beginning
+        // (asked first in the app). Highlights and notes stay.
+        Status.New -> {
+            put("finished", false); put("wantToRead", false); put("lastOpenedAt", JSONObject.NULL)
+            put("progress", 0); put("cfi", JSONObject.NULL); put("finishedAt", JSONObject.NULL)
+        }
     }
 })
 

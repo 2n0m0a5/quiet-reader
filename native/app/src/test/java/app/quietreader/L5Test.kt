@@ -62,6 +62,13 @@ class L5Test {
         assertEquals(Status.Want, book("a", "A") { put("wantToRead", true) }.status())
         assertEquals(Status.Reading, book("a", "A") { put("progress", 0.999); put("lastOpenedAt", 5L) }.withStatus(Status.Reading).status())
         assertEquals(Status.Finished, book("a", "A").withStatus(Status.Finished).status())
+        // Back to New (asked first in the app): the place is cleared.
+        val read = Book(book("a", "A") { put("lastOpenedAt", 5L); put("progress", 0.42); put("cfi", "epubcfi(/6/4!/4)") }.json, "{\"href\":\"x\"}")
+        val again = read.withStatus(Status.New)
+        assertEquals(Status.New, again.status())
+        assertEquals(0.0, again.progress, 0.0)
+        assertEquals(null, again.locator)
+        assertEquals(null, again.cfi)
     }
 
     @Test fun sortGroupSeriesDuplicates() {
@@ -101,6 +108,12 @@ class L5Test {
         compose.runOnIdle { assertEquals(listOf(summer), quiet.library.get("a")!!.collectionIds) }
         compose.onAllNodesWithText("Want").onLast().performClick()
         // Close the page the way the reader does (Read): nothing is undone.
+        // Back to New asks first.
+        compose.runOnIdle { quiet.library.put(quiet.library.get("a")!!.with({ put("lastOpenedAt", 5L); put("progress", 0.3) })) }
+        compose.onAllNodesWithText("New").onLast().performClick()
+        compose.onNodeWithText("Mark as new?").assertExists()
+        compose.onNodeWithText("Mark as new").performClick()
+        compose.runOnIdle { assertEquals(Status.New, quiet.library.get("a")!!.status()); quiet.library.put(quiet.library.get("a")!!.withStatus(Status.Want)) }
         compose.onNodeWithText("Read").performScrollTo().performClick()
         compose.runOnIdle {
             val b = quiet.library.get("a")!!
