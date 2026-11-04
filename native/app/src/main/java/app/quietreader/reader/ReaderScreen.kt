@@ -1,5 +1,6 @@
 package app.quietreader.reader
 
+import app.quietreader.ui.asHeading
 import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -89,6 +90,8 @@ class ReaderState {
     var contents by mutableStateOf<List<ContentsEntry>>(emptyList())
     var currentContents by mutableStateOf<Any?>(null)
     var barsShown by mutableStateOf(true)
+    /** Where the bar's controls are, for the first-time tips. */
+    val targets = androidx.compose.runtime.mutableStateMapOf<String, androidx.compose.ui.geometry.Rect>()
     /** Where you were before a jump (Contents, Go to, the scale), to go back. */
     var backTo by mutableStateOf<Pair<String, () -> Unit>?>(null)
     var goTo: (ContentsEntry) -> Unit = {}
@@ -171,7 +174,7 @@ fun ReaderScreen(
             BookFormat.Pdf -> PdfReader(book, state)
             else -> EpubReader(book, state)
         }
-        val curl = settings.pageTurn == app.quietreader.PageTurn.Curl && settings.flow == Flow.Paginated
+        val curl = settings.pageTurn == app.quietreader.PageTurn.Curl && settings.flow == Flow.Paginated && !app.quietreader.ui.LocalReducedMotion.current
         if (curl) {
             CurlLayer(state) { at ->
                 val view = state.pageView
@@ -198,6 +201,15 @@ fun ReaderScreen(
                 ReaderKey.Search -> sheet = "search"
                 ReaderKey.Bookmark -> state.toggleBookmark()
             }
+        }
+        // The first time a book opens: a few tips over the reader, with the bars shown.
+        if (!settings.readerTipsDone) {
+            var step by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+            LaunchedEffect(Unit) { state.barsShown = true }
+            val tips = app.quietreader.ui.readerTips.filter { it.anywhere || it.key in state.targets }
+            app.quietreader.ui.CoachMarks(tips, state.targets, step.coerceAtMost(tips.size - 1),
+                onNext = { if (step + 1 >= tips.size) settings.readerTipsDone = true else step++ },
+                onSkip = { settings.readerTipsDone = true })
         }
     }
 
@@ -296,7 +308,7 @@ private fun ContentsSheet(state: ReaderState, pdf: Boolean, onClose: () -> Unit)
     val haptics = LocalHaptics.current
     Sheet(onClose) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
-            Text(if (pdf) "Pages" else "Contents", style = Type.section.copy(color = c.text))
+            Text(if (pdf) "Pages" else "Contents", style = Type.section.copy(color = c.text), modifier = Modifier.asHeading())
             Spacer(Modifier.height(12.dp))
             if (state.contents.isEmpty()) {
                 Text("This book has no contents list.", style = Type.body.copy(color = c.muted))
@@ -328,7 +340,7 @@ private fun TextSheet(pdf: Boolean, onClose: () -> Unit) {
     val c = LocalColors.current
     Sheet(onClose) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
-            Text("Text", style = Type.section.copy(color = c.text))
+            Text("Text", style = Type.section.copy(color = c.text), modifier = Modifier.asHeading())
             Spacer(Modifier.height(14.dp))
             if (!pdf) {
                 Row(verticalAlignment = Alignment.CenterVertically) {

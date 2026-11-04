@@ -1,5 +1,6 @@
 package app.quietreader.reader
 
+import app.quietreader.ui.asHeading
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -71,6 +72,12 @@ import app.quietreader.Margins
 import app.quietreader.QuietSettings
 import app.quietreader.ReaderKey
 import app.quietreader.ThemeMode
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.setProgress
+import app.quietreader.ui.tourTarget
 import app.quietreader.ui.ChoiceRow
 import app.quietreader.ui.Dial
 import app.quietreader.ui.Divider
@@ -83,6 +90,7 @@ import app.quietreader.ui.LocalColors
 import app.quietreader.ui.LocalHaptics
 import app.quietreader.ui.LocalReducedMotion
 import app.quietreader.ui.Switch
+import app.quietreader.ui.SwitchRow
 import app.quietreader.ui.TextKey
 import app.quietreader.ui.Type
 import app.quietreader.ui.hairline
@@ -133,7 +141,7 @@ fun BottomBar(state: ReaderState, modifier: Modifier, onKey: (ReaderKey?) -> Uni
                     TextKey("‹ Back to $label", { back(); state.backTo = null })
                 }
             }
-            TuningScale(state)
+            TuningScale(state, Modifier.tourTarget(state.targets, "scale"))
             Row(Modifier.fillMaxWidth().padding(top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(state.pageLabel.ifBlank { "${(state.progress * 100).roundToInt()}%" }, style = Type.mono.copy(color = c.text, fontSize = 12.sp))
                 Spacer(Modifier.weight(1f))
@@ -143,9 +151,9 @@ fun BottomBar(state: ReaderState, modifier: Modifier, onKey: (ReaderKey?) -> Uni
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 settings.readerKeys.forEach { key ->
                     val icon = if (key == ReaderKey.Bookmark && state.bookmarkHere) Icons.BookmarkFilled else key.icon(c.isDark)
-                    BarKey(icon, key.title(c.isDark), Modifier.weight(1f)) { onKey(key) }
+                    BarKey(icon, key.title(c.isDark), Modifier.weight(1f).tourTarget(state.targets, "key-" + key.key)) { onKey(key) }
                 }
-                BarKey(Icons.More, "More", Modifier.weight(1f)) { onKey(null) }
+                BarKey(Icons.More, "More", Modifier.weight(1f).tourTarget(state.targets, "more")) { onKey(null) }
             }
         }
     }
@@ -164,13 +172,20 @@ private fun timeLeft(state: ReaderState): String {
 
 /** The scale: a track, a station mark at each chapter, the orange needle at your place. Drag or tap to move. */
 @Composable
-private fun TuningScale(state: ReaderState) {
+private fun TuningScale(state: ReaderState, modifier: Modifier = Modifier) {
     val c = LocalColors.current
     val haptics = LocalHaptics.current
     var drag by remember { mutableFloatStateOf(-1f) } // 0–1 while dragging
     val shown = if (drag >= 0f) drag.toDouble() else state.progress
     Canvas(
-        Modifier.fillMaxWidth().height(30.dp)
+        modifier.fillMaxWidth().height(30.dp)
+            // TalkBack reads it as a slider: swipe up or down to move through the book.
+            .semantics {
+                contentDescription = "Your place in the book"
+                stateDescription = "${(state.progress * 100).roundToInt()}%" + state.chapter.ifBlank { null }?.let { ", $it" }.orEmpty()
+                progressBarRangeInfo = androidx.compose.ui.semantics.ProgressBarRangeInfo(state.progress.toFloat(), 0f..1f, steps = 19)
+                setProgress { v -> state.markBack(); state.goToProgress(v.toDouble().coerceIn(0.0, 1.0)); true }
+            }
             .pointerInput(Unit) {
                 detectTapGestures { o -> state.markBack(); state.goToProgress((o.x / size.width).toDouble().coerceIn(0.0, 1.0)); haptics?.tick() }
             }
@@ -268,7 +283,7 @@ fun Clock(modifier: Modifier) {
 private fun SheetColumn(title: String, content: @Composable () -> Unit) {
     val c = LocalColors.current
     Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp).verticalScroll(rememberScrollState())) {
-        Text(title, style = Type.section.copy(color = c.text))
+        Text(title, style = Type.section.copy(color = c.text), modifier = Modifier.asHeading())
         Spacer(Modifier.height(14.dp))
         content()
     }
@@ -296,9 +311,8 @@ fun MoreSheet(pdf: Boolean, open: (String?) -> Unit) {
             Labelled("Theme") { ChoiceRow(ThemeMode.entries.map { it to it.label }, settings.theme, { settings.theme = it }) }
             Labelled("Reading ruler") { ChoiceRow(app.quietreader.Ruler.entries.map { it to it.label }, settings.ruler, { settings.ruler = it }, perRow = 3) }
             if (!pdf) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Bionic reading", style = Type.label.copy(color = c.text), modifier = Modifier.weight(1f))
-                    Switch(settings.bionic, { settings.bionic = it }, "Bionic reading")
+                SwitchRow(settings.bionic, { settings.bionic = it }) {
+                    Text("Bionic reading", style = Type.label.copy(color = c.text), modifier = Modifier.weight(1f).padding(vertical = 10.dp))
                 }
                 Spacer(Modifier.height(16.dp))
             }
@@ -377,12 +391,11 @@ fun LayoutSheet(pdf: Boolean, onClose: () -> Unit) {
             Labelled("First-line indent", if (settings.indent < 0) "book’s" else "%.1f em".format(settings.indent / 10.0)) {
                 Dial((settings.indent + 1).toFloat(), { settings.indent = it.roundToInt() - 1 }, 0f..31f, 1f, "First-line indent", "", marks = listOf(0f))
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
+            SwitchRow(settings.hyphenate, { settings.hyphenate = it }) {
+                Column(Modifier.weight(1f).padding(vertical = 6.dp)) {
                     Text("Hyphenation", style = Type.label.copy(color = c.text))
                     Text("Off: whole words move to the next line.", style = Type.hint.copy(color = c.muted))
                 }
-                Switch(settings.hyphenate, { settings.hyphenate = it }, "Hyphenation")
             }
             Spacer(Modifier.height(16.dp))
             TextKey("Back to the book’s own layout", {

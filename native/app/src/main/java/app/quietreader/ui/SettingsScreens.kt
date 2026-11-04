@@ -35,6 +35,14 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -114,8 +122,8 @@ private fun SettingsHome(state: AppState) {
                 state.page = SettingsPage.About
             }
             Divider()
-            SettingsRow("Report a problem", "You see the report and send it yourself", "L8", lead = { Spacer(Modifier.width(26.dp)) }) {
-                state.toast("Report a problem comes in L8.")
+            SettingsRow("Report a problem", "You see the report and send it yourself", null, lead = { Spacer(Modifier.width(26.dp)) }) {
+                state.guide = "report"
             }
         }
     }
@@ -150,7 +158,7 @@ private fun PageHeader(title: String, state: AppState, back: SettingsPage = Sett
     Row(verticalAlignment = Alignment.CenterVertically) {
         IconKey(Icons.ChevronLeft, "Back", { state.page = back })
         Spacer(Modifier.width(12.dp))
-        Text(title, style = Type.pageTitle.copy(color = c.text))
+        Text(title, style = Type.pageTitle.copy(color = c.text), modifier = Modifier.asHeading())
     }
     Spacer(Modifier.height(20.dp))
 }
@@ -158,7 +166,7 @@ private fun PageHeader(title: String, state: AppState, back: SettingsPage = Sett
 @Composable
 private fun SectionTitle(title: String, hint: String = "") {
     val c = LocalColors.current
-    Text(title, style = Type.section.copy(color = c.text))
+    Text(title, style = Type.section.copy(color = c.text), modifier = Modifier.asHeading())
     if (hint.isNotEmpty()) {
         Spacer(Modifier.height(4.dp))
         Text(hint, style = Type.hint.copy(color = c.muted))
@@ -191,10 +199,14 @@ private fun InterfacePage(state: AppState, settings: QuietSettings) {
     }
     Page {
         PageHeader("Interface", state)
-        SectionTitle("Theme", "System follows your phone: Day while it’s light, Night while it’s in dark mode.")
+        SectionTitle("Theme", "System follows your phone: Day while it’s light, Night while it’s in dark mode. Black is for OLED screens. Custom: your own page and text colours.")
         Card {
             SettingBlock("Theme") {
-                ChoiceRow(ThemeMode.entries.map { it to it.label }, settings.theme, { settings.theme = it })
+                ChoiceRow(ThemeMode.entries.map { it to it.label }, settings.theme, { settings.theme = it }, perRow = 3)
+            }
+            if (settings.theme == ThemeMode.Custom) {
+                Divider()
+                CustomColours(settings)
             }
         }
         Spacer(Modifier.height(28.dp))
@@ -205,8 +217,11 @@ private fun InterfacePage(state: AppState, settings: QuietSettings) {
             val lessMotion = phoneWantsLessMotion(context)
             SettingBlock(
                 "Motion",
-                if (lessMotion) "Your phone is asking apps for less motion right now (“Remove animations”). Choose Full to keep Quiet’s animations anyway."
-                else "Your phone isn’t asking for less motion, so Follow phone means full motion.",
+                when {
+                    settings.motion == MotionMode.Reduced -> "Reduced: no sliding or springing anywhere in Quiet; things simply appear. Page curl becomes a plain turn."
+                    lessMotion -> "Your phone has “Remove animations” on, so Quiet keeps still too. Android turns animations off for every app while it’s on."
+                    else -> "Follow phone: full motion now; less motion when your phone’s “Remove animations” is on."
+                },
             ) {
                 ChoiceRow(MotionMode.entries.map { it to it.label }, settings.motion, { settings.motion = it }, perRow = 3)
             }
@@ -216,20 +231,82 @@ private fun InterfacePage(state: AppState, settings: QuietSettings) {
             }
             Divider()
             val c = LocalColors.current
-            Row(
-                Modifier.fillMaxWidth().clickable { setVibration(!settings.haptics) }.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            SwitchRow(settings.haptics, { on -> setVibration(on) }, Modifier.padding(16.dp)) {
                 Column(Modifier.weight(1f)) {
                     Text("Vibration", style = Type.label.copy(color = c.text, fontWeight = FontWeight.Normal))
                     Spacer(Modifier.height(2.dp))
                     Text("A light tap when you press a key, bookmark, highlight or change a setting.", style = Type.hint.copy(color = c.muted))
                 }
-                Spacer(Modifier.width(12.dp))
-                Switch(settings.haptics, { on -> setVibration(on) }, "Vibration")
             }
         }
     }
+}
+
+private val pageSwatches = listOf(
+    "Paper" to "#f3efe6", "White" to "#ffffff", "Sepia" to "#f4ecd8", "Sage" to "#e3eadb", "Rose" to "#f3e4e1",
+    "Slate" to "#2b2f36", "Navy" to "#18202e", "Forest" to "#1c2620", "Black" to "#000000",
+)
+private val inkSwatches = listOf(
+    "Graphite" to "#2b2a26", "Black" to "#000000", "Brown" to "#4a3b2c", "Navy" to "#1e2a44",
+    "Cream" to "#e8e2d4", "Grey" to "#bdbdbd", "Amber" to "#e6b673", "Green" to "#a9c8a0",
+)
+
+/** Custom theme: the page colour and the text colour, with a sample and a warning if it's hard to read. */
+@Composable
+private fun CustomColours(settings: QuietSettings) {
+    val c = LocalColors.current
+    val bg = parseColour(settings.customBg) ?: Color(0xFFF3EFE6)
+    val ink = parseColour(settings.customText) ?: Color(0xFF2B2A26)
+    Column(Modifier.padding(16.dp)) {
+        Box(Modifier.fillMaxWidth().background(bg, RoundedCornerShape(8.dp)).border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(14.dp)) {
+            Text("It was a bright cold day in April, and the clocks were striking thirteen.", style = Type.body.copy(color = ink, fontSize = 16.sp))
+        }
+        Spacer(Modifier.height(14.dp))
+        Text("Page", style = Type.label.copy(color = c.text, fontWeight = FontWeight.Normal))
+        Spacer(Modifier.height(8.dp))
+        Swatches(pageSwatches, settings.customBg) { settings.customBg = it }
+        Spacer(Modifier.height(14.dp))
+        Text("Text", style = Type.label.copy(color = c.text, fontWeight = FontWeight.Normal))
+        Spacer(Modifier.height(8.dp))
+        Swatches(inkSwatches, settings.customText) { settings.customText = it }
+        val ratio = contrast(bg, ink)
+        if (ratio < 4.5) {
+            Spacer(Modifier.height(10.dp))
+            Text("Hard to read (contrast ${"%.1f".format(ratio)} : 1). Pick a ${if (bg.luminance() < 0.4f) "lighter" else "darker"} text colour.",
+                style = Type.hint.copy(color = c.danger))
+        }
+    }
+}
+
+@Composable
+private fun Swatches(options: List<Pair<String, String>>, chosen: String, onPick: (String) -> Unit) {
+    val c = LocalColors.current
+    val haptics = LocalHaptics.current
+    androidx.compose.foundation.layout.FlowRow(
+        Modifier.selectableGroup(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        options.forEach { (name, hex) ->
+            val on = hex.equals(chosen, ignoreCase = true)
+            Box(
+                Modifier.size(44.dp)
+                    .border(if (on) 2.dp else 1.dp, if (on) c.accent else c.keyEdge, RoundedCornerShape(22.dp))
+                    .padding(4.dp)
+                    .background(parseColour(hex) ?: Color.Gray, RoundedCornerShape(18.dp))
+                    .selectable(selected = on, role = Role.RadioButton) { haptics?.tick(); onPick(hex) }
+                    .semantics { contentDescription = name },
+            )
+        }
+    }
+}
+
+private fun parseColour(hex: String): Color? = runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrNull()
+
+/** The WCAG contrast ratio between two colours (1 to 21). */
+internal fun contrast(a: Color, b: Color): Double {
+    val (hi, lo) = listOf(a.luminance(), b.luminance()).sortedDescending()
+    return (hi + 0.05) / (lo + 0.05)
 }
 
 /** Text size: a dial from 80% to 150%; the whole app resizes as you slide. */
@@ -272,11 +349,24 @@ private fun AboutPage(state: AppState) {
     val uri = LocalUriHandler.current
     val quiet = app.quietreader.LocalQuiet.current
     val books by quiet.library.books.collectAsState()
+    val recordsVersion by quiet.library.recordsVersion.collectAsState()
     val spaceUsed by produceState("…", books.size) {
         value = withContext(Dispatchers.IO) { fileSize(folderSize(context.filesDir.parentFile ?: context.filesDir)) }
     }
+    val notes = remember(recordsVersion) { quiet.notes.all() }
+    val fonts = remember(recordsVersion, state.fontsVersion) { quiet.fonts.all().size }
     Page {
         PageHeader("About Quiet", state)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextKey("The tour", {
+                quiet.settings.tourDone = false
+                quiet.settings.readerTipsDone = false
+                state.startTour()
+            }, Modifier.weight(1f))
+            TextKey("What’s new", { state.guide = "whatsnew" }, Modifier.weight(1f))
+            TextKey("Report", { state.guide = "report" }, Modifier.weight(1f))
+        }
+        Spacer(Modifier.height(14.dp))
         Card {
             Column(Modifier.padding(18.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -294,9 +384,19 @@ private fun AboutPage(state: AppState) {
                     Modifier.fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(14.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Fact(books.count { it.deletedAt == null }.toString(), "Books")
-                    Fact(spaceUsed, "Space used")
-                    Fact(quiet.settings.lastBackup?.let { shortDate(it) } ?: "Never", "Last backup")
+                    Fact(books.count { it.deletedAt == null }.toString(), "Books", Modifier.weight(1f))
+                    Fact(spaceUsed, "Space used", Modifier.weight(1f))
+                    Fact(quiet.settings.lastBackup?.let { shortDate(it) } ?: "Never", "Last backup", Modifier.weight(1f))
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    Modifier.fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Fact(notes.count { !it.isBookmark }.toString(), "Highlights", Modifier.weight(1f))
+                    Fact(notes.count { !it.isBookmark && it.note.isNotBlank() }.toString(), "Notes", Modifier.weight(1f))
+                    Fact(notes.count { it.quote }.toString(), "Quotes", Modifier.weight(1f))
+                    Fact(fonts.toString(), "Fonts", Modifier.weight(1f))
                 }
 
                 Overline("Promises")
@@ -323,6 +423,12 @@ private fun AboutPage(state: AppState) {
                 listOf(
                     Triple("Kotlin and Jetpack Compose", "the app, Apache License 2.0", "https://developer.android.com/compose"),
                     Triple("Readium", "the e-book engine, BSD 3-Clause License", "https://readium.org"),
+                    Triple("foliate-js", "the MOBI and AZW3 reader Quiet’s is ported from, MIT License", "https://github.com/johnfactotum/foliate-js"),
+                    Triple("jsoup", "HTML, FB2 and Word reading, MIT License", "https://jsoup.org"),
+                    Triple("commonmark-java", "Markdown, BSD 2-Clause License", "https://github.com/commonmark/commonmark-java"),
+                    Triple("Apache Commons Compress", "CB7 and CBT comics, Apache License 2.0", "https://commons.apache.org/proper/commons-compress/"),
+                    Triple("XZ for Java", "7-Zip archives, public domain", "https://tukaani.org/xz/java.html"),
+                    Triple("junrar", "CBR comics, UnRAR License", "https://github.com/junrar/junrar"),
                     Triple("Archivo, DM Mono, Crimson Pro", "fonts, SIL Open Font License", "https://fonts.google.com"),
                     Triple("Lucide", "icons, ISC License", "https://lucide.dev"),
                 ).forEach { (name, what, url) ->
@@ -346,16 +452,21 @@ private fun AboutPage(state: AppState) {
 private fun Overline(text: String) {
     val c = LocalColors.current
     Spacer(Modifier.height(22.dp))
-    Text(text.uppercase(), style = Type.overline.copy(color = c.muted))
+    Text(text.uppercase(), style = Type.overline.copy(color = c.muted), modifier = Modifier.asHeading())
     Spacer(Modifier.height(10.dp))
 }
 
 @Composable
-private fun Fact(value: String, label: String) {
+private fun Fact(value: String, label: String, modifier: Modifier = Modifier) {
     val c = LocalColors.current
-    Column {
-        Text(value, style = Type.monoLarge.copy(color = c.text))
-        Text(label, style = Type.hint.copy(color = c.muted))
+    // One line each: shrinks a little at large text sizes rather than break a word.
+    Column(modifier.semantics(mergeDescendants = true) {}.padding(end = 4.dp)) {
+        val big = Type.monoLarge.copy(color = c.text)
+        val small = Type.hint.copy(color = c.muted)
+        BasicText(value, style = big, maxLines = 1, softWrap = false,
+            autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = big.fontSize, stepSize = 0.5.sp))
+        BasicText(label, style = small, maxLines = 1, softWrap = false,
+            autoSize = TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = small.fontSize, stepSize = 0.5.sp))
     }
 }
 
@@ -580,14 +691,12 @@ private fun ReaderPage(state: AppState, settings: QuietSettings) {
 @Composable
 private fun ToggleRow(title: String, hint: String, on: Boolean, set: (Boolean) -> Unit) {
     val c = LocalColors.current
-    Row(Modifier.fillMaxWidth().clickable { set(!on) }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
+    SwitchRow(on, set) {
+        Column(Modifier.weight(1f).padding(16.dp)) {
             Text(title, style = Type.label.copy(color = c.text, fontWeight = FontWeight.Normal))
             Spacer(Modifier.height(2.dp))
             Text(hint, style = Type.hint.copy(color = c.muted))
         }
-        Spacer(Modifier.width(12.dp))
-        Switch(on, set, title)
     }
 }
 

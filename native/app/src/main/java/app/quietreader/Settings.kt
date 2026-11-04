@@ -8,7 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
 enum class ThemeMode(val key: String, val label: String) {
-    System("system", "System"), Day("light", "Day"), Night("dark", "Night"), Black("black", "Black");
+    System("system", "System"), Day("light", "Day"), Night("dark", "Night"), Black("black", "Black"), Custom("custom", "Custom");
 }
 
 /** App text size, in percent: 80–150 in steps of 5, 100 by default. */
@@ -115,6 +115,21 @@ class QuietSettings(private val prefs: SharedPreferences) {
     var coverSize by intPref("coverSize", 104, 72..200)             // dp; pinch to change
     var dailyGoal by intPref("dailyGoal", 0, 0..600)   // minutes a day; 0 for none
     var yearGoal by intPref("yearGoal", 0, 0..500)     // books a year; 0 for none
+    // Custom theme: your own page and text colours (the web app's customBg / customText).
+    var customBg: String
+        get() = customBgState.value
+        set(value) { customBgState.value = value; prefs.edit().putString("customBg", value).apply() }
+    private val customBgState = mutableStateOf(prefs.getString("customBg", null) ?: "#f3efe6")
+    var customText: String
+        get() = customTextState.value
+        set(value) { customTextState.value = value; prefs.edit().putString("customText", value).apply() }
+    private val customTextState = mutableStateOf(prefs.getString("customText", null) ?: "#2b2a26")
+    // The guide (this phone only)
+    var tourDone by boolPref("tourDone", false)
+    var readerTipsDone by boolPref("readerTipsDone", false)
+    var seenVersion: String
+        get() = prefs.getString("seenVersion", "") ?: ""
+        set(value) { prefs.edit().putString("seenVersion", value).apply() }
     var volumeKeys by boolPref("volumeKeys", true)
     var showClock by boolPref("showClock", true)
     var keepAwake by boolPref("keepAwake", true)

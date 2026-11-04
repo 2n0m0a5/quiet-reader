@@ -31,7 +31,7 @@ Redmi. The native app takes its own route; the layers only say what it can do at
 | **L5 Organizing** | Collections, tags, series, statuses, ratings; edit details and covers; select several; sort, filter, group; shelf view with pinch; duplicates; book info; book folders | ✅ built (0.5.0 L5): `data/Shelf.kt`, `data/Folders.kt`, `ui/LibraryScreen.kt`, `ui/BookSheets.kt`; series from book metadata |
 | **L6 Stats** | Tracker, needle meter, week lights, readouts; goals, streak, session timer; the 5 detailed stats | ✅ built (0.5.0 L6): `data/Stats.kt`, `reader/Tracker.kt`, `ui/StatsScreen.kt`; the web app's reading records and formulas |
 | **L7 Every format** | MOBI/AZW3, FB2, Word, ODT, RTF, Markdown, HTML, Palm; comics CBZ/CBR/CB7/CBT; fixed-layout EPUB; PDF zoom | ✅ built (0.5.0 L7): every format converted to EPUB at import (`data/convert/`; MOBI/KF8 ported from foliate-js mobi.js); PDF pinch/double-tap zoom |
-| **L8 Polish and the switch** | All Settings sections, the tour, What's new, Report a problem; Motion setting complete; app text size; TalkBack pass; **the switch** to `app.quietreader` as 0.5.0 | |
+| **L8 Polish and the switch** | All Settings sections, the tour, What's new, Report a problem; Motion setting complete; app text size; TalkBack pass; **the switch** to `app.quietreader` as 0.5.0 | ✅ built (0.5.0 L8) without the switch (owner's call: the Capacitor app stays for now): `ui/Guide.kt` (tour, reader tips, What's new, report), `ErrorLog.kt`, custom theme, `SwitchRow`, `asHeading` |
 | After | The native route: read aloud (17), widget (55), app lock (65), auto-scroll (18), then the rest of the roadmap | |
 
 ## Notes from building L1–L2

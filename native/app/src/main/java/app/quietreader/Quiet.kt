@@ -55,6 +55,10 @@ val LocalQuiet = staticCompositionLocalOf<Quiet> { error("Quiet isn’t set up")
 
 class QuietApplication : Application() {
     val quiet by lazy { Quiet(this) }
+    override fun onCreate() {
+        super.onCreate()
+        ErrorLog.install(this)
+    }
 }
 
 class RulerGrip {

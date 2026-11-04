@@ -197,6 +197,8 @@ class Backup(private val library: Library, private val settings: QuietSettings, 
         s.put("showClock", settings.showClock)
         s.put("keepAwake", settings.keepAwake)
         s.put("dailyGoal", settings.dailyGoal)
+        s.put("customBg", settings.customBg)
+        s.put("customText", settings.customText)
         s.put("yearGoal", settings.yearGoal)
         s.put("readerKeys", org.json.JSONArray(settings.readerKeys.map { it.key }))
         all.put("quiet:settings", s.toString())
@@ -210,7 +212,8 @@ class Backup(private val library: Library, private val settings: QuietSettings, 
         all.optString("quiet:translate-to").takeIf { it.isNotBlank() }?.let { settings.translateTo = it }
         val s = runCatching { JSONObject(all.optString("quiet:settings", "{}")) }.getOrNull() ?: return
         ThemeMode.entries.firstOrNull { it.key == s.optString("theme") }?.let { settings.theme = it }
-        if (s.optString("theme") == "custom") settings.theme = ThemeMode.Day // Custom colours come later
+        s.optString("customBg").takeIf { it.startsWith("#") }?.let { settings.customBg = it }
+        s.optString("customText").takeIf { it.startsWith("#") }?.let { settings.customText = it }
         if (s.has("uiScale")) settings.textScale = s.optInt("uiScale", 100)
         MotionMode.entries.firstOrNull { it.key == s.optString("motion") }?.let { settings.motion = it }
         Rotation.entries.firstOrNull { it.key == s.optString("orientation") }?.let { settings.rotation = it }

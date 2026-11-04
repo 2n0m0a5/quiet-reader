@@ -112,6 +112,7 @@ fun PdfReader(book: Book, state: ReaderState) {
 @OptIn(FlowPreview::class)
 @Composable
 private fun PdfView(book: Book, pdf: PdfPages, state: ReaderState) {
+    val reduced = androidx.compose.runtime.rememberUpdatedState(app.quietreader.ui.LocalReducedMotion.current)
     val quiet = LocalQuiet.current
     val settings = quiet.settings
     val c = LocalColors.current
@@ -135,7 +136,7 @@ private fun PdfView(book: Book, pdf: PdfPages, state: ReaderState) {
         state.turn = { forward ->
             val target = (here() + if (forward) 1 else -1).coerceIn(0, pdf.count - 1)
             scope.launch {
-                val none = settings.pageTurn == app.quietreader.PageTurn.None
+                val none = settings.pageTurn == app.quietreader.PageTurn.None || reduced.value
                 if (settings.flow == Flow.Scrolled) {
                     val step = list.layoutInfo.viewportSize.height * 0.88f * (if (forward) 1 else -1)
                     if (none) list.scrollBy(step) else list.animateScrollBy(step)

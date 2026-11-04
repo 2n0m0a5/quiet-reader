@@ -16,6 +16,7 @@ import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import kotlin.math.abs
@@ -43,6 +44,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -68,6 +71,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
+
+/** A title TalkBack can jump between (swipe by headings). */
+fun Modifier.asHeading(): Modifier = semantics { heading() }
 
 val KeyShape = RoundedCornerShape(8.dp)
 val SmallShape = RoundedCornerShape(6.dp)
@@ -151,7 +157,7 @@ fun Key(
 fun TextKey(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, kind: KeyKind = KeyKind.Normal, enabled: Boolean = true) =
     Key(onClick, modifier, kind, enabled) {
         // One line; shrinks a little rather than wrap when the key is narrow.
-        BasicText(text, style = LocalTextStyle.current, maxLines = 1,
+        BasicText(text, style = LocalTextStyle.current, maxLines = 1, softWrap = false,
             autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = LocalTextStyle.current.fontSize, stepSize = 0.5.sp))
     }
 
@@ -176,6 +182,7 @@ fun <T> ChoiceRow(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> 
         modifier
             .fillMaxWidth()
             .background(c.panelDeep, KeyShape)
+            .selectableGroup()
             .padding(3.dp),
     ) {
         options.chunked(perRow).forEach { row ->
@@ -194,7 +201,8 @@ fun <T> ChoiceRow(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> 
                             }
                             .background(face, SmallShape)
                             .border(1.dp, edge, SmallShape)
-                            .clickable(role = Role.RadioButton, onClickLabel = label) {
+                            // "Selected" for TalkBack, one of a group.
+                            .selectable(selected = on, role = Role.RadioButton) {
                                 if (!on) { haptics?.tick(); onSelect(value) }
                             }
                             .padding(horizontal = 6.dp),
@@ -303,7 +311,7 @@ fun Dial(
 
 /** On/off: a recessed track with a key that slides; orange when on. */
 @Composable
-fun Switch(checked: Boolean, onChange: (Boolean) -> Unit, label: String, modifier: Modifier = Modifier) {
+fun Switch(checked: Boolean, onChange: (Boolean) -> Unit, label: String, modifier: Modifier = Modifier, standalone: Boolean = true) {
     val c = LocalColors.current
     val x by animateDpAsState(if (checked) 18.dp else 0.dp, glide(Springs.QUICK), label = "switch")
     val track by animateColorAsState(if (checked) c.accent else c.panelDeep, glide(), label = "track")
@@ -312,11 +320,26 @@ fun Switch(checked: Boolean, onChange: (Boolean) -> Unit, label: String, modifie
             .size(width = 42.dp, height = 24.dp)
             .background(track, RoundedCornerShape(12.dp))
             .border(1.dp, if (checked) c.accent else c.keyEdge, RoundedCornerShape(12.dp))
-            .semantics { contentDescription = label }
-            .toggleable(checked, role = Role.Switch, onValueChange = onChange)
+            .then(if (standalone) Modifier.semantics { contentDescription = label }.toggleable(checked, role = Role.Switch, onValueChange = onChange) else Modifier)
             .padding(2.dp),
     ) {
         Box(Modifier.offset(x = x).size(20.dp).background(c.panel, RoundedCornerShape(10.dp)).border(1.dp, c.keyEdge, RoundedCornerShape(10.dp)))
+    }
+}
+
+/**
+ * A whole row that switches a setting: tap anywhere on it. TalkBack reads it once, as
+ * "title, hint, on/off, switch".
+ */
+@Composable
+fun SwitchRow(checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
+    Row(
+        modifier.fillMaxWidth().toggleable(checked, role = Role.Switch) { onChange(it) },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        content()
+        Spacer(Modifier.width(12.dp))
+        Switch(checked, onChange, "", standalone = false)
     }
 }
 
@@ -404,7 +427,7 @@ fun ConfirmDialog(title: String, text: String, confirm: String, onDismiss: () ->
     val c = LocalColors.current
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().background(c.bg, CardShape).border(1.dp, c.line, CardShape).padding(20.dp)) {
-            Text(title, style = Type.section.copy(color = c.text))
+            Text(title, style = Type.section.copy(color = c.text), modifier = Modifier.asHeading())
             Spacer(Modifier.height(8.dp))
             Text(text, style = Type.body.copy(color = c.muted))
             Spacer(Modifier.height(18.dp))

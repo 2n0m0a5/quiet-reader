@@ -39,6 +39,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -153,6 +155,7 @@ private fun Books(state: AppState, books: List<Book>, collections: Map<String, S
     val sorted = Shelf.sort(books, settings.librarySort)
     val groups = Shelf.group(sorted, settings.libraryGroup, collections)
     var size by remember { mutableStateOf(settings.coverSize.toFloat()) }
+    val first = groups.firstOrNull { it.second.isNotEmpty() }?.second?.first()?.id
     LazyVerticalGrid(
         columns = if (settings.libraryList) GridCells.Fixed(1) else GridCells.Adaptive(minSize = size.dp),
         modifier = Modifier.fillMaxSize().pinchToResize { f ->
@@ -179,10 +182,12 @@ private fun Books(state: AppState, books: List<Book>, collections: Map<String, S
         }
         groups.forEach { (name, list) ->
             if (name.isNotEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
-                Text(name, style = Type.section.copy(color = c.text, fontSize = 16.sp), modifier = Modifier.padding(top = 8.dp))
+                Text(name, style = Type.section.copy(color = c.text, fontSize = 16.sp), modifier = Modifier.asHeading().padding(top = 8.dp))
             }
             items(list, key = { name + it.id }) { book ->
-                if (settings.libraryList) BookRow(book, state) else BookTile(book, state)
+                // The tour points at the first book.
+                val mark = if (book.id == first) Modifier.tourTarget(state.targets, "shelf") else Modifier
+                if (settings.libraryList) BookRow(book, state, mark) else BookTile(book, state, mark)
             }
         }
     }
@@ -203,11 +208,11 @@ private fun Modifier.bookClicks(book: Book, state: AppState, haptics: Haptics?) 
 )
 
 @Composable
-private fun BookTile(book: Book, state: AppState) {
+private fun BookTile(book: Book, state: AppState, modifier: Modifier = Modifier) {
     val c = LocalColors.current
     val haptics = LocalHaptics.current
     val chosen = book.id in state.selected
-    Column(Modifier.bookClicks(book, state, haptics)) {
+    Column(modifier.bookClicks(book, state, haptics).semantics { if (state.selecting) selected = chosen }) {
         Box {
             Cover(book, Modifier.fillMaxWidth())
             if (state.selecting) SelectMark(chosen, Modifier.align(Alignment.TopEnd).padding(6.dp))
@@ -224,10 +229,10 @@ private fun BookTile(book: Book, state: AppState) {
 }
 
 @Composable
-private fun BookRow(book: Book, state: AppState) {
+private fun BookRow(book: Book, state: AppState, modifier: Modifier = Modifier) {
     val c = LocalColors.current
     val haptics = LocalHaptics.current
-    Row(Modifier.fillMaxWidth().bookClicks(book, state, haptics).padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier.fillMaxWidth().bookClicks(book, state, haptics).semantics { if (state.selecting) selected = book.id in state.selected }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         if (state.selecting) { SelectMark(book.id in state.selected, Modifier); Spacer(Modifier.width(10.dp)) }
         Cover(book, Modifier.width(44.dp))
         Spacer(Modifier.width(12.dp))
@@ -292,7 +297,7 @@ private fun SeriesShelves(state: AppState, books: List<Book>) {
                 Column(Modifier.fillMaxWidth().padding(bottom = 18.dp).background(c.panel, CardShape).border(1.dp, c.line, CardShape).padding(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text(s.name, style = Type.section.copy(color = c.text, fontSize = 16.sp))
+                            Text(s.name, style = Type.section.copy(color = c.text, fontSize = 16.sp), modifier = Modifier.asHeading())
                             Text("${s.done} of ${s.books.size} read", style = Type.mono.copy(color = c.muted, fontSize = 12.sp))
                         }
                         s.next?.let { next -> TextKey("Next: #${next.seriesIndex?.let(::fmt) ?: (s.books.indexOf(next) + 1)}", { state.open(next.id) }, kind = KeyKind.Primary) }
@@ -346,8 +351,8 @@ private fun EmptyLibrary(state: AppState) {
         EmptyState(
             Icons.Library,
             "Make yourself at home.",
-            "A quiet, distraction-free place for your books. Add an EPUB, PDF or TXT file, or a whole folder of them, and they’ll wait for you here, " +
-                "right where you left off. More formats arrive in L7.",
+            "A quiet, distraction-free place for your books. Add a book (EPUB, MOBI, PDF, Word, comics and more) or a whole folder of them, " +
+                "and they’ll wait for you here, right where you left off.",
         ) {
             TextKey("Choose a book", { state.pickBooks() }, kind = KeyKind.Primary)
             TextKey("Add a book folder", { state.pickFolder() })

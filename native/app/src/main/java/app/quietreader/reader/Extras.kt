@@ -1,5 +1,6 @@
 package app.quietreader.reader
 
+import app.quietreader.ui.asHeading
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -99,7 +100,7 @@ fun FootnoteSheet(html: String, onClose: () -> Unit) {
     val text = remember(html) { runCatching { AnnotatedString.fromHtml(html) }.getOrElse { AnnotatedString(html) } }
     Sheet(onClose) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp).verticalScroll(rememberScrollState())) {
-            Text("Note", style = Type.section.copy(color = c.text))
+            Text("Note", style = Type.section.copy(color = c.text), modifier = Modifier.asHeading())
             Spacer(Modifier.height(10.dp))
             Text(text, style = Type.reading.copy(color = c.readerText, fontSize = Type.bodyLarge.fontSize, lineHeight = Type.bodyLarge.lineHeight))
         }

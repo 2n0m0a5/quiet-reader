@@ -2,6 +2,9 @@ package app.quietreader
 
 import android.content.Context
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.onLast
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -54,14 +57,14 @@ class HapticsTest {
         compose.onNodeWithText("Night").performClick()
         assertEquals(listOf("tick"), clicks)
 
-        compose.onNodeWithContentDescription("Vibration").performClick() // off
+        compose.onNodeWithText("Vibration").performScrollTo().performClick() // off
         compose.onNodeWithText("Day").performClick()
         compose.onNodeWithText("Notes").performClick()
         assertEquals(listOf("tick"), clicks)
 
         compose.onNodeWithText("Settings").performClick()
         compose.onNodeWithText("Interface").performClick()
-        compose.onNodeWithContentDescription("Vibration").performClick() // on again
+        compose.onNodeWithText("Vibration").performScrollTo().performClick() // on again
         assertEquals("confirm", clicks.last())
     }
 

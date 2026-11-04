@@ -1,5 +1,6 @@
 package app.quietreader.reader
 
+import app.quietreader.ui.asHeading
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -77,6 +78,7 @@ import app.quietreader.ui.KeyShape
 import app.quietreader.ui.LocalColors
 import app.quietreader.ui.LocalHaptics
 import app.quietreader.ui.Switch
+import app.quietreader.ui.SwitchRow
 import app.quietreader.ui.TextKey
 import app.quietreader.ui.Type
 import kotlinx.coroutines.Dispatchers
@@ -126,7 +128,7 @@ fun NoteEditor(start: Note, book: Book?, focusNote: Boolean = false, onDeleted: 
     LaunchedEffect(Unit) { if (focusNote) runCatching { focus.requestFocus() } }
     Sheet({ save(); onClose() }) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp).verticalScroll(rememberScrollState())) {
-            Text(if (note.quote) "Quote" else "Highlight", style = Type.section.copy(color = c.text))
+            Text(if (note.quote) "Quote" else "Highlight", style = Type.section.copy(color = c.text), modifier = Modifier.asHeading())
             Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxWidth().background(c.panel, KeyShape).padding(12.dp)) {
                 Box(Modifier.width(3.dp).heightIn(min = 20.dp).background(hex(note.color)))
@@ -150,12 +152,11 @@ fun NoteEditor(start: Note, book: Book?, focusNote: Boolean = false, onDeleted: 
             Spacer(Modifier.height(14.dp))
             Field(text, { text = it }, "Your note…", Modifier.focusRequester(focus))
             Spacer(Modifier.height(12.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
+            SwitchRow(note.quote, { on -> save(note.with { put("quote", on) }) }) {
+                Column(Modifier.weight(1f).padding(vertical = 6.dp)) {
                     Text("Save to Quotes", style = Type.label.copy(color = c.text))
                     Text("Quotes are kept apart from highlights, with who says them.", style = Type.hint.copy(color = c.muted))
                 }
-                Switch(note.quote, { on -> save(note.with { put("quote", on) }) }, "Save to Quotes")
             }
             if (note.quote) {
                 Spacer(Modifier.height(8.dp))
@@ -190,7 +191,7 @@ fun TranslateSheet(text: String, onClose: () -> Unit) {
     }
     Sheet(onClose) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp).verticalScroll(rememberScrollState())) {
-            Text("Translate", style = Type.section.copy(color = c.text))
+            Text("Translate", style = Type.section.copy(color = c.text), modifier = Modifier.asHeading())
             Spacer(Modifier.height(8.dp))
             Text(text, style = Type.reading.copy(color = c.muted, fontSize = 15.sp), maxLines = 4, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(12.dp))
@@ -241,7 +242,7 @@ fun BookNotesSheet(state: ReaderState, book: Book, onClose: () -> Unit) {
     var filter by remember { mutableStateOf("all") }
     Sheet(onClose) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
-            Text("Notes & bookmarks", style = Type.section.copy(color = c.text))
+            Text("Notes & bookmarks", style = Type.section.copy(color = c.text), modifier = Modifier.asHeading())
             Spacer(Modifier.height(10.dp))
             ChoiceRow(listOf("all" to "All", "marks" to "Bookmarks", "notes" to "Highlights", "quotes" to "Quotes"), filter, { filter = it })
             Spacer(Modifier.height(10.dp))
@@ -313,7 +314,7 @@ fun SearchSheet(state: ReaderState, onClose: () -> Unit) {
     }
     Sheet(onClose) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
-            Text("Search in book", style = Type.section.copy(color = c.text))
+            Text("Search in book", style = Type.section.copy(color = c.text), modifier = Modifier.asHeading())
             Spacer(Modifier.height(10.dp))
             if (state.search == null) {
                 Text("Search works in EPUB and TXT books.", style = Type.body.copy(color = c.muted)); return@Column

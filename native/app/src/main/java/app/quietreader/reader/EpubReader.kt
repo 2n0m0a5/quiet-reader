@@ -81,6 +81,8 @@ fun EpubReader(book: Book, state: ReaderState) {
 @OptIn(ExperimentalReadiumApi::class, FlowPreview::class)
 @Composable
 private fun EpubView(book: Book, publication: Publication, state: ReaderState) {
+    // Reduced motion: pages change at once, with no slide.
+    val reduced = androidx.compose.runtime.rememberUpdatedState(app.quietreader.ui.LocalReducedMotion.current)
     val quiet = LocalQuiet.current
     val settings = quiet.settings
     val colors = LocalColors.current
@@ -117,7 +119,7 @@ private fun EpubView(book: Book, publication: Publication, state: ReaderState) {
         state.goToPage = { n -> positions.getOrNull(n - 1)?.let { nav.go(it) } }
         state.goToProgress = { p -> scope.launch { publication.locateProgression(p)?.let { nav.go(it) } } }
         state.turn = { forward ->
-            val animated = settings.pageTurn != PageTurn.None
+            val animated = settings.pageTurn != PageTurn.None && !reduced.value
             if (settings.flow == Flow.Scrolled) scope.launch {
                 // Scroll mode: one screen at a time; at the chapter's edge, on to the next one.
                 val r = nav.evaluateJavascript(scrollStep(forward, animated))
@@ -289,7 +291,7 @@ private fun EpubView(book: Book, publication: Publication, state: ReaderState) {
                     fm.beginTransaction().replace(id, EpubNavigatorFragment::class.java, null, TAG).commitNow()
                     val nav = fm.findFragmentByTag(TAG) as EpubNavigatorFragment
                     // Taps: the edges turn pages (in page mode), the middle shows or hides the bars.
-                    nav.addInputListener(DirectionalNavigationAdapter(nav, animatedTransition = settings.pageTurn != PageTurn.None))
+                    nav.addInputListener(DirectionalNavigationAdapter(nav, animatedTransition = settings.pageTurn != PageTurn.None && !reduced.value))
                     nav.addInputListener(object : InputListener {
                         override fun onTap(event: TapEvent): Boolean { state.toggleBars(); return true }
                     })

@@ -106,6 +106,11 @@ class MainActivity : AppCompatActivity() {
         state.scanFolders = { scanFolders(always = true) }
         handle(intent)
         followLibraryForSafetyCopy()
+        // First time: the tour. After an update: What's new, once.
+        val version = "${BuildConfig.QUIET_VERSION} ${BuildConfig.QUIET_LAYER}"
+        if (!quiet.settings.tourDone) state.startTour()
+        else if (quiet.settings.seenVersion != version) state.guide = "whatsnew"
+        quiet.settings.seenVersion = version
 
         setContent {
             CompositionLocalProvider(LocalQuiet provides quiet) {

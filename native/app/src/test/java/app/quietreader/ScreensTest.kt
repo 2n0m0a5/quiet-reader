@@ -2,6 +2,9 @@ package app.quietreader
 
 import android.content.Context
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.test.onLast
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -105,7 +108,7 @@ class ScreensTest {
         compose.runOnIdle { state.page = SettingsPage.Home }
         compose.onNodeWithText("About Quiet").performClick()
         compose.onNodeWithText("made by extrasolarions on howling dark").assertExists()
-        compose.onNodeWithText("Notes").performClick()
+        compose.onAllNodesWithText("Notes").onLast().performClick() // the tab (About also counts notes)
         compose.onNodeWithText("Your notes will gather here.").assertIsDisplayed()
     }
 

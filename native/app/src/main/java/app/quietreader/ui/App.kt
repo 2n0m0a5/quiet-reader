@@ -50,12 +50,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -123,6 +125,11 @@ class AppState(tab: Tab = Tab.Library, page: SettingsPage = SettingsPage.Home) {
     var selected by mutableStateOf<Set<String>>(emptySet())
     var details by mutableStateOf<String?>(null)
     var librarySheet by mutableStateOf<String?>(null)
+    // The guide: the tour's step (null when off), where its targets are, and the guide sheets.
+    var tourStep by mutableStateOf<Int?>(null)
+    val targets = androidx.compose.runtime.mutableStateMapOf<String, androidx.compose.ui.geometry.Rect>()
+    var guide by mutableStateOf<String?>(null) // "whatsnew", "report"
+    fun startTour() { tab = Tab.Library; page = SettingsPage.Home; selecting = false; tourStep = 0 }
     fun toggleSelected(id: String) { selected = if (id in selected) selected - id else selected + id }
     var fontsVersion by mutableIntStateOf(0)
     var busy by mutableStateOf<String?>(null)
@@ -132,11 +139,17 @@ class AppState(tab: Tab = Tab.Library, page: SettingsPage = SettingsPage.Home) {
 
 /** The colours for the chosen theme; System follows the phone's dark mode. */
 @Composable
-fun resolveColors(theme: ThemeMode): QuietColors = when (theme) {
+fun resolveColors(theme: ThemeMode, settings: QuietSettings? = null): QuietColors = when (theme) {
     ThemeMode.Day -> DayColors
     ThemeMode.Night -> NightColors
     ThemeMode.Black -> BlackColors
     ThemeMode.System -> if (isSystemInDarkTheme()) NightColors else DayColors
+    // Custom: your page and text colours; the app around them follows the page's lightness.
+    ThemeMode.Custom -> {
+        val bg = runCatching { androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(settings?.customBg ?: "#f3efe6")) }.getOrDefault(DayColors.readerBg)
+        val ink = runCatching { androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(settings?.customText ?: "#2b2a26")) }.getOrDefault(DayColors.readerText)
+        (if (bg.luminance() < 0.4f) NightColors else DayColors).copy(readerBg = bg, readerText = ink)
+    }
 }
 
 /** Quiet: the theme, motion and text size around the whole app. */
@@ -148,7 +161,7 @@ fun QuietTheme(settings: QuietSettings, haptics: Haptics?, content: @Composable 
         MotionMode.Reduced -> true
         MotionMode.System -> phoneWantsLessMotion(context)
     }
-    val target = resolveColors(settings.theme)
+    val target = resolveColors(settings.theme, settings)
     val colors = animateColors(target, if (reduced) snap() else tween(260))
     val density = LocalDensity.current
     CompositionLocalProvider(
@@ -221,6 +234,20 @@ fun QuietApp(settings: QuietSettings, state: AppState = remember { AppState() })
         }
         // A book's page and the library's sheets, above everything (also from the reader's More).
         LibrarySheets(state)
+        when (state.guide) {
+            "whatsnew" -> WhatsNewSheet { state.guide = null }
+            "report" -> ReportSheet { state.guide = null }
+        }
+        // The tour, over the app (not while a book is open).
+        val step = state.tourStep
+        if (step != null && state.openBookId == null) {
+            val quietS = LocalQuiet.current.settings
+            val tips = appTour.filter { it.key in state.targets }
+            LaunchedEffect(step) { tips.getOrNull(step)?.tab?.let { state.tab = it } }
+            CoachMarks(tips, state.targets, step.coerceAtMost(tips.size - 1),
+                onNext = { if (step + 1 >= tips.size) { state.tourStep = null; quietS.tourDone = true } else state.tourStep = step + 1 },
+                onSkip = { state.tourStep = null; quietS.tourDone = true })
+        }
         // A long job (backup, restore): a quiet sheet over the app.
         state.busy?.let { Busy(it) }
         state.confirmRestore?.let { (summary, restore) ->
@@ -280,18 +307,18 @@ private fun TopBar(state: AppState, settings: QuietSettings) {
             }
         } else {
             Text(state.tab.label, style = Type.screenTitle.copy(color = c.text),
-                modifier = Modifier.background(c.bg, RoundedCornerShape(6.dp)).padding(end = 8.dp))
+                modifier = Modifier.asHeading().background(c.bg, RoundedCornerShape(6.dp)).padding(end = 8.dp))
         }
         Spacer(Modifier.weight(1f))
         if (state.tab == Tab.Library) {
-            IconKey(Icons.More, "Library options", { state.librarySheet = "menu" }, size = 42.dp)
+            IconKey(Icons.More, "Library options", { state.librarySheet = "menu" }, Modifier.tourTarget(state.targets, "menu"), size = 42.dp)
             Spacer(Modifier.width(8.dp))
-            IconKey(Icons.Plus, "Add books", { state.pickBooks() }, kind = KeyKind.Primary,
+            IconKey(Icons.Plus, "Add books", { state.pickBooks() }, Modifier.tourTarget(state.targets, "add"), kind = KeyKind.Primary,
                 size = 42.dp)
             Spacer(Modifier.width(8.dp))
         }
         val dark = c.isDark
-        IconKey(if (dark) Icons.Sun else Icons.Moon, if (dark) "Switch to Day" else "Switch to Night", {
+        IconKey(if (dark) Icons.Sun else Icons.Moon, if (dark) "Switch to Day" else "Switch to Night", modifier = Modifier.tourTarget(state.targets, "theme"), onClick = {
             settings.theme = if (dark) ThemeMode.Day else ThemeMode.Night
         }, size = 42.dp)
     }
@@ -328,6 +355,7 @@ private fun TabBar(state: AppState) {
                         Modifier
                             .weight(1f)
                             .height(54.dp)
+                            .tourTarget(state.targets, "tab-" + tab.name.lowercase())
                             .semantics { selected = on }
                             .clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Tab) {
                                 if (tab == state.tab) {
@@ -343,7 +371,7 @@ private fun TabBar(state: AppState) {
                         Spacer(Modifier.height(4.dp))
                         Icon(tab.icon, null, Modifier.size(20.dp), tint = ink)
                         Spacer(Modifier.height(4.dp))
-                        Text(tab.label, style = Type.tab.copy(color = ink, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal))
+                        Text(tab.label, style = Type.tab.copy(color = ink, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal), maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Clip)
                     }
                 }
             }
@@ -371,7 +399,9 @@ private fun ToastHost(state: AppState, modifier: Modifier = Modifier) {
         enter = if (reduced) fadeIn(snap()) else fadeIn(tween(200)) + slideInVertically(tween(200)) { it / 3 },
         exit = if (reduced) fadeOut(snap()) else fadeOut(tween(200)) + slideOutVertically(tween(200)) { it / 3 },
     ) {
-        Row(Modifier.background(c.text, KeyShape).padding(start = 16.dp, end = if (action != null) 6.dp else 16.dp, top = 4.dp, bottom = 4.dp),
+        // TalkBack reads each message as it appears.
+        Row(Modifier.semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite }
+            .background(c.text, KeyShape).padding(start = 16.dp, end = if (action != null) 6.dp else 16.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically) {
             Text(shown.orEmpty(), style = Type.body.copy(color = c.panel, fontSize = Type.key.fontSize),
                 modifier = Modifier.padding(vertical = 6.dp).weight(1f, fill = false))

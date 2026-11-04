@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -120,7 +121,7 @@ fun StatsScreen() {
 @Composable
 private fun Section(title: String, content: @Composable ColumnScope.() -> Unit) {
     val c = LocalColors.current
-    Text(title, style = Type.section.copy(color = c.text))
+    Text(title, style = Type.section.copy(color = c.text), modifier = Modifier.asHeading())
     Spacer(Modifier.height(10.dp))
     Card { Column(Modifier.padding(16.dp), content = content) }
     Spacer(Modifier.height(22.dp))
@@ -167,7 +168,11 @@ private fun WeekLights(week: List<StatsMath.Week>) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         week.forEach { d ->
             val lit = if (d.seconds > 0) maxOf(1, (10 * d.seconds / max).roundToInt()) else 0
-            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+            // TalkBack: "Mon, 25 minutes".
+            val minutes = (d.seconds / 60).roundToInt()
+            Column(Modifier.weight(1f).semantics(mergeDescendants = true) {}.clearAndSetSemantics {
+                contentDescription = "${d.label}, " + if (minutes == 0 && d.seconds > 0) "under a minute" else "$minutes ${if (minutes == 1) "minute" else "minutes"}"
+            }, horizontalAlignment = Alignment.CenterHorizontally) {
                 Canvas(Modifier.fillMaxWidth().height(110.dp)) {
                     val gap = 3.dp.toPx(); val h = (size.height - gap * 9) / 10
                     for (i in 0 until 10) {
@@ -188,7 +193,7 @@ private fun WeekLights(week: List<StatsMath.Week>) {
 @Composable
 private fun Readout(value: String, label: String, modifier: Modifier) {
     val c = LocalColors.current
-    Column(modifier.background(c.panel, CardShape).border(1.dp, c.line, CardShape).padding(12.dp)) {
+    Column(modifier.semantics(mergeDescendants = true) {}.background(c.panel, CardShape).border(1.dp, c.line, CardShape).padding(12.dp)) {
         Text(value, style = Type.monoLarge.copy(color = c.text, fontSize = 24.sp), maxLines = 1)
         Text(label, style = Type.hint.copy(color = c.muted), maxLines = 2)
     }
@@ -196,10 +201,11 @@ private fun Readout(value: String, label: String, modifier: Modifier) {
 
 /** Simple bars with labels under some of them. */
 @Composable
-private fun Bars(values: List<Double>, labels: List<String>, highlightLast: Boolean = false, height: Int = 90) {
+private fun Bars(values: List<Double>, labels: List<String>, highlightLast: Boolean = false, height: Int = 90, summary: String = "") {
     val c = LocalColors.current
     val max = maxOf(values.maxOrNull() ?: 0.0, 1.0)
-    Canvas(Modifier.fillMaxWidth().height(height.dp)) {
+    // TalkBack reads the summary; the labels under the bars are left out.
+    Canvas(Modifier.fillMaxWidth().height(height.dp).semantics { contentDescription = summary.ifBlank { "Chart" } }) {
         val n = values.size; val gap = 3.dp.toPx(); val w = (size.width - gap * (n - 1)) / n
         values.forEachIndexed { i, v ->
             val h = (size.height * (v / max)).toFloat().coerceAtLeast(if (v > 0) 2.dp.toPx() else 1f)
@@ -208,7 +214,7 @@ private fun Bars(values: List<Double>, labels: List<String>, highlightLast: Bool
         }
     }
     Spacer(Modifier.height(4.dp))
-    Row(Modifier.fillMaxWidth()) {
+    Row(Modifier.fillMaxWidth().clearAndSetSemantics {}) {
         labels.forEach { Text(it, style = Type.mono.copy(color = c.muted, fontSize = 10.sp), modifier = Modifier.weight(1f), maxLines = 1) }
     }
 }
@@ -254,12 +260,15 @@ private fun Details() {
         d.bestDay?.let { (day, s) -> Line("Best day", "${LocalDate.parse(day).let { "${it.dayOfMonth} ${it.month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH)}" }} · ${StatsMath.time(s)}") }
     }
     Section("When you read") {
-        Bars(d.hours.toList(), listOf("0", "", "", "", "", "", "6", "", "", "", "", "", "12", "", "", "", "", "", "18", "", "", "", "", "23"))
+        Bars(d.hours.toList(), listOf("0", "", "", "", "", "", "6", "", "", "", "", "", "12", "", "", "", "", "", "18", "", "", "", "", "23"),
+            summary = busiest(d.hours.toList()) { "Reading by hour: most at $it:00" })
         Spacer(Modifier.height(14.dp))
-        Bars(d.weekdays.toList(), listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"), height = 60)
+        Bars(d.weekdays.toList(), listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"), height = 60,
+            summary = busiest(d.weekdays.toList()) { "Reading by weekday: most on ${java.time.DayOfWeek.of(it + 1).getDisplayName(TextStyle.FULL, Locale.ENGLISH)}" })
     }
     Section("Your pace") {
-        Bars(d.weeks.map { it.second / 60 }, d.weeks.mapIndexed { i, (start, _) -> if (i % 3 == 0) "${start.dayOfMonth}/${start.monthValue}" else "" }, highlightLast = true)
+        Bars(d.weeks.map { it.second / 60 }, d.weeks.mapIndexed { i, (start, _) -> if (i % 3 == 0) "${start.dayOfMonth}/${start.monthValue}" else "" }, highlightLast = true,
+            summary = "Minutes read each week; this week ${(d.weeks.lastOrNull()?.second?.div(60) ?: 0.0).roundToInt()}")
         Spacer(Modifier.height(10.dp))
         d.sitting?.let { Line("Average sitting", StatsMath.time(it)) }
         d.perReadingDay?.let { Line("On days you read", StatsMath.time(it)) }
@@ -267,7 +276,8 @@ private fun Details() {
         Line("The 30 days before", d.speedBefore?.toString() ?: "–")
     }
     Section("Finished books") {
-        Bars(d.finishedMonths.map { it.second.toDouble() }, d.finishedMonths.mapIndexed { i, (m, _) -> if (i % 2 == 1) m.month.getDisplayName(TextStyle.NARROW, Locale.ENGLISH) else "" }, highlightLast = true, height = 70)
+        Bars(d.finishedMonths.map { it.second.toDouble() }, d.finishedMonths.mapIndexed { i, (m, _) -> if (i % 2 == 1) m.month.getDisplayName(TextStyle.NARROW, Locale.ENGLISH) else "" }, highlightLast = true, height = 70,
+            summary = "Books finished each month; this month ${d.finishedMonths.lastOrNull()?.second ?: 0}")
         Spacer(Modifier.height(10.dp))
         Line("Finished, all time", d.finishedAll.toString())
         d.daysToFinish?.let { Line("Days to finish a book (median)", fmt(it)) }
@@ -287,4 +297,10 @@ private fun Details() {
             }
         }
     }
+}
+
+/** "most at …" for a chart, or "nothing yet". */
+private fun busiest(values: List<Double>, say: (Int) -> String): String {
+    val i = values.indices.maxByOrNull { values[it] } ?: return "Nothing read yet"
+    return if (values[i] <= 0.0) "Nothing read yet" else say(i)
 }

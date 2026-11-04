@@ -96,6 +96,7 @@ class Importer(private val context: Context, private val library: Library, priva
                 }
             }
         } catch (e: Exception) {
+            app.quietreader.ErrorLog.keep("Couldn’t add $name", e)
             library.fileOf(id).delete(); library.derivedOf(id).delete()
             return@withContext ImportResult.Failed(name, e.message?.takeIf { it.endsWith(".") } ?: "This ${BookFormat.labelOf(name)} couldn’t be opened.")
         }
