@@ -8,7 +8,7 @@ plugins {
 
 // The layer being built. The switch (end of L8) drops it and moves to app.quietreader.
 val quietVersion = "0.5.0"
-val quietLayer = "L0"
+val quietLayer = "L2"
 
 android {
     namespace = "app.quietreader"
@@ -18,7 +18,7 @@ android {
         applicationId = "app.quietreader.n"
         minSdk = 26
         targetSdk = 36
-        versionCode = 500
+        versionCode = 502
         versionName = "$quietVersion $quietLayer"
         buildConfigField("String", "QUIET_VERSION", "\"$quietVersion\"")
         buildConfigField("String", "QUIET_LAYER", "\"$quietLayer\"")
@@ -46,6 +46,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true // Readium needs it
     }
     buildFeatures {
         compose = true
@@ -70,12 +71,21 @@ kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarg
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2025.10.01")
     implementation(composeBom)
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.activity:activity-compose:1.11.0")
     implementation("androidx.core:core-splashscreen:1.2.0")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.fragment:fragment-ktx:1.8.9")
+    implementation("androidx.appcompat:appcompat:1.7.1")
+
+    // Readium (BSD-3): opens EPUB and draws its pages. See docs/plan-native.md.
+    val readium = "3.1.2"
+    implementation("org.readium.kotlin-toolkit:readium-shared:$readium")
+    implementation("org.readium.kotlin-toolkit:readium-streamer:$readium")
+    implementation("org.readium.kotlin-toolkit:readium-navigator:$readium")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 

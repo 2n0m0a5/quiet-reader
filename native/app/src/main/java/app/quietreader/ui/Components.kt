@@ -6,6 +6,20 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.stateDescription
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.clickable
@@ -108,7 +122,8 @@ fun Key(
         KeyKind.Primary -> listOf(c.text, c.text, c.bg, Color.Black)
         KeyKind.Danger -> listOf(c.panel, c.keyEdge, c.danger, c.keyEdge)
     }
-    Box(modifier.alpha(if (enabled) 1f else 0.45f)) {
+    // propagateMinConstraints: a key given a width (weight, fillMaxWidth) fills it.
+    Box(modifier.alpha(if (enabled) 1f else 0.45f), propagateMinConstraints = true) {
         // The edge under the key, showing 1 dp below it.
         Box(Modifier.matchParentSize().offset(y = 1.dp).background(under, shape))
         Row(
@@ -208,6 +223,80 @@ fun <T> ChoiceRow(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> 
     }
 }
 
+/**
+ * A dial: a recessed track with a tuning scale under it and a key you slide, with an orange
+ * line on it like the needle. It moves in [step]s and clicks at each one. [marks] get a longer
+ * tick (for example the default, 100%).
+ */
+@Composable
+fun Dial(
+    value: Float,
+    onChange: (Float) -> Unit,
+    range: ClosedFloatingPointRange<Float>,
+    step: Float,
+    label: String,
+    valueText: String,
+    modifier: Modifier = Modifier,
+    marks: List<Float> = emptyList(),
+) {
+    val c = LocalColors.current
+    val haptics = LocalHaptics.current
+    val current by rememberUpdatedState(value)
+    val change by rememberUpdatedState(onChange)
+    val steps = ((range.endInclusive - range.start) / step).roundToInt()
+    fun snapTo(x: Float, width: Float, thumb: Float) {
+        val f = ((x - thumb / 2) / (width - thumb)).coerceIn(0f, 1f)
+        val v = (range.start + (f * steps).roundToInt() * step).coerceIn(range.start, range.endInclusive)
+        if (abs(v - current) > step / 4) { haptics?.tick(); change(v) }
+    }
+    val thumbW = 22.dp
+    BoxWithConstraints(
+        modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .semantics {
+                contentDescription = label
+                stateDescription = valueText
+                progressBarRangeInfo = ProgressBarRangeInfo(value, range, steps - 1)
+                setProgress { v -> change(((v - range.start) / step).roundToInt() * step + range.start); true }
+            }
+            .pointerInput(range, step) {
+                detectTapGestures { snapTo(it.x, size.width.toFloat(), thumbW.toPx()) }
+            }
+            .pointerInput(range, step) {
+                detectHorizontalDragGestures(onDragStart = { snapTo(it.x, size.width.toFloat(), thumbW.toPx()) }) { ch, _ ->
+                    ch.consume()
+                    snapTo(ch.position.x, size.width.toFloat(), thumbW.toPx())
+                }
+            },
+    ) {
+        val travel = maxWidth - thumbW
+        val f = (value - range.start) / (range.endInclusive - range.start)
+        val x by animateDpAsState(travel * f, glide(Springs.QUICK), label = "dial")
+        // The track and the tuning scale under it.
+        Canvas(Modifier.fillMaxSize()) {
+            val half = thumbW.toPx() / 2
+            val top = 10.dp.toPx()
+            drawRoundRect(c.panelDeep, Offset(half, top), androidx.compose.ui.geometry.Size(size.width - 2 * half, 6.dp.toPx()),
+                androidx.compose.ui.geometry.CornerRadius(3.dp.toPx()))
+            for (i in 0..steps) {
+                val v = range.start + i * step
+                val tx = half + (size.width - 2 * half) * i / steps
+                val long = marks.any { abs(it - v) < step / 4 }
+                drawLine(if (long) c.text else c.keyEdge, Offset(tx, 24.dp.toPx()), Offset(tx, (if (long) 34 else 29).dp.toPx()),
+                    (if (long) 1.5f else 1f).dp.toPx())
+            }
+        }
+        // The key, with its orange needle.
+        Box(Modifier.offset(x = x, y = 1.dp).size(thumbW, 24.dp)) {
+            Box(Modifier.fillMaxSize().offset(y = 1.dp).background(c.keyEdge, SmallShape))
+            Box(Modifier.fillMaxSize().background(c.panel, SmallShape).border(1.dp, c.keyEdge, SmallShape), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(2.dp, 12.dp).background(c.accent, RoundedCornerShape(1.dp)))
+            }
+        }
+    }
+}
+
 /** On/off: a recessed track with a key that slides; orange when on. */
 @Composable
 fun Switch(checked: Boolean, onChange: (Boolean) -> Unit, label: String, modifier: Modifier = Modifier) {
@@ -219,6 +308,7 @@ fun Switch(checked: Boolean, onChange: (Boolean) -> Unit, label: String, modifie
             .size(width = 42.dp, height = 24.dp)
             .background(track, RoundedCornerShape(12.dp))
             .border(1.dp, if (checked) c.accent else c.keyEdge, RoundedCornerShape(12.dp))
+            .semantics { contentDescription = label }
             .toggleable(checked, role = Role.Switch, onValueChange = onChange)
             .padding(2.dp),
     ) {
@@ -303,3 +393,21 @@ fun Label(text: String, style: TextStyle, color: Color, modifier: Modifier = Mod
 @Composable
 fun Centered(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) =
     Box(modifier, contentAlignment = Alignment.Center, content = content)
+
+/** A question before something that can't be undone: a card on a dimmed screen. */
+@Composable
+fun ConfirmDialog(title: String, text: String, confirm: String, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    val c = LocalColors.current
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(Modifier.fillMaxWidth().background(c.bg, CardShape).border(1.dp, c.line, CardShape).padding(20.dp)) {
+            Text(title, style = Type.section.copy(color = c.text))
+            Spacer(Modifier.height(8.dp))
+            Text(text, style = Type.body.copy(color = c.muted))
+            Spacer(Modifier.height(18.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextKey("Cancel", onDismiss, Modifier.weight(1f))
+                TextKey(confirm, onConfirm, Modifier.weight(1f), kind = KeyKind.Danger)
+            }
+        }
+    }
+}

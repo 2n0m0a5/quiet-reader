@@ -32,7 +32,7 @@ fun <T> glide(stiffness: Float = Springs.MOVE): FiniteAnimationSpec<T> =
     if (LocalReducedMotion.current) snap() else spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = stiffness)
 
 /** The vibration motor: a light click for keys, a firmer one to confirm. Off when the reader turns Vibration off. */
-class Haptics(context: Context, private val enabled: () -> Boolean) {
+open class Haptics(context: Context, private val enabled: () -> Boolean) {
     private val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= 31)
         (context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
     else @Suppress("DEPRECATION") (context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator)
@@ -41,8 +41,13 @@ class Haptics(context: Context, private val enabled: () -> Boolean) {
     fun confirm() = buzz(confirm = true)
 
     private fun buzz(confirm: Boolean) {
+        if (enabled()) perform(confirm)
+    }
+
+    /** Runs the motor. Tests replace this to count clicks. */
+    protected open fun perform(confirm: Boolean) {
         val v = vibrator ?: return
-        if (!enabled() || !v.hasVibrator()) return
+        if (!v.hasVibrator()) return
         runCatching {
             if (Build.VERSION.SDK_INT >= 29)
                 v.vibrate(VibrationEffect.createPredefined(if (confirm) VibrationEffect.EFFECT_HEAVY_CLICK else VibrationEffect.EFFECT_CLICK))

@@ -59,6 +59,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import app.quietreader.LocalQuiet
 import app.quietreader.MotionMode
 import app.quietreader.QuietSettings
 import app.quietreader.ThemeMode
@@ -72,7 +73,7 @@ enum class Tab(val label: String, val icon: ImageVector) {
     Settings("Settings", Icons.Settings),
 }
 
-enum class SettingsPage { Home, Interface, About }
+enum class SettingsPage { Home, Interface, Files, Trash, About }
 
 /** Where the reader is in the app, plus the message at the bottom. */
 class AppState(tab: Tab = Tab.Library, page: SettingsPage = SettingsPage.Home) {
@@ -89,6 +90,18 @@ class AppState(tab: Tab = Tab.Library, page: SettingsPage = SettingsPage.Home) {
     }
 
     fun hideToast() { toast = null }
+
+    /** The book being read, if any. */
+    var openBookId by mutableStateOf<String?>(null)
+    fun open(id: String) { openBookId = id }
+
+    // Things only the activity can do (system pickers), set by MainActivity.
+    var pickBooks: () -> Unit = {}
+    var saveBackup: () -> Unit = {}
+    var pickBackup: () -> Unit = {}
+    var busy by mutableStateOf<String?>(null)
+    /** A backup that was read and waits for "Restore" (its summary, and what restoring does). */
+    var confirmRestore by mutableStateOf<Pair<app.quietreader.data.Backup.Summary, () -> Unit>?>(null)
 }
 
 /** The colours for the chosen theme; System follows the phone's dark mode. */
@@ -116,7 +129,7 @@ fun QuietTheme(settings: QuietSettings, haptics: Haptics?, content: @Composable 
         LocalColors provides colors,
         LocalReducedMotion provides reduced,
         LocalHaptics provides haptics,
-        LocalDensity provides Density(density.density, density.fontScale * settings.textSize.scale),
+        LocalDensity provides Density(density.density, density.fontScale * settings.textScale / 100f),
         content = content,
     )
 }
@@ -127,7 +140,9 @@ fun QuietApp(settings: QuietSettings, state: AppState = remember { AppState() })
     val reduced = LocalReducedMotion.current
 
     // Back: a Settings page goes back to Settings, a tab goes back to Library.
-    BackHandler(enabled = state.tab == Tab.Settings && state.page != SettingsPage.Home) { state.page = SettingsPage.Home }
+    BackHandler(enabled = state.tab == Tab.Settings && state.page != SettingsPage.Home) {
+        state.page = if (state.page == SettingsPage.Trash) SettingsPage.Files else SettingsPage.Home
+    }
     BackHandler(enabled = state.tab != Tab.Library && !(state.tab == Tab.Settings && state.page != SettingsPage.Home)) {
         state.tab = Tab.Library
     }
@@ -151,9 +166,56 @@ fun QuietApp(settings: QuietSettings, state: AppState = remember { AppState() })
                         Tab.Settings -> SettingsScreen(state, settings)
                     }
                 }
-                ToastHost(state, Modifier.align(Alignment.BottomCenter))
             }
             TabBar(state)
+        }
+        // A book opens over everything, and closes back to where you were.
+        val quiet = LocalQuiet.current
+        val book = remember(state.openBookId) { state.openBookId?.let { quiet.library.get(it) } }
+        AnimatedVisibility(
+            visible = book != null,
+            enter = if (reduced) fadeIn(snap()) else fadeIn(tween(220)) + androidx.compose.animation.scaleIn(tween(260), initialScale = 0.96f),
+            exit = if (reduced) fadeOut(snap()) else fadeOut(tween(180)) + androidx.compose.animation.scaleOut(tween(200), targetScale = 0.98f),
+        ) {
+            var shown by remember { mutableStateOf(book) }
+            if (book != null) shown = book
+            shown?.let { b ->
+                if (b.format == app.quietreader.data.BookFormat.Other) {
+                    LaunchedEffect(b.id) {
+                        state.toast("${b.fileName.substringAfterLast('.').uppercase()} books open in a later layer (L7). It’s safe in your library.")
+                        state.openBookId = null
+                    }
+                } else app.quietreader.reader.ReaderScreen(b) { state.openBookId = null }
+            }
+        }
+        // A long job (backup, restore): a quiet sheet over the app.
+        state.busy?.let { Busy(it) }
+        state.confirmRestore?.let { (summary, restore) ->
+            ConfirmDialog(
+                title = "Restore this backup?",
+                text = "From ${shortDate(summary.createdAt)}: ${summary.books} ${if (summary.books == 1) "book" else "books"}" +
+                    (if (summary.notes > 0) " and ${summary.notes} highlights" else "") +
+                    ". Books you don’t have are added; nothing is deleted.",
+                confirm = "Restore",
+                onDismiss = { state.confirmRestore = null },
+            ) { state.confirmRestore = null; restore() }
+        }
+        // Messages sit above the tab bar (and above a book's bottom bar).
+        ToastHost(state, Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.navigationBars).padding(bottom = 76.dp))
+    }
+}
+
+@Composable
+private fun Busy(text: String) {
+    val c = LocalColors.current
+    Box(
+        Modifier.fillMaxSize().background(c.bg.copy(alpha = 0.92f)).clickable(remember { MutableInteractionSource() }, indication = null) {},
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            KnobMark(Modifier.size(44.dp))
+            Spacer(Modifier.height(14.dp))
+            Text(text, style = Type.body.copy(color = c.text))
         }
     }
 }
@@ -189,7 +251,7 @@ private fun TopBar(state: AppState, settings: QuietSettings) {
         }
         Spacer(Modifier.weight(1f))
         if (state.tab == Tab.Library) {
-            IconKey(Icons.Plus, "Add books", { state.toast("Adding books comes in the next build (L1).") }, kind = KeyKind.Primary,
+            IconKey(Icons.Plus, "Add books", { state.pickBooks() }, kind = KeyKind.Primary,
                 size = 38.dp)
             Spacer(Modifier.width(8.dp))
         }

@@ -23,9 +23,9 @@ Redmi. The native app takes its own route; the layers only say what it can do at
 ## Layers
 | Layer | What it adds | Status |
 |---|---|---|
-| **L0 The skeleton** | Kotlin project and APK build; Radio colours, fonts (Archivo, DM Mono, Crimson Pro) and the knob icon; the 4 tabs; Day / Night / Follow phone; keys that press down, springs without bounce, vibration; Settings with Interface and About | ✅ built |
-| **L1 Read a book** | Add books (picker, "Open with Quiet"); library grid with covers; EPUB, PDF and TXT in scroll or pages; remembers your place; contents, text size, font, Day/Night; bars hide while reading | ⏭ next (with L2) |
-| **L2 Your data is safe** | Import a 0.4.2 `.quietbackup`; back up and restore (same format, both ways); safety copy; Recently deleted | ⏭ next (with L1) |
+| **L0 The skeleton** | Kotlin project and APK build; Radio colours, fonts (Archivo, DM Mono, Crimson Pro) and the knob icon; the 4 tabs; Day / Night / Follow phone; keys that press down, springs without bounce, vibration; Settings with Interface and About | ✅ sent (0.5.0 L0) |
+| **L1 Read a book** | Add books (picker, "Open with Quiet"); library grid with covers; EPUB, PDF and TXT in scroll or pages; remembers your place; contents, text size, font, Day/Night; bars hide while reading | ✅ built (0.5.0 L2) |
+| **L2 Your data is safe** | Import a 0.4.2 `.quietbackup`; back up and restore (same format, both ways); safety copy; Recently deleted | ✅ built (0.5.0 L2) |
 | **L3 The reader, fully** | Tuning-scale bar, 5 keys, Customize bar, More panel; brightness, warmth, Look & layout, your own fonts; native slide and curl; volume keys, rotation lock, time and battery, go to page, footnotes, picture viewer, bionic, ruler | |
 | **L4 Notes** | Highlights (colours, underline, strikethrough), notes, quotes with owners, bookmarks; Notes tab; quote pictures; translation; search in a book | |
 | **L5 Organizing** | Collections, tags, series, statuses, ratings; edit details and covers; select several; sort, filter, group; shelf view with pinch; duplicates; book info; book folders | |
@@ -33,6 +33,21 @@ Redmi. The native app takes its own route; the layers only say what it can do at
 | **L7 Every format** | MOBI/AZW3, FB2, Word, ODT, RTF, Markdown, HTML, Palm; comics CBZ/CBR/CB7/CBT; fixed-layout EPUB; PDF zoom | |
 | **L8 Polish and the switch** | All Settings sections, the tour, What's new, Report a problem; Motion setting complete; app text size; TalkBack pass; **the switch** to `app.quietreader` as 0.5.0 | |
 | After | The native route: read aloud (17), widget (55), app lock (65), auto-scroll (18), then the rest of the roadmap | |
+
+## Notes from building L1–L2
+- After L0 the owner asked for a **text size slider** (done: `Dial` in `ui/Components.kt`, also used
+  for book text size) and for **vibration that really works** (done, with tests).
+- Readium **3.1.2** (Kotlin 2.1 metadata); 3.2+ needs Kotlin 2.3+. It needs core library desugaring.
+- EPUB and TXT: Readium's `EpubNavigatorFragment` hosted in Compose (`reader/EpubReader.kt`). TXT is
+  turned into a small EPUB at import (`data/TextBook.kt`); the .txt stays the book file.
+- PDF: Android's `PdfRenderer` in Compose (`reader/PdfReader.kt`); zoom comes in L7.
+- Library: SQLite with each book kept as the **web app's record** (JSON), plus Readium's locator.
+  Book IDs use the web app's fingerprint, so the same file has the same ID in both apps.
+- Backups: `data/Backup.kt`, the web format exactly. Positions: the native app writes a
+  chapter-level CFI (`epubcfi(/6/N!/4)`) for the web app; from a web backup it starts at the
+  CFI's chapter and the saved progress.
+- Records the native app doesn't show yet (collections, annotations, reading, fonts) are kept as
+  they came, and go back out in backups.
 
 ## How to build and test (native)
 - `bash scripts/build-native.sh` builds `native/` and writes `dist-apk/Quiet-<version>-<layer>.apk`

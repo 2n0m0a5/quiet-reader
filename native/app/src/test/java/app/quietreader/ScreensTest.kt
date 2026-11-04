@@ -33,14 +33,38 @@ import org.robolectric.annotation.GraphicsMode
 class ScreensTest {
     @get:Rule val compose = createComposeRule()
     private lateinit var settings: QuietSettings
+    private lateinit var quiet: Quiet
 
     @Before fun setUp() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         context.getSharedPreferences("quiet", Context.MODE_PRIVATE).edit().clear().commit()
-        settings = QuietSettings(context)
+        context.filesDir.deleteRecursively()
+        quiet = Quiet(context, dbName = null)
+        settings = quiet.settings
     }
 
-    private fun show(state: AppState) = compose.setContent { QuietTheme(settings, null) { QuietApp(settings, state) } }
+    private fun show(state: AppState) = compose.setContent {
+        androidx.compose.runtime.CompositionLocalProvider(LocalQuiet provides quiet) { QuietTheme(settings, null) { QuietApp(settings, state) } }
+    }
+
+    /** The library with books (restored from the web app's backup) and the Files page. */
+    @Test fun libraryWithBooks() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val file = java.io.File(context.cacheDir, "web.quietbackup")
+        javaClass.classLoader!!.getResourceAsStream("web-0.4.2.quietbackup")!!.use { i -> file.outputStream().use { i.copyTo(it) } }
+        quiet.backup.restore(file)
+        val lamp = quiet.library.books.value.first { it.title == "The Lamp and the Clock" }
+        quiet.library.put(lamp.with({ put("progress", 0.42); put("lastOpenedAt", System.currentTimeMillis()) }))
+        val notes = quiet.library.books.value.first { it.title == "Short Notes" }
+        quiet.library.put(notes.with({ put("progress", 1.0); put("lastOpenedAt", 1L) }))
+        val state = AppState()
+        show(state)
+        shot("day-library-books")
+        compose.runOnIdle { state.tab = Tab.Settings; state.page = SettingsPage.Files }
+        shot("day-files")
+        compose.runOnIdle { settings.theme = ThemeMode.Night; state.tab = Tab.Library }
+        shot("night-library-books")
+    }
 
     private fun shot(name: String) {
         compose.mainClock.advanceTimeBy(1500)
@@ -68,6 +92,7 @@ class ScreensTest {
         val state = AppState()
         show(state)
         compose.onNodeWithText("Make yourself at home.").assertIsDisplayed()
+        compose.onNodeWithText("Restore a backup").assertIsDisplayed()
         compose.onNodeWithText("Settings").performClick()
         compose.onNodeWithText("Interface").performClick()
         compose.onNodeWithText("Screen rotation").assertIsDisplayed()
@@ -84,7 +109,7 @@ class ScreensTest {
     }
 
     @Test fun textSizeScalesTheApp() {
-        settings.textSize = TextSize.Larger
+        settings.textScale = 130
         show(AppState(Tab.Settings, SettingsPage.Interface))
         shot("day-interface-larger-text")
     }

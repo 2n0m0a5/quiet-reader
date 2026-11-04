@@ -16,24 +16,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-/** Library, empty: the same welcome as the web app. Adding books arrives in L1. */
-@Composable
-fun LibraryScreen(state: AppState) {
-    Screen {
-        EmptyState(
-            Icons.Library,
-            "Make yourself at home.",
-            "A quiet, distraction-free place for your books. Add an EPUB, MOBI, AZW3, FB2, CBZ, TXT or PDF file, " +
-                "or a whole folder of them, and they’ll wait for you here, right where you left off.",
-        ) {
-            TextKey("Choose a book", { state.toast("Adding books comes in the next build (L1).") }, kind = KeyKind.Primary)
-            TextKey("Add a book folder", { state.toast("Book folders come in L5.") })
-        }
-        Spacer(Modifier.height(18.dp))
-        LayerTag("Books arrive in L1")
-    }
-}
-
 @Composable
 fun NotesScreen() {
     Screen {

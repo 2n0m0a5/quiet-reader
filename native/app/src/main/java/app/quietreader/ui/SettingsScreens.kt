@@ -23,7 +23,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -40,12 +44,13 @@ import app.quietreader.BuildConfig
 import app.quietreader.MotionMode
 import app.quietreader.QuietSettings
 import app.quietreader.Rotation
-import app.quietreader.TextSize
+import app.quietreader.TextScale
 import app.quietreader.ThemeMode
 import app.quietreader.phoneWantsLessMotion
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import kotlin.math.roundToInt
 
 /** Settings: a home list of sections; each opens on its own page, as in the web app. */
 @Composable
@@ -53,12 +58,14 @@ fun SettingsScreen(state: AppState, settings: QuietSettings) {
     val reduced = LocalReducedMotion.current
     AnimatedContent(
         targetState = state.page,
-        transitionSpec = { pageTransition(reduced, deeper = targetState != SettingsPage.Home) },
+        transitionSpec = { pageTransition(reduced, deeper = targetState.ordinal > initialState.ordinal) },
         label = "settings-page",
     ) { page ->
         when (page) {
             SettingsPage.Home -> SettingsHome(state)
             SettingsPage.Interface -> InterfacePage(state, settings)
+            SettingsPage.Files -> FilesPage(state)
+            SettingsPage.Trash -> TrashPage(state)
             SettingsPage.About -> AboutPage(state)
         }
     }
@@ -79,7 +86,7 @@ private val sections = listOf(
     Section("01", "Interface", "Day and night, app text size, motion, vibration", null, SettingsPage.Interface),
     Section("02", "Reader", "Scroll or pages, page turn, fonts, spacing, the reader bar", "L3", null),
     Section("03", "Library", "Book folders Quiet watches for new books", "L5", null),
-    Section("04", "Files & storage", "Back up and restore, space used, delete everything", "L2", null),
+    Section("04", "Files & storage", "Back up and restore, space used, delete everything", null, SettingsPage.Files),
     Section("05", "Privacy & translation", "What leaves your phone: only text you translate", "L4", null),
 )
 
@@ -134,10 +141,10 @@ private fun SettingsRow(title: String, hint: String, layer: String?, lead: @Comp
 }
 
 @Composable
-private fun PageHeader(title: String, state: AppState) {
+private fun PageHeader(title: String, state: AppState, back: SettingsPage = SettingsPage.Home) {
     val c = LocalColors.current
     Row(verticalAlignment = Alignment.CenterVertically) {
-        IconKey(Icons.ChevronLeft, "Back", { state.page = SettingsPage.Home })
+        IconKey(Icons.ChevronLeft, "Back", { state.page = back })
         Spacer(Modifier.width(12.dp))
         Text(title, style = Type.pageTitle.copy(color = c.text))
     }
@@ -172,6 +179,12 @@ private fun SettingBlock(label: String, hint: String = "", content: @Composable 
 @Composable
 private fun InterfacePage(state: AppState, settings: QuietSettings) {
     val context = LocalContext.current
+    val haptics = LocalHaptics.current
+    // Turning vibration on gives a firm click, so you feel that it works.
+    fun setVibration(on: Boolean) {
+        settings.haptics = on
+        if (on) haptics?.confirm()
+    }
     Page {
         PageHeader("Interface", state)
         SectionTitle("Theme", "System follows your phone: Day while it’s light, Night while it’s in dark mode.")
@@ -183,9 +196,7 @@ private fun InterfacePage(state: AppState, settings: QuietSettings) {
         Spacer(Modifier.height(28.dp))
         SectionTitle("The app")
         Card {
-            SettingBlock("Text size") {
-                ChoiceRow(TextSize.entries.map { it to it.label }, settings.textSize, { settings.textSize = it })
-            }
+            TextSizeBlock(settings)
             Divider()
             val lessMotion = phoneWantsLessMotion(context)
             SettingBlock(
@@ -202,7 +213,7 @@ private fun InterfacePage(state: AppState, settings: QuietSettings) {
             Divider()
             val c = LocalColors.current
             Row(
-                Modifier.fillMaxWidth().clickable { settings.haptics = !settings.haptics }.padding(16.dp),
+                Modifier.fillMaxWidth().clickable { setVibration(!settings.haptics) }.padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
@@ -211,8 +222,41 @@ private fun InterfacePage(state: AppState, settings: QuietSettings) {
                     Text("A light tap when you press a key, bookmark, highlight or change a setting.", style = Type.hint.copy(color = c.muted))
                 }
                 Spacer(Modifier.width(12.dp))
-                Switch(settings.haptics, { settings.haptics = it }, "Vibration")
+                Switch(settings.haptics, { on -> setVibration(on) }, "Vibration")
             }
+        }
+    }
+}
+
+/** Text size: a dial from 80% to 150%; the whole app resizes as you slide. */
+@Composable
+private fun TextSizeBlock(settings: QuietSettings) {
+    val c = LocalColors.current
+    Column(Modifier.padding(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Text size", style = Type.label.copy(color = c.text, fontWeight = FontWeight.Normal), modifier = Modifier.weight(1f))
+            if (settings.textScale != TextScale.DEFAULT) {
+                TextKey("Reset", { settings.textScale = TextScale.DEFAULT })
+                Spacer(Modifier.width(10.dp))
+            }
+            Text("${settings.textScale}%", style = Type.mono.copy(color = c.text))
+        }
+        Spacer(Modifier.height(6.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("A", style = Type.label.copy(color = c.muted, fontSize = 12.sp))
+            Spacer(Modifier.width(10.dp))
+            Dial(
+                value = settings.textScale.toFloat(),
+                onChange = { settings.textScale = it.roundToInt() },
+                range = TextScale.MIN.toFloat()..TextScale.MAX.toFloat(),
+                step = TextScale.STEP.toFloat(),
+                label = "Text size",
+                valueText = "${settings.textScale} percent",
+                marks = listOf(TextScale.DEFAULT.toFloat()),
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(Modifier.width(10.dp))
+            Text("A", style = Type.label.copy(color = c.muted, fontSize = 20.sp))
         }
     }
 }
@@ -222,7 +266,9 @@ private fun AboutPage(state: AppState) {
     val c = LocalColors.current
     val context = LocalContext.current
     val uri = LocalUriHandler.current
-    val spaceUsed by produceState("…") {
+    val quiet = app.quietreader.LocalQuiet.current
+    val books by quiet.library.books.collectAsState()
+    val spaceUsed by produceState("…", books.size) {
         value = withContext(Dispatchers.IO) { fileSize(folderSize(context.filesDir.parentFile ?: context.filesDir)) }
     }
     Page {
@@ -244,9 +290,9 @@ private fun AboutPage(state: AppState) {
                     Modifier.fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(14.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Fact("0", "Books")
+                    Fact(books.count { it.deletedAt == null }.toString(), "Books")
                     Fact(spaceUsed, "Space used")
-                    Fact("Never", "Last backup")
+                    Fact(quiet.settings.lastBackup?.let { shortDate(it) } ?: "Never", "Last backup")
                 }
 
                 Overline("Promises")
@@ -265,13 +311,14 @@ private fun AboutPage(state: AppState) {
 
                 Overline("Formats")
                 Text(
-                    "This native build doesn’t open books yet. EPUB, PDF and TXT arrive in L1, every other format in L7.",
+                    "This native build opens EPUB, PDF and TXT (without DRM). Every other format (MOBI, AZW3, FB2, Word, comics…) arrives in L7; books in those formats are kept safe in your library until then.",
                     style = Type.body.copy(color = c.text),
                 )
 
                 Overline("Made with")
                 listOf(
                     Triple("Kotlin and Jetpack Compose", "the app, Apache License 2.0", "https://developer.android.com/compose"),
+                    Triple("Readium", "the e-book engine, BSD 3-Clause License", "https://readium.org"),
                     Triple("Archivo, DM Mono, Crimson Pro", "fonts, SIL Open Font License", "https://fonts.google.com"),
                     Triple("Lucide", "icons, ISC License", "https://lucide.dev"),
                 ).forEach { (name, what, url) ->
@@ -314,4 +361,130 @@ fun fileSize(bytes: Long): String = when {
     bytes < 1024 -> "$bytes B"
     bytes < 1024 * 1024 -> "${bytes / 1024} KB"
     else -> "%.1f MB".format(bytes / 1024.0 / 1024.0)
+}
+
+fun shortDate(millis: Long): String =
+    java.text.SimpleDateFormat("d MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(millis))
+
+private fun daysSince(millis: Long) = ((System.currentTimeMillis() - millis) / 86_400_000L).toInt()
+
+/** Files & storage: backup and restore, Recently deleted, space used, delete everything. */
+@Composable
+private fun FilesPage(state: AppState) {
+    val quiet = app.quietreader.LocalQuiet.current
+    val c = LocalColors.current
+    val books by quiet.library.books.collectAsState()
+    val shelf = books.count { it.deletedAt == null }
+    val trash = books.count { it.deletedAt != null }
+    var confirmDelete by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val spaceUsed by produceState("…", books.size) {
+        value = withContext(Dispatchers.IO) { fileSize(folderSize(context.filesDir)) }
+    }
+    Page {
+        PageHeader("Files & storage", state)
+        SectionTitle("Backup", "One file with your books, places, notes, quotes, stats, fonts and settings. Keep it somewhere safe (Google Drive, your computer, Telegram’s Saved Messages). It opens in Quiet 0.4.2 too.")
+        Card {
+            Column(Modifier.padding(16.dp)) {
+                val last = quiet.settings.lastBackup
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Last backup", style = Type.label.copy(color = c.text, fontWeight = FontWeight.Normal), modifier = Modifier.weight(1f))
+                    Text(last?.let { shortDate(it) } ?: "Never", style = Type.mono.copy(color = c.text))
+                }
+                if (shelf > 0 && (last == null || daysSince(last) >= 14)) {
+                    Spacer(Modifier.height(6.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(7.dp).background(c.accent, RoundedCornerShape(4.dp)))
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (last == null) "No backup yet." else "No backup in ${daysSince(last)} days.", style = Type.hint.copy(color = c.accentStrong))
+                    }
+                }
+                Spacer(Modifier.height(14.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextKey("Back up library", { state.saveBackup() }, Modifier.weight(1f), kind = KeyKind.Primary, enabled = books.isNotEmpty())
+                    TextKey("Restore", { state.pickBackup() }, Modifier.weight(1f))
+                }
+                Spacer(Modifier.height(10.dp))
+                Text("Restoring adds what’s missing and never deletes anything. Settings come along only into an empty library.", style = Type.hint.copy(color = c.muted))
+            }
+        }
+        Spacer(Modifier.height(28.dp))
+        SectionTitle("Storage")
+        Card {
+            SettingsRow("Recently deleted", if (trash == 0) "Empty" else "$trash ${if (trash == 1) "book" else "books"} · deleted for good after 30 days", null,
+                lead = { Icon(Icons.Trash, null, Modifier.size(18.dp), tint = c.muted) }) { state.page = SettingsPage.Trash }
+            Divider()
+            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("Space used", style = Type.label.copy(color = c.text, fontWeight = FontWeight.Normal), modifier = Modifier.weight(1f))
+                Text(spaceUsed, style = Type.mono.copy(color = c.text))
+            }
+            Divider()
+            Column(Modifier.padding(16.dp)) {
+                Text("Delete everything", style = Type.label.copy(color = c.text, fontWeight = FontWeight.Normal))
+                Spacer(Modifier.height(4.dp))
+                Text("Every book, place and setting on this phone. Back up first if you might want them again.", style = Type.hint.copy(color = c.muted))
+                Spacer(Modifier.height(10.dp))
+                TextKey("Delete everything…", { confirmDelete = true }, kind = KeyKind.Danger, enabled = books.isNotEmpty())
+            }
+        }
+    }
+    if (confirmDelete) ConfirmDialog(
+        title = "Delete everything?",
+        text = "All $shelf books, your places and the books in Recently deleted will be gone from this phone. This can’t be undone.",
+        confirm = "Delete everything",
+        onDismiss = { confirmDelete = false },
+    ) {
+        confirmDelete = false
+        quiet.safety.emptiedOnPurpose = true
+        quiet.library.clearAll()
+        state.toast("Your library is empty.")
+    }
+}
+
+/** Recently deleted: books wait here for 30 days. */
+@Composable
+private fun TrashPage(state: AppState) {
+    val quiet = app.quietreader.LocalQuiet.current
+    val c = LocalColors.current
+    val books by quiet.library.books.collectAsState()
+    val trash = books.filter { it.deletedAt != null }.sortedByDescending { it.deletedAt }
+    var confirmEmpty by remember { mutableStateOf(false) }
+    Page {
+        PageHeader("Recently deleted", state, back = SettingsPage.Files)
+        if (trash.isEmpty()) {
+            Text("Nothing here. Books you remove wait here for 30 days, then they’re deleted for good.", style = Type.body.copy(color = c.muted))
+        } else {
+            Card {
+                trash.forEachIndexed { i, book ->
+                    if (i > 0) Divider()
+                    Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Cover(book, Modifier.width(40.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(book.title, style = Type.rowTitle.copy(color = c.text), maxLines = 2)
+                            val left = (app.quietreader.data.Safety.TRASH_DAYS - daysSince(book.deletedAt ?: 0)).coerceAtLeast(0)
+                            Text("$left ${if (left == 1) "day" else "days"} left", style = Type.hint.copy(color = c.muted))
+                        }
+                        IconKey(Icons.Restore, "Put back", {
+                            quiet.library.put(book.with({ put("deletedAt", org.json.JSONObject.NULL) }))
+                            state.toast("“${book.title}” is back in your library.")
+                        })
+                        Spacer(Modifier.width(8.dp))
+                        IconKey(Icons.Trash, "Delete for good", { quiet.library.deleteForever(listOf(book.id)) }, kind = KeyKind.Danger)
+                    }
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+            TextKey("Empty Recently deleted…", { confirmEmpty = true }, kind = KeyKind.Danger)
+        }
+    }
+    if (confirmEmpty) ConfirmDialog(
+        title = "Delete these books for good?",
+        text = "${trash.size} ${if (trash.size == 1) "book" else "books"} will be deleted from this phone. This can’t be undone.",
+        confirm = "Delete for good",
+        onDismiss = { confirmEmpty = false },
+    ) {
+        confirmEmpty = false
+        quiet.library.deleteForever(trash.map { it.id })
+    }
 }
