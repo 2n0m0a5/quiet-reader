@@ -1,5 +1,14 @@
 # Quiet 0.5.0 L6 — stats (native test build)
 
+## 0.5.0 L6.1 (your fixes)
+- **Text no longer has Theme:** the Day/Night key is on the bar (System and Black are in More → Theme).
+- **One bookmark key:** the one at the top right hides while Bookmark is on the bottom bar.
+- **Recently deleted: hold a book to select several**, tap more, then **Put back** or **Delete
+  for good** (asks first). **All** selects every book there.
+- **Notes tab works the same way:** hold a note to select it (tap opens the book there); then
+  **Edit** (one), **Copy**, or **Delete** with Undo. One gesture means one thing everywhere:
+  tap opens, hold selects.
+
 Layer 6 (`docs/plan-native.md`). Installs over L5.3, next to 0.4.2.
 
 ## What's new

@@ -266,9 +266,15 @@ fun BookNotesSheet(state: ReaderState, book: Book, onClose: () -> Unit) {
 /** One note in a list: its colour, text, your note, where it is. */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun NoteRow(n: Note, bookTitle: String?, onLongClick: (() -> Unit)? = null, onClick: () -> Unit) {
+fun NoteRow(n: Note, bookTitle: String?, onLongClick: (() -> Unit)? = null, selected: Boolean? = null, onClick: () -> Unit) {
     val c = LocalColors.current
-    Row(Modifier.fillMaxWidth().combinedClickable(onLongClick = onLongClick, onClick = onClick).padding(vertical = 12.dp)) {
+    Row(Modifier.fillMaxWidth().combinedClickable(onLongClick = onLongClick, onClick = onClick)
+        .background(if (selected == true) c.accentSoft else Color.Transparent).padding(vertical = 12.dp)) {
+        if (selected != null) {
+            Box(Modifier.size(22.dp).background(if (selected) c.accent else c.panel, RoundedCornerShape(11.dp)).border(1.5.dp, if (selected) c.accent else c.keyEdge, RoundedCornerShape(11.dp)),
+                contentAlignment = Alignment.Center) { if (selected) Icon(Icons.Check, null, Modifier.size(13.dp), tint = c.onAccent) }
+            Spacer(Modifier.width(10.dp))
+        }
         if (n.isBookmark) Icon(Icons.BookmarkFilled, null, Modifier.size(16.dp), tint = c.accent)
         else Box(Modifier.width(3.dp).height(40.dp).background(if (n.style == "plain") c.keyEdge else hex(n.color)))
         Spacer(Modifier.width(12.dp))

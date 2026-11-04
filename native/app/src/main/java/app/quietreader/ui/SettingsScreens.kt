@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -445,56 +446,88 @@ private fun FilesPage(state: AppState) {
 }
 
 /** Recently deleted: books wait here for 30 days. */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun TrashPage(state: AppState) {
     val quiet = app.quietreader.LocalQuiet.current
     val c = LocalColors.current
+    val haptics = LocalHaptics.current
     val books by quiet.library.books.collectAsState()
     val trash = books.filter { it.deletedAt != null }.sortedByDescending { it.deletedAt }
-    var confirmEmpty by remember { mutableStateOf(false) }
-    var forGood by remember { mutableStateOf<app.quietreader.data.Book?>(null) }
-    forGood?.let { b ->
-        ConfirmDialog("Delete “${b.title}” for good?", "The book file and its place are deleted from this phone. This can’t be undone.", "Delete for good", { forGood = null }) {
-            quiet.library.deleteForever(listOf(b.id)); forGood = null
-        }
+    // Select several: hold a book (as in the library), tap more; then put back or delete for good.
+    var selected by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var selecting by remember { mutableStateOf(false) }
+    var forGood by remember { mutableStateOf<List<app.quietreader.data.Book>>(emptyList()) }
+    fun toggle(id: String) { selected = if (id in selected) selected - id else selected + id }
+    fun putBack(list: List<app.quietreader.data.Book>) {
+        quiet.library.putAll(list.map { it.with({ put("deletedAt", org.json.JSONObject.NULL) }) })
+        state.toast(if (list.size == 1) "“${list[0].title}” is back in your library." else "${list.size} books are back in your library.")
     }
-    Page {
-        PageHeader("Recently deleted", state, back = SettingsPage.Files)
-        if (trash.isEmpty()) {
-            Text("Nothing here. Books you remove wait here for 30 days, then they’re deleted for good.", style = Type.body.copy(color = c.muted))
-        } else {
-            Card {
-                trash.forEachIndexed { i, book ->
-                    if (i > 0) Divider()
-                    Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Cover(book, Modifier.width(40.dp))
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(book.title, style = Type.rowTitle.copy(color = c.text), maxLines = 2)
-                            val left = (app.quietreader.data.Safety.TRASH_DAYS - daysSince(book.deletedAt ?: 0)).coerceAtLeast(0)
-                            Text("$left ${if (left == 1) "day" else "days"} left", style = Type.hint.copy(color = c.muted))
+    androidx.activity.compose.BackHandler(enabled = selecting) { selecting = false; selected = emptySet() }
+    if (forGood.isNotEmpty()) ConfirmDialog(
+        if (forGood.size == 1) "Delete “${forGood[0].title}” for good?" else "Delete ${forGood.size} books for good?",
+        "The book files and their places are deleted from this phone. This can’t be undone.", "Delete for good", { forGood = emptyList() },
+    ) {
+        quiet.library.deleteForever(forGood.map { it.id }); forGood = emptyList(); selected = emptySet(); selecting = false
+    }
+    Box(Modifier.fillMaxSize()) {
+        Page {
+            PageHeader("Recently deleted", state, back = SettingsPage.Files)
+            if (trash.isEmpty()) {
+                Text("Nothing here. Books you remove wait here for 30 days, then they’re deleted for good.", style = Type.body.copy(color = c.muted))
+            } else {
+                Text(if (selecting) "Tap books to add or take them out." else "Hold a book to select several.", style = Type.hint.copy(color = c.muted))
+                Spacer(Modifier.height(10.dp))
+                Card {
+                    trash.forEachIndexed { i, book ->
+                        if (i > 0) Divider()
+                        val on = book.id in selected
+                        Row(
+                            Modifier.fillMaxWidth().combinedClickable(
+                                onClick = { if (selecting) { haptics?.tick(); toggle(book.id) } },
+                                onLongClick = { haptics?.confirm(); if (!selecting) { selecting = true; selected = setOf(book.id) } else toggle(book.id) },
+                            ).background(if (on) c.accentSoft else androidx.compose.ui.graphics.Color.Transparent).padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            if (selecting) {
+                                Box(Modifier.size(22.dp).background(if (on) c.accent else c.panel, RoundedCornerShape(11.dp)).border(1.5.dp, if (on) c.accent else c.keyEdge, RoundedCornerShape(11.dp)),
+                                    contentAlignment = Alignment.Center) { if (on) Icon(Icons.Check, null, Modifier.size(13.dp), tint = c.onAccent) }
+                                Spacer(Modifier.width(10.dp))
+                            }
+                            Cover(book, Modifier.width(40.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(book.title, style = Type.rowTitle.copy(color = c.text), maxLines = 2)
+                                val left = (app.quietreader.data.Safety.TRASH_DAYS - daysSince(book.deletedAt ?: 0)).coerceAtLeast(0)
+                                Text("$left ${if (left == 1) "day" else "days"} left", style = Type.hint.copy(color = c.muted))
+                            }
+                            if (!selecting) {
+                                IconKey(Icons.Restore, "Put back", { putBack(listOf(book)) })
+                                Spacer(Modifier.width(8.dp))
+                                IconKey(Icons.Trash, "Delete for good", { forGood = listOf(book) }, kind = KeyKind.Danger)
+                            }
                         }
-                        IconKey(Icons.Restore, "Put back", {
-                            quiet.library.put(book.with({ put("deletedAt", org.json.JSONObject.NULL) }))
-                            state.toast("“${book.title}” is back in your library.")
-                        })
-                        Spacer(Modifier.width(8.dp))
-                        IconKey(Icons.Trash, "Delete for good", { forGood = book }, kind = KeyKind.Danger)
                     }
                 }
+                Spacer(Modifier.height(14.dp))
+                if (!selecting) TextKey("Empty Recently deleted…", { forGood = trash }, kind = KeyKind.Danger)
+                if (selecting) Spacer(Modifier.height(120.dp))
             }
-            Spacer(Modifier.height(14.dp))
-            TextKey("Empty Recently deleted…", { confirmEmpty = true }, kind = KeyKind.Danger)
         }
-    }
-    if (confirmEmpty) ConfirmDialog(
-        title = "Delete these books for good?",
-        text = "${trash.size} ${if (trash.size == 1) "book" else "books"} will be deleted from this phone. This can’t be undone.",
-        confirm = "Delete for good",
-        onDismiss = { confirmEmpty = false },
-    ) {
-        confirmEmpty = false
-        quiet.library.deleteForever(trash.map { it.id })
+        if (selecting) Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(c.panelDeep).hairline(c.line, top = true).padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("${selected.size} selected", style = Type.rowTitle.copy(color = c.text), modifier = Modifier.weight(1f))
+                TextKey("All", { selected = trash.map { it.id }.toSet() })
+                Spacer(Modifier.width(6.dp))
+                TextKey("Done", { selecting = false; selected = emptySet() }, kind = KeyKind.Primary)
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val chosen = trash.filter { it.id in selected }
+                TextKey("Put back", { putBack(chosen); selected = emptySet(); selecting = false }, Modifier.weight(1f), enabled = chosen.isNotEmpty())
+                TextKey("Delete for good…", { forGood = chosen }, Modifier.weight(1f), kind = KeyKind.Danger, enabled = chosen.isNotEmpty())
+            }
+        }
     }
 }
 

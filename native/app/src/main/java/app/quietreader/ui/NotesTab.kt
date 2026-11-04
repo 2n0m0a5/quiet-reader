@@ -38,7 +38,7 @@ import app.quietreader.reader.hex
 
 /**
  * Notes: every highlight, note, quote and bookmark from every book, newest first. Filter, search,
- * tap to open the book there, hold for the note's options (edit, picture, copy, delete).
+ * tap to open the book there; hold to select (then edit one, copy or delete them, with Undo).
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -52,6 +52,12 @@ fun NotesTab(state: AppState) {
     var filter by remember { mutableStateOf("all") }
     var query by remember { mutableStateOf("") }
     var editing by remember { mutableStateOf<Note?>(null) }
+    // Select several (hold a note, as with books): edit one, copy or delete them.
+    var selected by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var selecting by remember { mutableStateOf(false) }
+    fun toggle(id: String) { selected = if (id in selected) selected - id else selected + id }
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    androidx.activity.compose.BackHandler(enabled = selecting) { selecting = false; selected = emptySet() }
     val byId = books.associateBy { it.id }
 
     if (all.isEmpty()) {
@@ -70,7 +76,8 @@ fun NotesTab(state: AppState) {
         query.isBlank() || listOf(n.text, n.note, n.speaker, n.label, byId[n.bookId]?.title.orEmpty(), n.tags.joinToString(" "))
             .any { it.contains(query.trim(), ignoreCase = true) }
     }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 24.dp)) {
+    Box(Modifier.fillMaxSize()) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = if (selecting) 130.dp else 24.dp)) {
         item {
             fun n(count: Int, one: String) = "$count ${if (count == 1) one else one + "s"}"
             Text("${n(all.count { !it.isBookmark && !it.quote }, "highlight")} · ${n(all.count { it.quote }, "quote")} · ${n(all.count { it.isBookmark }, "bookmark")}",
@@ -85,12 +92,46 @@ fun NotesTab(state: AppState) {
         items(shown, key = { it.id }) { n ->
             val book = byId[n.bookId]
             app.quietreader.reader.NoteRow(n, book?.title ?: "A book no longer in your library",
-                onLongClick = { haptics?.confirm(); if (!n.isBookmark) editing = n else { quiet.notes.delete(n.id); state.undoable("Bookmark removed.") { quiet.notes.put(n) } } },
+                onLongClick = { haptics?.confirm(); if (!selecting) { selecting = true; selected = setOf(n.id) } else toggle(n.id) },
+                selected = if (selecting) n.id in selected else null,
             ) {
-                if (book != null && book.deletedAt == null) { haptics?.tick(); state.open(book.id, n) } else state.toast("That book isn’t in your library.")
+                when {
+                    selecting -> { haptics?.tick(); toggle(n.id) }
+                    book != null && book.deletedAt == null -> { haptics?.tick(); state.open(book.id, n) }
+                    else -> state.toast("That book isn’t in your library.")
+                }
             }
             Divider()
         }
+    }
+    if (selecting) Column(Modifier.align(androidx.compose.ui.Alignment.BottomCenter).fillMaxWidth().background(c.panelDeep).hairline(c.line, top = true).padding(12.dp)) {
+        val chosen = all.filter { it.id in selected }
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("${selected.size} selected", style = Type.rowTitle.copy(color = c.text))
+                Text("Tap notes to add or take them out", style = Type.hint.copy(color = c.muted))
+            }
+            TextKey("All", { selected = shown.map { it.id }.toSet() })
+            Spacer(Modifier.width(6.dp))
+            TextKey("Done", { selecting = false; selected = emptySet() }, kind = KeyKind.Primary)
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            TextKey("Edit", { editing = chosen.firstOrNull { !it.isBookmark }; selecting = false; selected = emptySet() }, Modifier.weight(1f),
+                enabled = chosen.size == 1 && !chosen[0].isBookmark)
+            TextKey("Copy", {
+                clipboard.setText(androidx.compose.ui.text.AnnotatedString(chosen.joinToString("\n\n") { n ->
+                    (if (n.isBookmark) n.label else "“${n.text}”") + (if (n.note.isNotBlank()) "\n${n.note}" else "") + " — ${byId[n.bookId]?.title.orEmpty()}"
+                }))
+                state.toast("Copied ${chosen.size}.")
+            }, Modifier.weight(1f), enabled = chosen.isNotEmpty())
+            TextKey("Delete", {
+                chosen.forEach { quiet.notes.delete(it.id) }
+                selecting = false; selected = emptySet()
+                state.undoable("${chosen.size} deleted.") { chosen.forEach { quiet.notes.put(it) } }
+            }, Modifier.weight(1f), kind = KeyKind.Danger, enabled = chosen.isNotEmpty())
+        }
+    }
     }
     editing?.let { n -> NoteEditor(n, byId[n.bookId], onDeleted = { gone -> state.undoable("Note deleted.") { quiet.notes.put(gone) } }) { editing = null } }
 }

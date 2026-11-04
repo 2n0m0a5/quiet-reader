@@ -259,6 +259,8 @@ private fun ReaderBars(
                     Text(state.chapter.ifBlank { book.title }, style = Type.rowTitle.copy(color = c.text), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     if (state.chapter.isNotBlank()) Text(book.title, style = Type.hint.copy(color = c.muted), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
+                // The bookmark key, unless it's on the bottom bar already (one place for one thing).
+                if (ReaderKey.Bookmark !in LocalQuiet.current.settings.readerKeys) {
                 Spacer(Modifier.width(8.dp))
                 app.quietreader.ui.Key({ state.toggleBookmark() }, padding = androidx.compose.foundation.layout.PaddingValues(0.dp),
                     contentDescription = if (state.bookmarkHere) "Remove bookmark" else "Bookmark this page") {
@@ -266,6 +268,7 @@ private fun ReaderBars(
                         Icon(if (state.bookmarkHere) Icons.BookmarkFilled else Icons.Bookmark, null, Modifier.size(18.dp),
                             tint = if (state.bookmarkHere) c.accent else c.text)
                     }
+                }
                 }
             }
         }
@@ -374,10 +377,7 @@ private fun TextSheet(pdf: Boolean, onClose: () -> Unit) {
                 else "Curl bends the page like paper under your finger.",
                 style = Type.hint.copy(color = c.muted),
             )
-            Spacer(Modifier.height(16.dp))
-            Text("Theme", style = Type.label.copy(color = c.text))
-            Spacer(Modifier.height(8.dp))
-            ChoiceRow(ThemeMode.entries.map { it to it.label }, settings.theme, { settings.theme = it })
+
         }
     }
 }
