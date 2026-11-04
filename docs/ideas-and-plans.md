@@ -68,6 +68,42 @@ It's gathered from every "remember this" and every topic the owner was keen on, 
 - The owner wants **research-backed** choices: they asked for academic papers on design, colour, animation and why Apple succeeds (see `docs/research-0.3.3.md` and `docs/research-0.3.4.md`).
 - **The owner sets clear milestones** so requests don't become endless work. For example, 0.3.3 was exactly 5 stats, the animations and 1 style.
 
+## Design rounds of 3–4 November 2026 (how Radio was chosen)
+- The owner rejected all four styles ("I don't like any of them") and asked for one new design, a new icon, and research on design and colour psychology.
+- **Round 1** (Grey e-ink, Moss, Cover-coloured): rejected. "All look AI generated; logos generic." But they liked the controls at the bottom of the reader: the thumb zone, as most readers have (Hoober 2013: 49% of touch use is one-handed).
+- They asked to start from the name "quiet" and to look outside reading apps (other industries).
+- **Round 2:**
+  - Rest (music: the whole-rest sign)
+  - Dial (1960s Braun hi-fi: a knob turned all the way down; colour only for function)
+  - Do not disturb (hotel door hanger)
+- **The owner chose Dial**, then "more like a radio": tuning-scale progress, band-selector tabs, keys, a VU-style needle meter, speaker-grille texture.
+- Everything is on the canvas: https://claude.ai/artifact/63xpVE679aXM9svyeBvaGk (pages Radio, Round 2, Round 1).
+- **Research used:**
+  - Valdez & Mehrabian 1994 and Wilms & Oberfeld 2018: saturation and brightness drive emotion.
+  - Elliot & Maier 2014: colour meaning depends on context.
+  - Piepenbrock et al. 2013: dark text on a light page is read better.
+  - Chang et al. 2015: evening screen light disturbs sleep, hence warm night colours.
+  - Wallace et al. 2022: one font doesn't fit all.
+  - McDougall et al. 1999: simple, familiar icons are recognised fastest.
+  - Reber et al. 2004: processing fluency.
+  - Braun's functional colour coding.
+- Owner's instructions on structure (0.4.0):
+  - Settings as separate "rooms": interface, reader, library, files…
+  - About with all the data, new features and a tutorial (tooltips).
+  - Stats only in its tab.
+  - Reader controls: day/night, chapters, brightness, font size, search, visual options, customize the bar.
+  - More book info.
+
+## No AI ("no AI washing")
+- The owner doesn't want AI features in the reader (like greenwashing: "AI washing"). About says "No AI features". AI voiceover (idea A) is on hold.
+
+## Testing iPhone builds without an iPhone (4 November)
+- Appetize.io (the owner has an account; free plan, 30 minutes a month) runs the **simulator** build (`Quiet-iOS-simulator.zip`, from the iOS workflow). A device `.ipa` can't run in a simulator.
+- Real iPhone: Sideloadly or AltStore with a free Apple ID (7-day renewals).
+- Cloud real devices (BrowserStack App Live, LambdaTest, Sauce Labs) have trials; an unsigned .ipa may need signing first.
+- There's no iOS emulator on Windows.
+- The iPhone app adds three sample books on first start for this.
+
 ## Apps the owner wanted to look at for ideas (research of 25 October)
 - **Top 6 to install first on the Redmi:** Readest (same engine as Quiet), Moon+ Reader, ReadEra, KOReader, WEBTOON and Mihon, and Google Play Books.
 - **Others with ideas worth borrowing:**
@@ -94,6 +130,8 @@ It's gathered from every "remember this" and every topic the owner was keen on, 
 - **Devices:** a Windows PC and a **Redmi Note 13 Pro**. The owner installs APKs by sending them to themselves on Telegram (no USB debugging or Android Studio).
 
 ## How the owner likes to work
+- (4 November) Uses Claude with 5-hour usage limits: when low, save progress to the docs and stop cleanly. "No handoffs, you continue" means keep working. "Double quick" means do it fast with minimal ceremony. Use only the skills that are needed.
+- About credits line, by the owner's choice: "made by extrasolarions on howling dark".
 - **Plain, short explanations** (the owner is a frontend developer, not a software engineer). Step-by-step guidance where needed.
 - **"Just remember, do nothing" means exactly that:** only acknowledge, and keep the note.
 - **Picks features by number** from the 1–70 list, and sets milestones per version.

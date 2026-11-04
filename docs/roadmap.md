@@ -7,7 +7,7 @@ Status: ✅ done (with the version) · ⏭ next · 🕒 placed in a later versio
 ## A. Library and organizing
 1. ✅ 0.4.0 **Library backup and restore** (M): everything in one file (books, positions, notes, quotes, stats, fonts, settings), to import on another phone or the Play version. Needed before the switch to Google Play, which requires uninstalling the test app and so deletes the library. **Next, in 3.x.**
 2. ✅ 0.3.1, done differently: **book folders**. Instead of scanning the whole phone, you choose one or more folders and Quiet adds every book in them. The app checks the folders on start and when you come back after 10 minutes. The app explains that you should prepare a folder full of books first.
-3. ✅ 0.3.4 **Series**: a Series shelf of covers, each series in order with a "next book" button, and Group by series.
+3. ✅ 0.3.4 **Series**: a Series shelf of covers, each series in order with a "next book" button, and Group by series. (Open: series aren't read from the book's own metadata yet; they come from Edit.)
 4. ✅ 0.3.0 **Tags**
 5. ✅ 0.3.0 **Change a book's cover**
 6. ✅ 0.3.0 **Edit more details** (series, description, language)
@@ -26,7 +26,7 @@ Status: ✅ done (with the version) · ⏭ next · 🕒 placed in a later versio
 17. ○ **Read aloud (text-to-speech)** (L): uses the phone's own voices, so it's free and offline. It would highlight the sentence being read and have a sleep timer. (Not the same as A below.)
 18. ○ **Auto-scroll** (M)
 19. ○ **Two pages side by side** on tablets and in landscape (S)
-20. ✅ **Page-turn animation**: slide in 0.3.3, curl in 0.3.4 (Reading settings → Page turn: Slide, Curl or None).
+20. ✅ **Page-turn animation**: slide in 0.3.3, curl in 0.3.4; rebuilt like paper in 0.4.0 (page mode only; choosing Curl switches to pages); **follows the finger in 0.4.2** (corner under the fingertip, turns past ~40% or on a flick, otherwise settles back).
 21. ✅ 0.3.0 **More themes**: Black, Custom and System. The owner asked to replace "auto night / night theme" with a System theme.
 22. ✅ 0.3.4 **Custom fonts** (TTF, OTF, WOFF, WOFF2; Settings → Your fonts)
 23. ✅ 0.3.0 **Typography**: weight, paragraph spacing, indent, hyphenation. Whole words are now the default.
@@ -53,7 +53,7 @@ Status: ✅ done (with the version) · ⏭ next · 🕒 placed in a later versio
 - ✅ Owner's additions: **Quotes** kept separate from highlights (0.3.0), and **quote owners**: who says it, a character or the narrator, credited to the book's author (0.3.1).
 
 ## D. Reading stats and goals
-42. ✅ 0.3.0 **Reading statistics**. ✅ 0.3.3 added five more:
+42. ✅ 0.3.0 **Reading statistics** (the tab is called **Stats** since 0.4.0; Radio look with a needle meter, week lights and readouts in 0.4.1). ✅ 0.3.3 added five more:
     - the reading-year calendar
     - when you read
     - your pace
@@ -78,7 +78,7 @@ Status: ✅ done (with the version) · ⏭ next · 🕒 placed in a later versio
 53. ○ **Sync through your own Google Drive or WebDAV**, with no Quiet server (L)
 54. ○ **Quiet accounts with cloud sync** (L, needs a server and money)
 55. 🕒 v4 **Android home-screen widget**: "Continue reading" with the cover and progress
-56. 🕒 later **iOS app**. Notes from this session:
+56. ✅ iOS 1.0 (build 1), 4 Nov 2026: Capacitor iOS, built unsigned on GitHub's macOS machines (`.github/workflows/ios.yml`), plus a simulator zip for Appetize.io. Book folders, volume keys and rotation lock are Android-only. Next: real-iPhone feedback; App Store/TestFlight needs $99/year. Earlier notes:
     - **Building:** Capacitor iOS turns the same web code into an `.ipa`. It needs a Mac, or a cloud Mac such as GitHub Actions macOS.
     - **Native parts to port:** vibration, keep-awake, book folders, "Open with Quiet", and sharing pictures. Volume-key page turns probably can't work on iOS.
     - **Installing:** the App Store and TestFlight need Apple's $99 a year. A free Apple ID gives 7-day installs. AltStore or Sideloadly on Windows renews them automatically, for free long-term testing with up to 3 apps.
@@ -126,8 +126,13 @@ Status: ✅ done (with the version) · ⏭ next · 🕒 placed in a later versio
   - 0.3.4: zoom open/close from covers, interactive swipe back, icon effects, gliding lists, long press, rolling numbers, page curl.
   - The research is in `docs/research-0.3.3.md` and `docs/research-0.3.4.md`.
 
+## Shipped in 0.4.x (3–4 November 2026)
+- 0.4.0: safety copy and automatic recovery (the lost-library bug), readable book colours (the invisible chapter), Motion setting, clicks during screen changes, mouse wheel in dialogs, messages above dialogs, Sepia removed, backup/restore (1), Report a problem (66), the Radio design and knob icon, the reader bar (customizable keys), fuller book info, Settings in sections, About, the tour.
+- 0.4.1: Stats in the Radio look. 0.4.2: the curl follows the finger.
+
 ## Open questions for the owner
-- Should the colour dots in the selection menu keep the last-used style, or always be a plain highlight?
+- Should the colour dots in the selection menu keep the last-used colour, or always be a plain highlight?
+- Read series from the book's own metadata (EPUB calibre:series / belongs-to-collection)?
 - Licence for the public showcase repos? (My suggestion: none.)
 
 ## Not realistic
@@ -135,12 +140,7 @@ Status: ✅ done (with the version) · ⏭ next · 🕒 placed in a later versio
 - Kindle-style X-Ray, unless much later with AI.
 
 ## Owner's to-dos (not features)
-- Publish GitHub Releases for v0.1.0 to v0.3.4, each with its APK and `docs/release-notes-*.md`. I can't create releases.
+- Publish GitHub Releases for v0.1.0 to v0.4.2 (each with its APK and `docs/release-notes-*.md`), and iOS `ios-v1.0` with the .ipa and `docs/release-notes-ios-1.0.md`. I can't create releases.
 - Enable GitHub Pages (Source: GitHub Actions) in the showcase repos `quiet-reader-version-2` to `-5`, then ask me to re-run their deploys.
 - Promotion: post the building process (coding, design decisions, before/after, new features) on TikTok, YouTube and Instagram. Send the video footage and I'll edit it.
-- Check on the phone:
-  - the 0.3.3–0.3.4 gestures and motion
-  - a real compressed CBR
-  - sharing and saving a quote picture
-  - Frosty Glass smoothness
-  - vibration, pinch zoom, translation on mobile data, and book folders
+- Check on the phone: the lists under "Check on your phone" in `docs/release-notes-0.4.0.md`, `-0.4.1.md`, `-0.4.2.md` and `-ios-1.0.md`.

@@ -1,159 +1,254 @@
-# Quiet — handoff
+# Quiet — handoff (updated 4 November 2026)
 
-## 1. Goal
-Quiet is a calm, private e-book reader (EPUB, PDF, MOBI, FB2, Word, comics and more). It's a Vite + TypeScript web app, wrapped as an Android app with Capacitor. The owner (a frontend developer, not a software engineer, on Windows with a Redmi Note 13 Pro) wants it to feel Apple-like: fluid springy motion, physical gestures, several distinct design styles. It's headed for Google Play later.
+Read this first, then `docs/roadmap.md` (every feature and its status) and `docs/ideas-and-plans.md`
+(everything else the owner asked to remember). Run `bash scripts/setup-session.sh` before working.
+
+## 1. What Quiet is
+A calm, private e-book reader: EPUB, PDF, MOBI/AZW3, FB2, Word, ODT, RTF, Markdown, TXT, HTML,
+Palm, and comics (CBZ, CBR, CB7, CBT). A Vite + TypeScript web app, wrapped with Capacitor as an
+**Android app** and (since 4 Nov) an **iPhone app**. The owner is a frontend developer (not a
+software engineer) on Windows with a Redmi Note 13 Pro. They want it Apple-like: fluid motion,
+physical gestures, research-backed design that doesn't look AI-made. Headed for Google Play (and
+maybe the App Store) later. Core message: "a reader should be very simple. Period." **No AI features**.
 
 ## 2. Current status
-- **Working on 0.4.0** (one release: fixes + Radio redesign + new structure). Plan and progress:
-  `docs/plan-0.4.0.md` (read its "Progress" section first). F1–F9 are done and pushed; next is
-  backup and restore, then the redesign. Design canvas (page "Radio"): https://claude.ai/artifact/63xpVE679aXM9svyeBvaGk
-- New in the code since 0.3.4 (all under test in `tests/`):
-  - `src/library/safety.ts`: safety copy of the library in Android private storage + automatic
-    recovery (native `safetyWrite/Commit/Info/List/Delete`; OPFS stand-in for tests via
-    localStorage `quiet:test-safety`). Must start only after `recoverLibrary()` (main.ts does this).
-  - `src/reader/legibility.ts`: book text too faint for the page gets the theme colour.
-  - Motion setting (`settings.motion`, `<html data-motion>`; `reducedMotion` in motion.ts is now an
-    object with `.matches`). Curl needs page mode (choosing it switches). Sepia removed.
-  - Clicks during a View Transition skip it and are replayed (`trackTransition` in motion.ts).
-  - Toasts are popovers (top layer), so they show above dialogs.
-  - New curl: `curlFrames` in reader.ts + `.curl-flap/.curl-shade` in motion.css.
-- **The full feature list (1–70, plus the owner's ideas A and B), with each item's status, is in `docs/roadmap.md`.** Everything else the owner asked to remember is in `docs/ideas-and-plans.md`: the video promotion plan and content strategy, the showcase repos, design inspirations, the apps to study, store and money facts, and how they like to work. **Read both before planning anything.**
-- **Done and pushed:** every version up to **0.3.4** (commit `5d93a1b` on `main`).
-  - After 0.3.4, on 3 November: the session tools went into the repo. That's `tests/` (suites, sample-book generator, runner), `scripts/setup-session.sh` and `scripts/build-apk.sh`. All 3 suites pass, and a fresh APK build matches the owner's 0.3.4 APK (same size, versionCode 340, signer `305b375e`).
-  - 0.3.0: v3 phases 1–7.
-  - 0.3.1: book folders and quote owners.
-  - 0.3.2: Quiet Star and Paper styles, tab bar.
-  - 0.3.3: five stats, iOS scroll physics, chapter pull, Old Tashkent style, per-style motion.
-  - 0.3.4: new formats, custom fonts, series, quote pictures, page curl, motion everywhere, Frosty Glass style.
-- **Not verified on a real phone:**
-  - 0.3.3–0.3.4 gestures: swipe back, curl on swipe, long-press, sheet drags, chapter pull.
-  - A real compressed CBR (only a hand-made stored RAR was tested).
-  - Android share/save of quote pictures (`shareImage` and `saveImage` in Java).
-  - Frosty Glass blur performance.
-  - Vibration, pinch zoom, translation on mobile data, book folders.
-- **Not started (next update, 3.x):** 1 library backup/restore; 66 "Report a problem" button.
-- **Still promised in the app (Settings → Style):** more styles, and "Build your own style · Coming soon".
-- **Owner's to-dos:**
-  - Publish GitHub Releases v0.1.0 to v0.3.4, each with its APK and `docs/release-notes-*.md`. I can't create releases.
-  - Enable GitHub Pages (Source: GitHub Actions) in the `quiet-reader-version-2` to `-5` showcase repos.
-  - Send the promo video footage.
+- **Android 0.4.2 (versionCode 420)** and **iPhone 1.0 (build 1)**, all committed and pushed to
+  `main` (last commit `cb20689`). The working tree is clean.
+- **Sent to the owner:** `Quiet-0.4.0.apk`, `Quiet-0.4.1.apk`, `Quiet-0.4.2.apk`,
+  `Quiet-iOS-1.0-1.ipa`, and `Quiet-iOS-simulator.zip` (for Appetize.io), the last two with the
+  sample books.
+- **The owner said:** "quite satisfied" with the 0.4.2 curl. No phone results reported yet for
+  0.4.x or iOS 1.0. Ask for them (the lists are in `docs/release-notes-0.4.0.md`, `-0.4.1.md`,
+  `-0.4.2.md`, `-ios-1.0.md`, section "Check on your phone").
+- **All 13 test suites pass** (`node tests/run-all.cjs`).
+
+### What each version did (this session, 3–4 November)
+- **0.4.0** (`169c804`), one release, as the owner asked (no 0.3.5):
+  - **Fixes F1–F9** (details in `docs/plan-0.4.0.md`):
+    - F1/F2: the library vanished on the phone (the WebView lost IndexedDB while localStorage
+      survived). Now a **safety copy** in Android private storage plus automatic recovery
+      (`src/library/safety.ts`). Book folders rescan everything when the library is empty.
+    - F3: "invisible chapter" (book text coloured black on Night or white on Day, or a page faded
+      by the book's CSS). Fixed by `src/reader/legibility.ts` and book-css.ts rules; the chapter
+      pull also recovers after 4 s.
+    - F4: animations missing on the phone. Curl only works in page mode (the default is scroll);
+      choosing Curl now switches to pages. A **Motion** setting (Follow phone/Full/Reduced) whose
+      hint says when the phone asks for less motion.
+    - F5: a curl like paper. F6: clicks during View Transitions were lost (now the transition is
+      skipped and the tap replayed). F7: mouse wheel in dialogs on desktop. F8: toasts hidden
+      behind dialogs (now popovers in the top layer). F9: Sepia removed.
+  - **Library backup and restore** (#1): `.quietbackup` zip (`src/library/backup.ts`, `zip.ts`).
+  - **Radio design** (the only design now), knob icon, Archivo/DM Mono/Crimson Pro fonts.
+  - **Reader bar** at the bottom (`src/reader-keys.ts`): chapter tuning scale plus Contents ·
+    Day/Night · Light · Text · More, customizable (settings.readerKeys).
+  - **Book info** (`src/library/book-facts.ts`): words, pages, reading time at your pace,
+    chapters, ISBN, file details, your reading.
+  - **Settings in sections**, **About**, **Report a problem** (#66, `src/app/report.ts`), and
+    **the tour** (`src/app/tour.ts`), which replaced the welcome.
+  - Stats only from its tab (strip and menu item removed). The "Reading" tab was renamed **Stats**.
+- **0.4.1** (`eb20ea9`): Stats in the Radio look. Needle meter for today vs the daily goal, the
+  week as level lights, three readouts (streak, words/min, books this year), details behind one key.
+- **0.4.2** (`641250b`): **the curl follows the finger.** The corner stays under the fingertip,
+  the fold halfway to the edge. Letting go past about 40% (q > 0.2), or with a flick, turns the
+  page; otherwise it settles back (the page underneath is turned back before the real page shows).
+- **iOS 1.0 (1)** (`abe553a`, `e86c50c`, `cb20689`): Capacitor iOS with Swift Package Manager.
+  Swift plugin for vibration, keep-awake, battery, safety copy, quote share/save (Photos), and
+  backup saved via iOS's "Save to Files". Book folders, volume keys and rotation lock are
+  Android-only and hidden on iPhone. Three sample books are added on the first start (iPhone only).
+  Built on GitHub's macOS machines: unsigned .ipa plus a simulator zip for Appetize.
+
+### Not verified on a real device (ask the owner)
+- Everything since 0.4.0 on the Redmi: install over 0.3.4 keeps the library; backup/restore; reader
+  bar; curl (tap and finger drag), EPUB and PDF, Day and Night; the Motion hint; book info; tour;
+  Report a problem → Telegram; the knob icon.
+- iOS 1.0: nothing has run on an iPhone or on Appetize yet. Check safe areas (notch, home bar),
+  the curl, Save to Files, Photos permission, and sample books.
+- From before: a real compressed CBR, vibration, pinch zoom, translation on mobile data.
+- **F6 (desktop reading-settings button)** couldn't be reproduced in Chrome. The likely cause
+  (clicks lost during the opening animation) is fixed. If it still fails, ask which browser.
+- **F1 root cause** is a well-supported guess (WebView reset IndexedDB, likely after a crash), not
+  proven. The safety copy handles it either way.
 
 ## 3. Key decisions (don't re-argue)
-- **Four styles:** `star` (default), `paper`, `tashkent`, `frost`, set as `<html data-style>`.
-  - Lamplight was rejected as "just Star with other colours". Saved `lamp` falls back to `star` (`DESIGN_STYLES` in `src/settings.ts`).
-  - Each style must differ in kind, and each has its own signature motion:
-    - **Star** turns its khatam star.
-    - **Paper** is ink: the underline redraws, ink fades, nothing bounces.
-    - **Tashkent** works through arches: arch zoom, arch sheets, niche rise, rosette, tassel.
-    - **Frost** follows Liquid Glass: it materialises, lights up under the press, has a liquid lens, and glass only on the floating layer.
-- **Motion** uses Apple's spring model (duration and bounce compiled to CSS `linear()` in `src/ui/motion.ts`), bounce 0 by default.
-  - Rubber-band overscroll uses the UIScrollView formula.
-  - The chapter turns only on release, past 88 px.
-  - Screens change through View Transitions: zoom from the cover into the book and back. Paper uses its fade.
-- **Privacy:** nothing leaves the device except translation (Google, falling back to MyMemory). Report-a-problem will be a user-sent email/Telegram log with no servers.
-- **App store build:** stay on Capacitor for now (fully native is only an idea).
-  - **iOS (item 56), noted only:** Capacitor iOS → `.ipa`, needing a Mac or GitHub Actions macOS.
-  - **Free iPhone testing:** AltStore or Sideloadly (free Apple ID, auto-refreshed every 7 days), or Appetize.io with a simulator build. The simplest is Safari → Add to Home Screen.
-  - No usable Android emulator exists on iOS, or iOS emulator on Windows.
-- **Not answered yet:** should the selection-menu colour dots use the last-used style? And the licence for the showcase repos (my suggestion: none).
+- **One design: Radio** (after the Dial direction, then "more like a radio").
+  - The owner rejected all four old styles (Star, Paper, Old Tashkent, Frosty Glass) and
+    design round 1 (Grey, Moss, Cover: "look AI generated, logos generic").
+  - In round 2 (Rest from music, Dial from hi-fi, Do not disturb from hotels) they chose **Dial**,
+    then asked to lean into "radio".
+  - Design canvas with every round: https://claude.ai/artifact/63xpVE679aXM9svyeBvaGk (pages
+    "Radio", "Round 2", "Round 1"). The older canvas: https://claude.ai/artifact/Grn4yeEzztYdj9LLeS5vzR.
+- **Radio rules:** warm grey casing `#e8e6e1`, keys `#f1efea` with edge `#bdb9af` that press down,
+  graphite `#24231f`, orange `#c9541f` only for "you are here", green `#4e7d34` only for
+  "finished"; a speaker-grille dot texture; numbers in DM Mono; the band-selector tab bar.
+  Night version included. Tokens are in `src/styles/styles.css` (`[data-style="radio"]`).
+- **The icon** is a volume knob turned all the way down, with the orange zero dot (drawn in
+  Python; see section 5).
+- **Controls at the thumb:** the reader bar is at the bottom. Default keys: Contents ·
+  Day/Night · Light · Text, then More. Search and the rest live in More.
+- **Settings sections:** Interface, Reader, Library, Files & storage, Privacy & translation, plus
+  About (with "made by extrasolarions on howling dark", promises including "No AI features").
+- **No AI features in Quiet** ("no AI washing"). Roadmap idea A (AI voiceover) is on hold.
+- **Privacy:** nothing leaves the device except text the reader chooses to translate (Google, with
+  MyMemory as fallback). Report a problem is sent by the reader; there are no servers.
+- **Motion:** Apple's spring model compiled to CSS `linear()` (`src/ui/motion.ts`), bounce 0; no
+  bounce in Radio. Respect the Motion setting (`<html data-motion>`).
+- **Platforms:** Capacitor for Android and iOS. A fully native Android (Kotlin) app is an idea
+  only, for later. iOS testing: Sideloadly/AltStore (free Apple ID, 7-day renewals), Appetize.io
+  (the owner has an account on the free plan, 30 min/month). App Store/TestFlight needs $99/year.
+- **Versioning:** Android continues 0.4.x; iOS started at 1.0 (1) by the owner's choice.
 
 ## 4. Important facts
-- **Repo:** github.com/2n0m0a5/quiet-reader (private), branch `main`. Clone at `/home/user/quiet-reader`.
+- **Repo:** github.com/2n0m0a5/quiet-reader (private), branch `main`, clone at
+  `/home/user/quiet-reader`.
+  - A new cloud session needs the repo attached (add_repo with push; the owner allowed all their
+    repos), then `git clone`.
   - Push with `git push -u origin main`.
-  - End each commit message with:
-    `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`
-    `Claude-Session: <the link the current session gives>`
-- **Website:** https://quiet-reader-bgz.pages.dev (Cloudflare Pages, deploys on every push).
-- **Android:** app ID `app.quietreader`; current version **0.3.4 / versionCode 340** (`android/app/build.gradle`, `package.json`).
-  - Test signing key: `android/app/quiet-test.keystore`. Its SHA-256 starts with `305b375e`.
-- **New session? Run `bash scripts/setup-session.sh` first.** It installs npm packages, the Android SDK at `/home/user/android-sdk` and the Gradle mirror, and makes the sample books. It's safe to run again.
-- **APK in one step:** `bash scripts/build-apk.sh` builds the APK, checks its version and signer, and writes `dist-apk/Quiet-<ver>.apk` (git ignores it).
-- **Build by hand:**
-  1. `npm run build`
-  2. `npm run android` (build + cap sync)
-  3. `cd android && ANDROID_HOME=/home/user/android-sdk ./gradlew assembleDebug --no-daemon -q`
-  4. Copy `android/app/build/outputs/apk/debug/app-debug.apk` to `Quiet-<ver>.apk` and send it.
-  5. Verify the signer with `/home/user/android-sdk/build-tools/36.0.0/apksigner verify --print-certs`, and the version with `aapt2 dump badging`.
-- **Tests (`tests/`, see `tests/README.md`):** run `npm run build`, then `node tests/run-all.cjs`, or `node tests/<suite>.cjs` for one suite.
-  - `common.cjs` starts `vite preview` on 4173 if needed and opens a phone-sized page as a returning reader. Its helpers: `addBooks`, `waitForReader`, `bookText`, `showBars`, `backToLibrary`, and `touch` (CDP touches).
-  - Suites:
-    - `smoke`: library, reader, Contents, tabs, styles, reload.
-    - `formats`: 15 formats.
-    - `gestures`: long-press and swipe back.
-  - The old session's suites (phase1–8, motion, curl, physics…) were lost with its scratchpad. Add new suites as features are touched.
-  - Sample books: `tests/gen/mkbooks.py` writes them to `tests/books/` (git ignores it). It covers every format except CB7, and includes a hand-written stored RAR4.
+  - End commits with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` and
+    `Claude-Session: <this session's link>`.
+  - **`gh` works for this repo** (through the proxy): `gh run list/watch/view/download -R 2n0m0a5/quiet-reader`.
+- **Website:** https://quiet-reader-bgz.pages.dev (Cloudflare Pages, deploys every push to main).
+- **Android:** app ID `app.quietreader`, **0.4.2 / versionCode 420** (`package.json`,
+  `android/app/build.gradle`). Test key `android/app/quiet-test.keystore`, SHA-256 starts `305b375e`.
+- **iOS:** `ios/App/App.xcodeproj`, bundle `app.quietreader`, MARKETING_VERSION 1.0,
+  CURRENT_PROJECT_VERSION 1 (in `project.pbxproj`), iOS 15+.
+  - Swift: `ios/App/App/QuietNativePlugin.swift`, registered in `MainViewController.swift` (set
+    as the class in `Base.lproj/Main.storyboard`). New Swift files must also be added to
+    `project.pbxproj` (four entries; see the `A1C0FFEE…` ids).
+  - Info.plist has NSPhotoLibraryAddUsageDescription.
+- **Builds:**
+  - New session: `bash scripts/setup-session.sh` installs npm packages, the Android SDK at
+    `/home/user/android-sdk`, the Gradle mirror for Maven Central's 429s, and the sample books.
+  - Android: `bash scripts/build-apk.sh` builds, checks the version and signer, and writes
+    `dist-apk/Quiet-<ver>.apk` (git-ignored). Then send it with SendUserFile.
+  - iOS: `.github/workflows/ios.yml` runs on macos-15 when `ios/**`, `src/**`, `index.html`,
+    `package.json` or the workflow change on main, or by hand (Actions → "iOS app"). Artifacts:
+    `Quiet-iOS` (`Quiet-iOS-<ver>-<build>.ipa`, unsigned) and `Quiet-iOS-simulator`
+    (`Quiet-iOS-simulator.zip` for Appetize). Takes about 10–15 minutes. Fetch them with
+    `gh run download <id> -R 2n0m0a5/quiet-reader -D <dir>`.
+  - After any web change, also run `npx cap sync android` (build-apk does it) and, for iOS, CI does
+    `npx cap sync ios`.
+- **Tests:** `npm run build`, then `node tests/run-all.cjs` (13 suites; `tests/README.md` lists
+  them):
+  - `backup`, `curl`, `desktop`, `formats`, `gestures`, `legibility`, `motion-settings`,
+    `quote-save`, `reader-bar`, `safety`, `settings-pages`, `smoke`, `stats`.
+  - `tests/common.cjs`: `suite(name, fn, options)` with options `size`, `touch`, `fresh`,
+    `settings`, `storage` (localStorage), and `context` (e.g. `{ serviceWorkers: 'block' }`).
+    Helpers: addBooks, waitForReader, bookText, showBars, backToLibrary, touch (CDP).
+  - Sample books: `tests/gen/mkbooks.py` writes them to `tests/books/` (git-ignored); it includes
+    `colours.epub` for legibility. Copies for iPhone live in `public/samples/`.
 - **Key code:**
-  - Main app wiring: `src/main.ts` (routing, tab bar, lens, swipe back, rubber bands, font choices).
-  - Motion: `src/ui/motion.ts` (springs, drag sheets, marks, symbol effects, rollNumbers, animateLayout, rubberBand).
-  - Styles: `src/styles/{tokens,app,styles,motion}.css`.
-  - Reader:
-    - `src/reader/reader.ts`: curl, swipe-turn, `animated` attribute.
-    - `src/reader/chapter-pull.ts`
-    - `src/reader/custom-fonts.ts`
-    - `src/reader/fonts.ts` and `src/reader/themes.ts`: per-style fonts and palettes.
-  - Formats:
-    - `src/formats/formats.ts`: the single list of extensions.
-    - `src/formats/load.ts`: dispatch.
-    - `src/formats/office.ts`, `rtf.ts`, `palm.ts`, `archive.ts`: individual readers (`archive.ts` uses libarchive).
-    - `public/vendor/libarchive/`: the libarchive worker and wasm (about 1 MB, cached on first use).
-  - Stats: `src/stats/{stats,charts,tracker}.ts`, `src/stats-screen.ts`.
-  - Quote cards: `src/ui/quote-image.ts`.
-  - Native: `android/app/src/main/java/app/quietreader/QuietNativePlugin.java` (plus `shareImage` and `saveImage`). Its `BOOK_EXTENSIONS` must match `formats.ts`.
-  - Database: IndexedDB `quiet`, `DB_VERSION` 4 (stores: books, files, collections, annotations, reading with hours/sittings, fonts).
-- **Patched vendor foliate-js:**
-  - `paginator.js`: `swipe-turn` attribute, spring page slide, overscroll none.
-  - `comic-book.js`: case-blind natural sort, junk skip.
-  - Type stubs: `vendor/foliate-js/*.d.ts` and `vendor/foliate-js/vendor/zip.d.ts`.
-- **Ideas and plans:** `docs/ideas-and-plans.md`. Content strategy: https://claude.ai/artifact/PGHx9eLqqXn8jADtMLurik. Design canvas: https://claude.ai/artifact/Grn4yeEzztYdj9LLeS5vzR. Showcase repos: `2n0m0a5/quiet-reader-version-1` to `-5`.
-- **Roadmap:** `docs/roadmap.md`. Every feature number, its status, the design plans, the open questions and the owner's to-dos.
-- **Docs:** `docs/release-notes-0.3.0`–`0.3.4.md`, `docs/research-0.3.3.md`, `docs/research-0.3.4.md` (sources: WWDC 2018/2023/2024/2025 and reading studies).
-- **Owner's preferences:**
-  - Plain words, short.
-  - Wants an APK sent after every version, and a list of what to check on the phone.
-  - Sometimes says "just remember, don't do anything": then only acknowledge.
-  - Picks features by number from the 1–70 list.
-  - Wants research-backed design, and nothing that looks AI-made.
+  - `src/main.ts`: wiring, routing, reader bar actions, chapter ticks, sample books, start-up
+    recovery.
+  - `src/reader/reader.ts`: curl (`curlFrame`, `curlFrames`, `#beginCurl` controller,
+    `#onSwipeDrag`), legibility hook.
+  - `src/reader-keys.ts`: the reader bar.
+  - `src/settings-screen.ts`: Settings pages and About.
+  - `src/stats-screen.ts`: meter, lights, readouts.
+  - `src/library/{safety,backup,zip,book-facts,folders,db}.ts`.
+  - `src/app/{native,report,tour,onboarding}.ts`.
+  - Styles: `src/styles/{tokens,app,styles,motion}.css`. Radio and every new component are at the
+    end of `styles.css`; the curl is in `motion.css`.
+  - Native Android: `android/app/src/main/java/app/quietreader/QuietNativePlugin.java`. Safety
+    copy, createDocument/writeDocument, folders, share/save. Its `BOOK_EXTENSIONS` must match
+    `src/formats/formats.ts`.
+  - Database: IndexedDB `quiet`, DB_VERSION 4. Every readwrite transaction notifies
+    `onLibraryChange` (used by the safety copy).
+- **Patched vendor foliate-js** (`vendor/foliate-js/`):
+  - `paginator.js`: `swipe-turn`; `swipe-drag` events (start/move/end, measured with
+    `pageX/pageY` = clientX + frame offset); touchcancel; spring slide.
+  - `comic-book.js`: natural sort, junk skip.
+- **Docs:** `docs/plan-0.4.0.md` (the 0.4.0 plan, owner's answers, progress),
+  `docs/release-notes-0.3.0` to `0.4.2.md`, `release-notes-ios-1.0.md`,
+  `research-0.3.3.md`, `research-0.3.4.md`, `roadmap.md`, `ideas-and-plans.md`.
+- **Other links:**
+  - Content strategy: https://claude.ai/artifact/PGHx9eLqqXn8jADtMLurik
+  - Showcase repos: `2n0m0a5/quiet-reader-version-1` to `-5`.
 
-## 5. What changed (all committed and pushed; nothing uncommitted)
-- **0.3.4 (`5d93a1b`):**
-  - New files: `src/formats/{formats,archive,office,rtf,palm}.ts`, `src/reader/custom-fonts.ts`, `src/ui/quote-image.ts`, `src/ui/range.ts`.
-  - Rewritten: `load.ts`.
-  - Edited:
-    - `library-view.ts`: series, `data-book-id`, glide layout, long-press.
-    - `main.ts`: zoom nav, swipe back, lens, fonts.
-    - `reader.ts`: curl.
-    - `motion.ts`: icons, numbers, layout.
-    - `styles.css`: Frost.
-    - `motion.css`: zoom, list, curl, frost motion.
-  - Native: `QuietNativePlugin.java` (share/save); `AndroidManifest.xml` (new MIME types, WRITE_EXTERNAL_STORAGE up to SDK 28).
-  - Config: `vite.config.ts` (libarchive runtime cache).
-- **0.3.3 (`756ad5f`, fix `109f318`):** `src/stats/charts.ts`, `src/reader/chapter-pull.ts`, `src/ui/motion.ts`, `src/styles/motion.css`, the Tashkent block in `styles.css`; tracker records hours and sittings.
+## 5. Problems and gotchas
+- **Maven Central 429** in cloud containers: use the Gradle init mirror (setup-session.sh writes it).
+- **View Transitions:**
+  - The update callback must not wait for requestAnimationFrame (race it against a timeout).
+  - During a transition every click goes to `<html>`. `trackTransition()` in motion.ts skips the
+    transition on pointerdown and replays the tap; register every new transition with it.
+  - The curl keeps its transition open with a long dummy animation on
+    `::view-transition-group(page)` and ends it with `skipTransition()`.
+  - The curl's look is driven by registered custom properties (`--curl-*`, `@property` in
+    motion.css) animated on `:root`. Animating pseudo-elements directly was unreliable on the phone.
+- **Inside the book's iframe** CDP touches report screenX/Y as 0, and clientX jumps when the page
+  turns underneath (the frame moves). Use clientX plus the frame rect (paginator `pageX`).
+- **Toasts** are `popover="manual"`, re-shown on each call so they sit above modal dialogs. They're
+  drawn above, but can't be pressed while a modal is open.
+- **Dialogs:** the body is the scroller (`dialog[open]` is a flex column). The rubber band's
+  `overscroll-behavior: none` otherwise blocks the mouse wheel.
+- **The long-press click** must be swallowed (library-view `#onLongPress`), or it closes the
+  details sheet it just opened.
+- **The safety copy** must start only after `recoverLibrary()`, and never overwrites a copy that
+  has books with an empty library unless the reader chose "Delete everything". On the website it's
+  off (`quiet:test-safety` turns on an OPFS stand-in for tests).
+- **Curl** needs page mode. Choosing it switches the flow to paginated, with a toast. Fixed-layout
+  books curl only the page box. The paper colour comes from the book's page.
+- **The service worker's "ready to work offline" toast** can replace a test's toast. Block service
+  workers in tests that read toasts.
+- **While reading, the bars hide.** Tests use `showBars` before pressing Back or Contents.
+- **Series aren't read from book metadata** (`calibre:series` / `belongs-to-collection`); they come
+  only from Edit. A cheap improvement to offer.
+- **Leftovers to clean up when convenient:**
+  - `showWelcome` in onboarding.ts is unused (the tour replaced it).
+  - `khatam()` is still used for rating stars.
+  - The What's new entries for 0.3.x still mention the removed styles; they show only to people
+    updating from 0.3.x.
+  - CSS for `.style-*` and the per-style chapter-pull marks is dead.
+- **Translate tests** can hit Google 429; MyMemory is the fallback.
+- **libarchive:** the worker and wasm must sit together in `public/vendor/libarchive/`.
 
-## 6. Problems and gotchas
-- **Maven Central answers 429 to cloud containers.** Gradle then fails on its first download. `scripts/setup-session.sh` adds `~/.gradle/init.d/maven-mirror.gradle`, which points at Google's mirror. It's machine-only; the repo's Gradle files are unchanged.
-- **While reading, the top bar hides.** Tests must tap the middle of the page (`showBars`) before pressing Back or Contents.
-- **Series aren't read from the book file.** EPUBs carry `calibre:series` / `belongs-to-collection`, and foliate-js parses them as `metadata.series`. `import.ts` ignores that, so series come only from Edit. That's a cheap improvement to offer the owner.
-- **Cloud sessions start without the repo.** Add it with GitHub access for the session (the owner allowed all their repos), then clone it to `/home/user/quiet-reader`.
-- **View Transitions:** the update callback must not wait for `requestAnimationFrame`, or it's aborted with "timeout in DOM update". The fix: race the change against a timeout (`transition()` in `motion.ts`, `#curl` in `reader.ts`).
-- **Chrome** draws a backdrop-filter element square while capturing it for a View Transition, and doesn't clip it on the zoomed tab bar. Frost uses `clip-path` and turns off the tab bar's own `view-transition-name`.
-- **Inside the book iframe,** CDP touches report `screenY` 0. `chapter-pull.ts` computes the position from the frame's rect plus `clientY`.
-- **Touch handlers** must guard `e.touches.length !== 1` (the pinch test sends empty touch lists).
-- **The left 18 px `.edge-back` strip** forwards a plain click to `onTap('left')`. Without that, phase4 broke.
-- **Phone `.btn.small`** squashes text buttons; override it with width/height auto (done for the series button).
-- **phase5** can fail when Google translate rate-limits (429); MyMemory is the fallback. Rerun it.
-- **The old `library.cjs` test** is obsolete (pre-v3 sort buttons). `library2` covers it.
-- **libarchive Archive.init** uses `new URL('vendor/libarchive/worker-bundle.js', document.baseURI)`. The wasm must sit next to the worker.
-- **The owner must do on the phone:** the checks listed in section 2.
+## 6. Owner's to-dos (they must do these; Claude can't)
+- Publish **GitHub Releases** for v0.1.0 to v0.4.2, each with its APK and `docs/release-notes-*.md`,
+  and an iOS release `ios-v1.0` with the .ipa and `release-notes-ios-1.0.md`.
+- Turn on GitHub Pages (Source: GitHub Actions) in showcase repos `quiet-reader-version-2` to `-5`.
+- Send the promo video footage.
+- Test on the Redmi and on an iPhone or Appetize, and report back.
 
 ## 7. Next steps
-1. ✅ Done (3 November): tests, sample books and setup/build scripts are in the repo. Run `bash scripts/setup-session.sh` at the start of each new session.
-2. Read `docs/roadmap.md` and `docs/ideas-and-plans.md`, and keep them updated whenever a feature ships or is chosen.
-3. Ask the owner for phone results on 0.3.4 (section 2 list) and fix what they report.
-4. Start 3.x:
-   - **Library backup and restore (1):** export books, files, positions, notes, quotes, stats, fonts and settings to one file; import it on another phone. Needed before the switch to the Play Store, which requires uninstalling.
-5. Then **Report a problem (66):** a button that builds a short technical log and opens email or Telegram, so the user sends it themselves.
-6. Bump the version (0.3.5 / versionCode 350), update `NEWS` and `showWhatsNew` in `src/app/onboarding.ts`, write `docs/release-notes-0.3.5.md`, run all suites, build the APK, commit, push and send.
-7. Later, when asked: more styles (unused canvas ideas: House of Wisdom, Samarkand, Alhambra, Atlas silk), build-your-own style, iOS via Capacitor (item 56), Play Store setup (68), landing page (70), languages (62).
+1. Ask for the phone and iPhone results; fix what they report (curl feel: the 0.2 threshold and
+   the corner-under-finger mapping are in `#onSwipeDrag`).
+2. Open questions for the owner:
+   - Should the selection-menu colour dots keep the last-used colour?
+   - The showcase repos' licence (suggestion: none).
+   - Read series from book metadata?
+3. Candidates the owner hasn't chosen yet (by roadmap number):
+   - Read aloud with system voices (17)
+   - Export highlights to a file (34)
+   - Year in review (44)
+   - Download from a link (50)
+   - Two pages side by side (19)
+   - Manga modes (58)
+   - Wi-Fi transfer and a desktop app (51/57)
+   - Android widget (55)
+   - App lock (65)
+   - Languages (62): Russian first
+   - Play Store setup (68): a real signing key, store listing, privacy policy (About's promises
+     are a start)
+   - Landing page (70)
+4. iOS next: real-device feedback, then (if the owner wants the App Store) an Apple Developer
+   account ($99/year), signing in CI, TestFlight. Possibly "Open in Quiet" document types and iOS
+   share/import.
+5. Keep `docs/roadmap.md`, `docs/ideas-and-plans.md` and this file current after every release.
 
-## 8. Starter prompt
-Read `/home/user/quiet-reader/HANDOFF.md`, `docs/roadmap.md` and `docs/ideas-and-plans.md` first. It's the full context for my e-book reader Quiet: repo `2n0m0a5/quiet-reader`, branch `main`, current version 0.3.4. Run `bash scripts/setup-session.sh`, then continue from the first open step of "Next steps". Keep explanations plain and short, send me an APK whenever a version is built, and tell me what to check on my phone.
+## 8. How the owner likes to work
+- Plain, short words. They're not a software engineer; explain steps from scratch when needed.
+- **After every version:** send the APK (and the iOS files when iOS changes), release notes for
+  GitHub, and a short "check on your phone" list.
+- Picks features by number; sets clear milestones; sometimes says "just remember, do nothing"
+  (then only acknowledge).
+- Wants research-backed design, references from outside reading apps, and nothing that looks
+  AI-generated. Use only the skills that are needed; be quick when they say "double quick".
+- They have usage limits (5-hour windows). When told the limit is low, save progress in the docs
+  and stop cleanly. When they say "no handoffs, continue", keep working.
+- Speaks English with some typos; their phone UI and tools may be in Russian.
+
+## 9. Starter prompt for a new session
+"Read `/home/user/quiet-reader/HANDOFF.md`, `docs/roadmap.md` and `docs/ideas-and-plans.md`. It's
+the full context for my e-book reader Quiet (repo `2n0m0a5/quiet-reader`, branch `main`; Android
+0.4.2, iPhone 1.0). Run `bash scripts/setup-session.sh`, then ask me for my phone results and
+continue from 'Next steps'. Keep it plain and short; send me the APK (and iOS files) after every
+version with a list of what to check."
