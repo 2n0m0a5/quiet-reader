@@ -24,6 +24,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -87,10 +89,11 @@ private class PdfPages(file: File) {
 @Composable
 fun PdfReader(book: Book, state: ReaderState) {
     val quiet = LocalQuiet.current
-    val pages by produceState<PdfPages?>(null, book.id) {
-        value = withContext(Dispatchers.IO) { runCatching { PdfPages(quiet.library.fileOf(book.id)) }.getOrNull() }
-    }
-    DisposableEffect(pages) { onDispose { pages?.close() } }
+    var failed by remember(book.id) { mutableStateOf(false) }
+    if (failed) return CantOpen("This PDF couldn’t be opened. It may be damaged or password-protected.")
+    val pages = rememberOpened(book.id, open = {
+        withContext(Dispatchers.IO) { PdfPages(quiet.library.fileOf(book.id)) }
+    }, close = { it.close() }, onFail = { failed = true })
     val pdf = pages ?: return Opening()
     PdfView(book, pdf, state)
 }
@@ -170,8 +173,12 @@ private fun PdfView(book: Book, pdf: PdfPages, state: ReaderState) {
 
 @Composable
 private fun PdfPage(pdf: PdfPages, index: Int, width: Int, modifier: Modifier) {
-    val bitmap by produceState<Bitmap?>(null, index, width) { value = runCatching { pdf.render(index, width) }.getOrNull() }
-    Box(modifier.aspectRatio(pdf.ratios[index]).background(Color.White)) {
+    var failed by remember(index) { mutableStateOf(false) }
+    val bitmap by produceState<Bitmap?>(null, index, width) {
+        value = runCatching { pdf.render(index, width) }.onFailure { failed = true }.getOrNull()
+    }
+    Box(modifier.aspectRatio(pdf.ratios[index]).background(Color.White), contentAlignment = Alignment.Center) {
         bitmap?.let { Image(it.asImageBitmap(), "Page ${index + 1}", Modifier.fillMaxSize(), contentScale = ContentScale.Fit) }
+        if (failed) androidx.compose.material3.Text("Page ${index + 1} couldn’t be drawn.", color = Color.Gray)
     }
 }

@@ -8,7 +8,7 @@ plugins {
 
 // The layer being built. The switch (end of L8) drops it and moves to app.quietreader.
 val quietVersion = "0.5.0"
-val quietLayer = "L2"
+val quietLayer = "L2.1"
 
 android {
     namespace = "app.quietreader"
@@ -18,7 +18,7 @@ android {
         applicationId = "app.quietreader.n"
         minSdk = 26
         targetSdk = 36
-        versionCode = 502
+        versionCode = 503
         versionName = "$quietVersion $quietLayer"
         buildConfigField("String", "QUIET_VERSION", "\"$quietVersion\"")
         buildConfigField("String", "QUIET_LAYER", "\"$quietLayer\"")
@@ -40,7 +40,7 @@ android {
             signingConfig = signingConfigs.getByName("test")
             isMinifyEnabled = true
             isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
     compileOptions {

@@ -55,15 +55,16 @@ private val ARCHIVO = FontFamily("Archivo")
 @Composable
 fun EpubReader(book: Book, state: ReaderState) {
     val quiet = LocalQuiet.current
-    val publication by produceState<Publication?>(null, book.id) {
+    var failed by remember(book.id) { mutableStateOf(false) }
+    if (failed) return CantOpen("This book couldn’t be opened. The file may be damaged or protected (DRM).")
+    val publication = rememberOpened(book.id, open = {
         val file = if (book.format == BookFormat.Txt) quiet.library.derivedOf(book.id).also { derived ->
             if (!derived.exists()) withContext(Dispatchers.IO) {
                 app.quietreader.data.TextBook.toEpub(quiet.library.fileOf(book.id), book.title, derived)
             }
         } else quiet.library.fileOf(book.id)
-        value = quiet.readium.open(file)
-    }
-    DisposableEffect(publication) { onDispose { publication?.close() } }
+        quiet.readium.open(file)
+    }, close = { it.close() }, onFail = { failed = true })
     val pub = publication
     if (pub == null) Opening() else EpubView(book, pub, state)
 }

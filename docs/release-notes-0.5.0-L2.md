@@ -1,5 +1,11 @@
 # Quiet 0.5.0 L2 — the native app reads books, and keeps them safe (test build)
 
+## 0.5.0 L2.1 (fix)
+- **Books opened blank** (EPUB: "Webpage not available", PDF: white pages). The reader closed the
+  book file the moment it finished opening it. Now it stays open until you leave the book, and a
+  test checks exactly that. If a book really can't be opened, it now says so on the page.
+- The release build keeps the e-book engine whole (no parts removed by the optimizer).
+
 Layers 1 and 2 of the native app (`docs/plan-native.md`), plus your two requests from L0.
 It still installs **next to** Quiet 0.4.2 (app ID `app.quietreader.n`), so 0.4.2 is untouched.
 

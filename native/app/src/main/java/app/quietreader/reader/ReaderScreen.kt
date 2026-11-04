@@ -332,3 +332,12 @@ fun Opening(text: String = "") {
         }
     }
 }
+
+/** When a book can't be opened: say so plainly, on the page. */
+@Composable
+fun CantOpen(text: String) {
+    val c = LocalColors.current
+    Box(Modifier.fillMaxSize().background(c.readerBg).padding(32.dp), contentAlignment = Alignment.Center) {
+        Text(text, style = Type.body.copy(color = c.muted, textAlign = androidx.compose.ui.text.style.TextAlign.Center))
+    }
+}
