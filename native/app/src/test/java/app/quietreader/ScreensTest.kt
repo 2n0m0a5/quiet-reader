@@ -93,7 +93,7 @@ class ScreensTest {
         val state = AppState()
         show(state)
         compose.onNodeWithText("Make yourself at home.").assertIsDisplayed()
-        compose.onNodeWithText("Restore a backup").assertIsDisplayed()
+        compose.onNodeWithText("Add a book folder").assertIsDisplayed()
         compose.onNodeWithText("Settings").performClick()
         compose.onNodeWithText("Interface").performClick()
         compose.onNodeWithText("Screen rotation").assertIsDisplayed()

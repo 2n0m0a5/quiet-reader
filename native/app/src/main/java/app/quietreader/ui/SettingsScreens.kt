@@ -65,6 +65,7 @@ fun SettingsScreen(state: AppState, settings: QuietSettings) {
             SettingsPage.Home -> SettingsHome(state)
             SettingsPage.Interface -> InterfacePage(state, settings)
             SettingsPage.Reader -> ReaderPage(state, settings)
+            SettingsPage.Library -> LibraryPage(state)
             SettingsPage.Files -> FilesPage(state)
             SettingsPage.Privacy -> PrivacyPage(state, settings)
             SettingsPage.Trash -> TrashPage(state)
@@ -87,7 +88,7 @@ private data class Section(val number: String, val title: String, val hint: Stri
 private val sections = listOf(
     Section("01", "Interface", "Day and night, app text size, motion, vibration", null, SettingsPage.Interface),
     Section("02", "Reader", "Scroll or pages, the reader bar, volume keys, time and battery", null, SettingsPage.Reader),
-    Section("03", "Library", "Book folders Quiet watches for new books", "L5", null),
+    Section("03", "Library", "Book folders Quiet watches for new books", null, SettingsPage.Library),
     Section("04", "Files & storage", "Back up and restore, space used, delete everything", null, SettingsPage.Files),
     Section("05", "Privacy & translation", "What leaves your phone: only text you translate", null, SettingsPage.Privacy),
 )
@@ -606,6 +607,35 @@ private fun PrivacyPage(state: AppState, settings: QuietSettings) {
             Column(Modifier.padding(16.dp)) {
                 ChoiceRow(app.quietreader.reader.Translate.LANGUAGES.map { it to app.quietreader.reader.Translate.name(it) }, settings.translateTo,
                     { settings.translateTo = it }, perRow = 3)
+            }
+        }
+    }
+}
+
+/** Library: the book folders Quiet watches. */
+@Composable
+private fun LibraryPage(state: AppState) {
+    val quiet = app.quietreader.LocalQuiet.current
+    val c = LocalColors.current
+    var version by remember { mutableStateOf(0) }
+    val folders = remember(version, state.foldersVersion) { quiet.folders.all() }
+    Page {
+        PageHeader("Library", state)
+        SectionTitle("Book folders", "Choose folders with your books (and folders inside them). Quiet adds every EPUB, PDF and TXT in them, " +
+            "when it starts and when you come back after a while. A book you delete stays deleted. Prepare a folder full of books first, for example Download/Books.")
+        Card {
+            if (folders.isEmpty()) Text("No folders yet.", style = Type.body.copy(color = c.muted), modifier = Modifier.padding(16.dp))
+            folders.forEachIndexed { i, uri ->
+                if (i > 0) Divider()
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(quiet.folders.name(uri), style = Type.body.copy(color = c.text), modifier = Modifier.weight(1f))
+                    IconKey(Icons.Trash, "Stop watching", { quiet.folders.remove(uri); version++ }, kind = KeyKind.Danger)
+                }
+            }
+            Divider()
+            Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextKey("Add a folder…", { state.pickFolder() }, Modifier.weight(1f), kind = KeyKind.Primary)
+                TextKey("Look now", { state.scanFolders() }, Modifier.weight(1f), enabled = folders.isNotEmpty())
             }
         }
     }

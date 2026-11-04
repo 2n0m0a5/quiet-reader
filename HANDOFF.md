@@ -20,8 +20,9 @@ maybe the App Store) later. Core message: "a reader should be very simple. Perio
   as `Quiet-0.5.0-L2.apk` (app ID `app.quietreader.n`, installs next to 0.4.2). L2.1 fixed blank books (cleanup closed
   the book right after opening; `reader/OpenedResource.kt`). **L3a** (the reader bar) and **L3b** (curl,
   footnotes, pictures, bionic, ruler, your fonts) built and sent. L3b.1 fixed the owner's reader issues (scroll mode, volume
-  keys, Page turn in Text, hold-to-move ruler). **L4** (notes) built and sent. Next: phone results, then L5
-  (organizing). Gotcha: if `processDebugResources` fails, `compileDebugKotlin` prints no `e:` lines, so check the exit code.
+  keys, Page turn in Text, hold-to-move ruler). **L4** (notes) built and sent; L4.1 fixed translation (Google
+  refused plain Java requests, MyMemory can't take 'auto'). **L5** (organizing) built and sent. Next: phone
+  results, then L6 (stats). Gotcha: if `processDebugResources` fails, `compileDebugKotlin` prints no `e:` lines, so check the exit code.
   `scripts/check-page-script.cjs` runs the in-page script in Chromium (after the JVM tests). 0.4.x gets bug fixes only. The owner has some 0.4.2 issues to report.
 - **Android 0.4.2 (versionCode 420)** and **iPhone 1.0 (build 1)**, all committed and pushed to
   `main` (last commit `cb20689`). The working tree is clean.

@@ -149,7 +149,11 @@ fun Key(
 /** A key with words on it. */
 @Composable
 fun TextKey(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, kind: KeyKind = KeyKind.Normal, enabled: Boolean = true) =
-    Key(onClick, modifier, kind, enabled) { Text(text, style = LocalTextStyle.current) }
+    Key(onClick, modifier, kind, enabled) {
+        // One line; shrinks a little rather than wrap when the key is narrow.
+        BasicText(text, style = LocalTextStyle.current, maxLines = 1,
+            autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = LocalTextStyle.current.fontSize, stepSize = 0.5.sp))
+    }
 
 /** A square key with an icon, like the top bar's Day/Night key. */
 @Composable

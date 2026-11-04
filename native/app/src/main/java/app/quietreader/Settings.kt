@@ -108,6 +108,11 @@ class QuietSettings(private val prefs: SharedPreferences) {
     var lastColor: String
         get() = prefs.getString("lastColor", null) ?: "#f2c94c"
         set(value) { prefs.edit().putString("lastColor", value).apply() }
+    // Library
+    var librarySort by pref("librarySort", app.quietreader.data.Sort.Recent, app.quietreader.data.Sort.entries, { it.key })
+    var libraryGroup by pref("libraryGroup", app.quietreader.data.Group.None, app.quietreader.data.Group.entries, { it.key })
+    var libraryList by boolPref("libraryList", false)              // list instead of covers
+    var coverSize by intPref("coverSize", 104, 72..200)             // dp; pinch to change
     var volumeKeys by boolPref("volumeKeys", true)
     var showClock by boolPref("showClock", true)
     var keepAwake by boolPref("keepAwake", true)

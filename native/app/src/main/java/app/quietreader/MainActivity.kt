@@ -55,6 +55,40 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private val pickFolder = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) { quiet.folders.add(uri); state.foldersVersion++; scanFolders(always = true) }
+    }
+    private var coverFor: String? = null
+    private val pickCover = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        val id = coverFor
+        if (uri != null && id != null) lifecycleScope.launch {
+            val ok = withContext(Dispatchers.IO) { runCatching { quiet.importer.setCover(id, uri) }.getOrDefault(false) }
+            state.toast(if (ok) "New cover set." else "That picture couldn’t be used.")
+        }
+    }
+
+    /** Book folders: look for new books (on start, when back after 10 minutes, or by hand). */
+    private fun scanFolders(always: Boolean = false) {
+        if (quiet.folders.all().isEmpty()) { if (always) state.toast("Add a book folder first."); return }
+        if (!always && System.currentTimeMillis() - quiet.folders.lastScan < 10 * 60_000) return
+        lifecycleScope.launch {
+            val r = quiet.folders.scan()
+            when {
+                r.added.isNotEmpty() -> state.toast("Added ${r.added.size} ${if (r.added.size == 1) "book" else "books"} from your folders.")
+                always -> state.toast(buildString {
+                    append("No new books in your folders.")
+                    if (r.waiting > 0) append(" ${r.waiting} in other formats wait for L7.")
+                    if (r.missing > 0) append(" ${r.missing} folder can’t be read; add it again.")
+                })
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        scanFolders()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         // The book view is a fragment made with Readium's factory; Android can't rebuild it on its
@@ -66,6 +100,9 @@ class MainActivity : AppCompatActivity() {
         state.saveBackup = { saveBackup.launch("Quiet backup ${SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())}.quietbackup") }
         state.pickBackup = { pickBackup.launch(arrayOf("*/*")) }
         state.pickFont = { pickFont.launch(arrayOf("*/*")) }
+        state.pickFolder = { pickFolder.launch(null) }
+        state.pickCover = { id -> coverFor = id; pickCover.launch(arrayOf("image/*")) }
+        state.scanFolders = { scanFolders(always = true) }
         handle(intent)
         followLibraryForSafetyCopy()
 

@@ -73,7 +73,7 @@ enum class Tab(val label: String, val icon: ImageVector) {
     Settings("Settings", Icons.Settings),
 }
 
-enum class SettingsPage { Home, Interface, Reader, Files, Trash, Privacy, About }
+enum class SettingsPage { Home, Interface, Reader, Library, Files, Trash, Privacy, About }
 
 /** Where the reader is in the app, plus the message at the bottom. */
 class AppState(tab: Tab = Tab.Library, page: SettingsPage = SettingsPage.Home) {
@@ -101,6 +101,21 @@ class AppState(tab: Tab = Tab.Library, page: SettingsPage = SettingsPage.Home) {
     var saveBackup: () -> Unit = {}
     var pickBackup: () -> Unit = {}
     var pickFont: () -> Unit = {}
+    var pickFolder: () -> Unit = {}
+    var pickCover: (bookId: String) -> Unit = {}
+    var scanFolders: () -> Unit = {}
+    var foldersVersion by mutableIntStateOf(0)
+
+    // The library's own state (kept while you switch tabs).
+    var filter by mutableStateOf(Filter.All)
+    var collection by mutableStateOf<String?>(null)
+    var query by mutableStateOf("")
+    var searching by mutableStateOf(false)
+    var selecting by mutableStateOf(false)
+    var selected by mutableStateOf<Set<String>>(emptySet())
+    var details by mutableStateOf<String?>(null)
+    var librarySheet by mutableStateOf<String?>(null)
+    fun toggleSelected(id: String) { selected = if (id in selected) selected - id else selected + id }
     var fontsVersion by mutableIntStateOf(0)
     var busy by mutableStateOf<String?>(null)
     /** A backup that was read and waits for "Restore" (its summary, and what restoring does). */
@@ -145,6 +160,9 @@ fun QuietApp(settings: QuietSettings, state: AppState = remember { AppState() })
     // Back: a Settings page goes back to Settings, a tab goes back to Library.
     BackHandler(enabled = state.tab == Tab.Settings && state.page != SettingsPage.Home) {
         state.page = if (state.page == SettingsPage.Trash) SettingsPage.Files else SettingsPage.Home
+    }
+    BackHandler(enabled = state.tab == Tab.Library && (state.selecting || state.searching)) {
+        state.selecting = false; state.selected = emptySet(); state.searching = false; state.query = ""
     }
     BackHandler(enabled = state.tab != Tab.Library && !(state.tab == Tab.Settings && state.page != SettingsPage.Home)) {
         state.tab = Tab.Library
@@ -254,6 +272,8 @@ private fun TopBar(state: AppState, settings: QuietSettings) {
         }
         Spacer(Modifier.weight(1f))
         if (state.tab == Tab.Library) {
+            IconKey(Icons.More, "Library options", { state.librarySheet = "menu" }, size = 38.dp)
+            Spacer(Modifier.width(8.dp))
             IconKey(Icons.Plus, "Add books", { state.pickBooks() }, kind = KeyKind.Primary,
                 size = 38.dp)
             Spacer(Modifier.width(8.dp))

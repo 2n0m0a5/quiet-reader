@@ -116,6 +116,12 @@ class Importer(private val context: Context, private val library: Library, priva
             m.published?.let { record.put("published", it.toString().take(10)) }
             m.description?.let { record.put("description", it) }
             if (m.subjects.isNotEmpty()) record.put("subjects", JSONArray(m.subjects.map { it.name }))
+            // Series from the book itself (EPUB 3 belongs-to-collection, or Calibre's series).
+            m.belongsToSeries.firstOrNull()?.let { s ->
+                record.put("series", s.name)
+                s.position?.let { record.put("seriesIndex", it) }
+            }
+            m.identifier?.let { id -> Regex("""(97[89])?\d{9}[\dXx]""").find(id.replace("-", ""))?.let { record.put("isbn", it.value) } }
             publication.cover()?.let { saveCover(it, id) }
         } finally { publication.close() }
     }
@@ -143,6 +149,14 @@ class Importer(private val context: Context, private val library: Library, priva
         val out = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
         Canvas(out).apply { drawColor(Color.WHITE); drawBitmap(bitmap, 0f, 0f, null) }
         library.coverOf(id).outputStream().use { out.compress(Bitmap.CompressFormat.JPEG, 85, it) }
+    }
+
+    /** A new cover from a picture you chose. */
+    fun setCover(id: String, uri: Uri): Boolean {
+        val bitmap = context.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it) } ?: return false
+        saveCover(bitmap, id)
+        library.get(id)?.let { library.put(it.with({ put("coverChangedAt", System.currentTimeMillis()) })) }
+        return true
     }
 
     private fun displayName(uri: Uri): String {
