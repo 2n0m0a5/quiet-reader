@@ -154,7 +154,7 @@ private fun BookPage(id: String, state: AppState, onClose: () -> Unit) {
     var askNew by remember(id) { mutableStateOf(false) }
     if (askNew) ConfirmDialog(
         "Mark as new?",
-        "Your place in this book (${(book.progress * 100).roundToInt()}%) will be cleared and it will start from the beginning. Your highlights, notes and bookmarks stay.",
+        newWarning(listOf(book)),
         "Mark as new",
         { askNew = false },
     ) { askNew = false; update { it.withStatus(Status.New) }; state.toast("“${book.title}” is new again.") }
@@ -183,8 +183,8 @@ private fun BookPage(id: String, state: AppState, onClose: () -> Unit) {
             Label("Status")
             ChoiceRow(listOf(Status.Want to "Want", Status.Reading to "Reading", Status.Finished to "Finished", Status.New to "New"),
                 book.status(), { s ->
-                    // Back to New clears the reading place: ask first.
-                    if (s == Status.New && (book.lastOpenedAt != null || book.progress > 0)) askNew = true
+                    // New starts the book over: always ask first.
+                    if (s == Status.New && book.status() != Status.New) askNew = true
                     else update { it.withStatus(s) }
                 })
             Label("Rating")
@@ -257,10 +257,6 @@ private fun BookPage(id: String, state: AppState, onClose: () -> Unit) {
             ))
             Spacer(Modifier.height(18.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextKey("Select several books", { onClose(); state.selecting = true; state.selected = setOf(id) }, Modifier.weight(1f))
-            }
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextKey("Edit", { state.librarySheet = "edit" }, Modifier.weight(1f))
                 TextKey("Cover", { state.pickCover(id) }, Modifier.weight(1f))
                 TextKey("Share file", { shareFile(context, quiet, book) }, Modifier.weight(1f))
@@ -270,7 +266,7 @@ private fun BookPage(id: String, state: AppState, onClose: () -> Unit) {
                 TextKey("Export notes", { exportNotes(context, book, notes) }, Modifier.weight(1f), enabled = notes.isNotEmpty())
                 TextKey("Remove", {
                     update { it.with({ put("deletedAt", System.currentTimeMillis()) }) }; onClose()
-                    state.toast("Moved to Recently deleted. It stays there for 30 days.")
+                    state.undoable("“${book.title}” moved to Recently deleted.") { update { it.with({ put("deletedAt", org.json.JSONObject.NULL) }) } }
                 }, Modifier.weight(1f), kind = KeyKind.Danger)
             }
         }
@@ -398,6 +394,12 @@ private fun CollectionsSheet(close: () -> Unit) {
     var name by remember { mutableStateOf("") }
     var editing by remember { mutableStateOf<String?>(null) }
     var newName by remember { mutableStateOf("") }
+    var deleting by remember { mutableStateOf<Pair<String, String>?>(null) }
+    deleting?.let { (id, n) ->
+        ConfirmDialog("Delete “$n”?", "Only the collection goes; its books stay in your library.", "Delete collection", { deleting = null }) {
+            quiet.collections.delete(id); deleting = null
+        }
+    }
     Sheet(close) {
         SheetBody("Collections") {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -421,7 +423,7 @@ private fun CollectionsSheet(close: () -> Unit) {
                     }
                     TextKey("Rename", { editing = id; newName = n })
                     Spacer(Modifier.width(6.dp))
-                    IconKey(Icons.Trash, "Delete $n", { quiet.collections.delete(id) }, kind = KeyKind.Danger)
+                    IconKey(Icons.Trash, "Delete $n", { deleting = id to n }, kind = KeyKind.Danger)
                 }
             }
         }
@@ -449,7 +451,10 @@ private fun DuplicatesSheet(state: AppState, close: () -> Unit) {
                                 Text("${b.format.label} · ${fileSize(b.json.optLong("size"))} · ${(b.progress * 100).roundToInt()}% · added ${shortDate(b.addedAt)}",
                                     style = Type.mono.copy(color = c.muted, fontSize = 11.sp))
                             }
-                            IconKey(Icons.Trash, "Remove", { quiet.library.put(b.with({ put("deletedAt", System.currentTimeMillis()) })) }, kind = KeyKind.Danger)
+                            IconKey(Icons.Trash, "Remove", {
+                                quiet.library.put(b.with({ put("deletedAt", System.currentTimeMillis()) }))
+                                state.undoable("Moved to Recently deleted.") { quiet.library.get(b.id)?.let { quiet.library.put(it.with({ put("deletedAt", org.json.JSONObject.NULL) })) } }
+                            }, kind = KeyKind.Danger)
                         }
                     }
                 }
@@ -467,9 +472,16 @@ private fun BulkStatus(state: AppState, close: () -> Unit) {
     val quiet = LocalQuiet.current
     Sheet(close) {
         SheetBody("Status of ${state.selected.size} books") {
+            var askNew by remember { mutableStateOf(false) }
             listOf(Status.Want to "Want to read", Status.Reading to "Reading", Status.Finished to "Finished", Status.New to "New").forEach { (s, label) ->
-                TextKey(label, { quiet.library.putAll(selectedBooks(state, quiet).map { it.withStatus(s) }); close() }, Modifier.fillMaxWidth())
+                TextKey(label, {
+                    if (s == Status.New) askNew = true
+                    else { quiet.library.putAll(selectedBooks(state, quiet).map { it.withStatus(s) }); close() }
+                }, Modifier.fillMaxWidth())
                 Spacer(Modifier.height(8.dp))
+            }
+            if (askNew) ConfirmDialog("Mark ${state.selected.size} books as new?", newWarning(selectedBooks(state, quiet)), "Mark as new", { askNew = false }) {
+                quiet.library.putAll(selectedBooks(state, quiet).map { it.withStatus(Status.New) }); askNew = false; close()
             }
         }
     }
@@ -530,12 +542,29 @@ private fun BulkTags(state: AppState, close: () -> Unit) {
 @Composable
 private fun BulkRemove(state: AppState, close: () -> Unit) {
     val quiet = LocalQuiet.current
-    ConfirmDialog("Remove ${state.selected.size} books?", "They go to Recently deleted for 30 days.", "Remove", close) {
+    androidx.compose.runtime.LaunchedEffect(Unit) {
         val now = System.currentTimeMillis()
-        quiet.library.putAll(selectedBooks(state, quiet).map { it.with({ put("deletedAt", now) }) })
+        val books = selectedBooks(state, quiet)
+        quiet.library.putAll(books.map { it.with({ put("deletedAt", now) }) })
         state.selected = emptySet(); state.selecting = false
         close()
+        state.undoable("${books.size} ${if (books.size == 1) "book" else "books"} moved to Recently deleted.") {
+            quiet.library.putAll(books.mapNotNull { quiet.library.get(it.id) }.map { it.with({ put("deletedAt", org.json.JSONObject.NULL) }) })
+        }
     }
+}
+
+/** What "New" does, said plainly for these books. */
+fun newWarning(books: List<Book>): String {
+    val one = books.size == 1
+    val b = books.firstOrNull()
+    val parts = mutableListOf<String>()
+    if (books.any { it.lastOpenedAt != null || it.progress > 0 })
+        parts += if (one && b != null) "Your place (${(b.progress * 100).roundToInt()}%) will be cleared and it will start from the beginning." else "Their places will be cleared; they start from the beginning."
+    if (books.any { it.status() == Status.Finished }) parts += if (one) "It will no longer count as finished." else "Finished ones will no longer count as finished."
+    if (books.any { it.status() == Status.Want }) parts += if (one) "It will leave your Want to read list." else "They will leave your Want to read list."
+    parts += "Highlights, notes and bookmarks stay."
+    return parts.joinToString(" ")
 }
 
 /**

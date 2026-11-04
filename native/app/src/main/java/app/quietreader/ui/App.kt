@@ -84,10 +84,18 @@ class AppState(tab: Tab = Tab.Library, page: SettingsPage = SettingsPage.Home) {
     var toastId by mutableIntStateOf(0)
         private set
 
-    fun toast(message: String) {
+    /** An action on the message, like Undo (it stays a little longer). */
+    var toastAction: Pair<String, () -> Unit>? = null
+        private set
+
+    fun toast(message: String, action: Pair<String, () -> Unit>? = null) {
         toast = message
+        toastAction = action
         toastId++
     }
+
+    /** Something removed that can be put back: a message with Undo. */
+    fun undoable(message: String, undo: () -> Unit) = toast(message, "Undo" to undo)
 
     fun hideToast() { toast = null }
 
@@ -206,9 +214,11 @@ fun QuietApp(settings: QuietSettings, state: AppState = remember { AppState() })
                         state.toast("${b.fileName.substringAfterLast('.').uppercase()} books open in a later layer (L7). It’s safe in your library.")
                         state.openBookId = null
                     }
-                } else app.quietreader.reader.ReaderScreen(b, remember(b.id) { state.openNote.also { state.openNote = null } }) { state.openBookId = null }
+                } else app.quietreader.reader.ReaderScreen(b, remember(b.id) { state.openNote.also { state.openNote = null } }, onInfo = { state.details = b.id }) { state.openBookId = null }
             }
         }
+        // A book's page and the library's sheets, above everything (also from the reader's More).
+        LibrarySheets(state)
         // A long job (backup, restore): a quiet sheet over the app.
         state.busy?.let { Busy(it) }
         state.confirmRestore?.let { (summary, restore) ->
@@ -272,16 +282,16 @@ private fun TopBar(state: AppState, settings: QuietSettings) {
         }
         Spacer(Modifier.weight(1f))
         if (state.tab == Tab.Library) {
-            IconKey(Icons.More, "Library options", { state.librarySheet = "menu" }, size = 38.dp)
+            IconKey(Icons.More, "Library options", { state.librarySheet = "menu" }, size = 42.dp)
             Spacer(Modifier.width(8.dp))
             IconKey(Icons.Plus, "Add books", { state.pickBooks() }, kind = KeyKind.Primary,
-                size = 38.dp)
+                size = 42.dp)
             Spacer(Modifier.width(8.dp))
         }
         val dark = c.isDark
         IconKey(if (dark) Icons.Sun else Icons.Moon, if (dark) "Switch to Day" else "Switch to Night", {
             settings.theme = if (dark) ThemeMode.Day else ThemeMode.Night
-        }, size = 38.dp)
+        }, size = 42.dp)
     }
 }
 
@@ -345,10 +355,12 @@ private fun ToastHost(state: AppState, modifier: Modifier = Modifier) {
     val c = LocalColors.current
     val reduced = LocalReducedMotion.current
     var shown by remember { mutableStateOf<String?>(null) }
+    var action by remember { mutableStateOf<Pair<String, () -> Unit>?>(null) }
     LaunchedEffect(state.toastId) {
         val message = state.toast ?: return@LaunchedEffect
         shown = message
-        delay(2800)
+        action = state.toastAction
+        delay(if (action != null) 5000 else 2800)
         state.hideToast()
     }
     AnimatedVisibility(
@@ -357,11 +369,16 @@ private fun ToastHost(state: AppState, modifier: Modifier = Modifier) {
         enter = if (reduced) fadeIn(snap()) else fadeIn(tween(200)) + slideInVertically(tween(200)) { it / 3 },
         exit = if (reduced) fadeOut(snap()) else fadeOut(tween(200)) + slideOutVertically(tween(200)) { it / 3 },
     ) {
-        Text(
-            shown.orEmpty(),
-            style = Type.body.copy(color = c.panel, fontSize = Type.key.fontSize),
-            modifier = Modifier.background(c.text, KeyShape).padding(horizontal = 16.dp, vertical = 10.dp),
-        )
+        Row(Modifier.background(c.text, KeyShape).padding(start = 16.dp, end = if (action != null) 6.dp else 16.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Text(shown.orEmpty(), style = Type.body.copy(color = c.panel, fontSize = Type.key.fontSize),
+                modifier = Modifier.padding(vertical = 6.dp).weight(1f, fill = false))
+            action?.let { (label, run) ->
+                Spacer(Modifier.width(10.dp))
+                Text(label, style = Type.rowTitle.copy(color = if (c.isDark) c.accent else c.accentSoft),
+                    modifier = Modifier.clickable { run(); state.hideToast() }.padding(horizontal = 10.dp, vertical = 8.dp))
+            }
+        }
     }
 }
 

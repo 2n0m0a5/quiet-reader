@@ -1,5 +1,19 @@
 # Quiet 0.5.0 L5 — organizing (native test build)
 
+## 0.5.0 L5.3 (your fixes, and a look at the whole app)
+- **"New" always asks first**, from any status, and says what will change (your place is
+  cleared, it no longer counts as finished, it leaves Want to read). Highlights stay.
+- **Select books right in the library: hold a cover.** Tap more covers to add or take them out.
+  With one book selected, **Info** opens its page. (The book's page is also in the reader:
+  More → Book info.)
+- **Undo instead of questions** for things that can be put back: removing books (one or many,
+  and in Duplicates), deleting a note, removing a bookmark from the Notes tab.
+- **A question first** for things that can't: deleting a book for good, a collection, a font.
+- **Bookmark key** can now be on the reader's bottom bar (Customize bar), in thumb's reach.
+- **Bigger square keys** (Back, ⋯, +, Day/Night) so they're easier to hit.
+- A filter with no books offers **Show all books**.
+- The full review, and what I propose next: `docs/ux-review-native.md`.
+
 ## 0.5.0 L5.2
 - **Status can go back to New**, after you confirm: "Mark as new? Your place (42%) will be cleared
   and it will start from the beginning. Your highlights, notes and bookmarks stay."

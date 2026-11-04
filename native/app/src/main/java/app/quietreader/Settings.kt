@@ -54,7 +54,7 @@ enum class Align(val key: String, val label: String) { Start("start", "Left"), J
 enum class ReaderKey(val key: String, val label: String) {
     Contents("contents", "Contents"), DayNight("daynight", "Day/Night"), Light("light", "Light"),
     Text("text", "Text"), Layout("layout", "Layout"), GoTo("goto", "Go to"), Mode("mode", "Scroll/Pages"),
-    Notes("notes", "Notes"), Search("search", "Search");
+    Notes("notes", "Notes"), Search("search", "Search"), Bookmark("bookmark", "Bookmark");
 
     companion object {
         val DEFAULT = listOf(Contents, DayNight, Light, Text)

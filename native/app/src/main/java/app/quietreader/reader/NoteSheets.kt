@@ -109,7 +109,7 @@ fun Field(value: String, onChange: (String) -> Unit, placeholder: String, modifi
  * says it, tags; then share it as a picture, copy, or delete. Saves as you change it.
  */
 @Composable
-fun NoteEditor(start: Note, book: Book?, focusNote: Boolean = false, onClose: () -> Unit) {
+fun NoteEditor(start: Note, book: Book?, focusNote: Boolean = false, onDeleted: (Note) -> Unit = {}, onClose: () -> Unit) {
     val quiet = LocalQuiet.current
     val c = LocalColors.current
     val context = LocalContext.current
@@ -170,7 +170,7 @@ fun NoteEditor(start: Note, book: Book?, focusNote: Boolean = false, onClose: ()
                 TextKey("Copy", { clipboard.setText(AnnotatedString(note.text)) }, Modifier.weight(1f))
             }
             Spacer(Modifier.height(8.dp))
-            TextKey("Delete", { quiet.notes.delete(note.id); onClose() }, Modifier.fillMaxWidth(), kind = KeyKind.Danger)
+            TextKey("Delete", { save(); quiet.notes.delete(note.id); onDeleted(note); onClose() }, Modifier.fillMaxWidth(), kind = KeyKind.Danger)
         }
     }
 }

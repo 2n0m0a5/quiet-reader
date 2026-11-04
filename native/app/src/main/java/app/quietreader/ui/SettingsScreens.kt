@@ -452,6 +452,12 @@ private fun TrashPage(state: AppState) {
     val books by quiet.library.books.collectAsState()
     val trash = books.filter { it.deletedAt != null }.sortedByDescending { it.deletedAt }
     var confirmEmpty by remember { mutableStateOf(false) }
+    var forGood by remember { mutableStateOf<app.quietreader.data.Book?>(null) }
+    forGood?.let { b ->
+        ConfirmDialog("Delete “${b.title}” for good?", "The book file and its place are deleted from this phone. This can’t be undone.", "Delete for good", { forGood = null }) {
+            quiet.library.deleteForever(listOf(b.id)); forGood = null
+        }
+    }
     Page {
         PageHeader("Recently deleted", state, back = SettingsPage.Files)
         if (trash.isEmpty()) {
@@ -473,7 +479,7 @@ private fun TrashPage(state: AppState) {
                             state.toast("“${book.title}” is back in your library.")
                         })
                         Spacer(Modifier.width(8.dp))
-                        IconKey(Icons.Trash, "Delete for good", { quiet.library.deleteForever(listOf(book.id)) }, kind = KeyKind.Danger)
+                        IconKey(Icons.Trash, "Delete for good", { forGood = book }, kind = KeyKind.Danger)
                     }
                 }
             }
@@ -560,17 +566,21 @@ private fun YourFonts(state: AppState, settings: QuietSettings) {
     val books by quiet.library.books.collectAsState()
     var version by remember { mutableStateOf(0) }
     val families = remember(books, version, state.fontsVersion) { quiet.fonts.families() }
+    var removing by remember { mutableStateOf<String?>(null) }
+    removing?.let { family ->
+        ConfirmDialog("Remove “$family”?", "The font file is deleted from this phone. Books using it go back to Crimson Pro.", "Remove font", { removing = null }) {
+            quiet.fonts.remove(family)
+            if (settings.customFont == family) settings.customFont = null
+            version++; removing = null
+        }
+    }
     Card {
         families.forEachIndexed { i, family ->
             if (i > 0) Divider()
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(family, style = Type.body.copy(color = c.text), modifier = Modifier.weight(1f))
                 if (settings.customFont == family) { Text("in use", style = Type.hint.copy(color = c.accentStrong)); Spacer(Modifier.width(10.dp)) }
-                IconKey(Icons.Trash, "Remove $family", {
-                    quiet.fonts.remove(family)
-                    if (settings.customFont == family) settings.customFont = null
-                    version++
-                }, kind = KeyKind.Danger)
+                IconKey(Icons.Trash, "Remove $family", { removing = family }, kind = KeyKind.Danger)
             }
         }
         if (families.isNotEmpty()) Divider()

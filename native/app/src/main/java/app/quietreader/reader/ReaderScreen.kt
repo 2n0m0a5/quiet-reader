@@ -131,7 +131,7 @@ fun pageColors(c: QuietColors) = c.readerBg to c.readerText
  * The full reader bar (tuning scale, five keys, More) comes in L3.
  */
 @Composable
-fun ReaderScreen(book: Book, startNote: app.quietreader.data.Note? = null, onClose: () -> Unit) {
+fun ReaderScreen(book: Book, startNote: app.quietreader.data.Note? = null, onInfo: () -> Unit = {}, onClose: () -> Unit) {
     val quiet = LocalQuiet.current
     val settings = quiet.settings
     val c = LocalColors.current
@@ -176,6 +176,7 @@ fun ReaderScreen(book: Book, startNote: app.quietreader.data.Note? = null, onClo
                 ReaderKey.Mode -> settings.flow = if (settings.flow == Flow.Scrolled) Flow.Paginated else Flow.Scrolled
                 ReaderKey.Notes -> sheet = "notes"
                 ReaderKey.Search -> sheet = "search"
+                ReaderKey.Bookmark -> state.toggleBookmark()
             }
         }
     }
@@ -185,7 +186,7 @@ fun ReaderScreen(book: Book, startNote: app.quietreader.data.Note? = null, onClo
     when (sheet) {
         "contents" -> ContentsSheet(state, pdf, close)
         "text" -> TextSheet(pdf, close)
-        "more" -> MoreSheet(pdf) { sheet = it }
+        "more" -> MoreSheet(pdf) { if (it == "info") { sheet = null; onInfo() } else sheet = it }
         "light" -> LightSheet(close)
         "layout" -> LayoutSheet(pdf, close)
         "goto" -> GoToSheet(state, close)
@@ -241,7 +242,7 @@ private fun ReaderBars(
                 Spacer(Modifier.width(8.dp))
                 app.quietreader.ui.Key({ state.toggleBookmark() }, padding = androidx.compose.foundation.layout.PaddingValues(0.dp),
                     contentDescription = if (state.bookmarkHere) "Remove bookmark" else "Bookmark this page") {
-                    Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) {
                         Icon(if (state.bookmarkHere) Icons.BookmarkFilled else Icons.Bookmark, null, Modifier.size(18.dp),
                             tint = if (state.bookmarkHere) c.accent else c.text)
                     }

@@ -9,6 +9,8 @@ import androidx.compose.ui.test.filterToOne
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.onLast
 import androidx.test.core.app.ApplicationProvider
@@ -125,6 +127,32 @@ class L5Test {
         compose.mainClock.advanceTimeBy(800)
         compose.onAllNodesWithText("✓ Summer").onLast().performScrollTo().performClick()
         compose.runOnIdle { assertTrue(quiet.library.get("a")!!.collectionIds.isEmpty()) }
+    }
+
+    /** Hold a cover to select; Info for one; Remove gives Undo; New always asks (even from Want). */
+    @Test fun holdToSelectUndoAndNewAsks() {
+        quiet.library.putAll(listOf(book("a", "Alpha") { put("wantToRead", true) }, book("b", "Beta"), book("c", "Gamma")))
+        val state = AppState()
+        compose.setContent { CompositionLocalProvider(LocalQuiet provides quiet) { QuietTheme(quiet.settings, null) { QuietApp(quiet.settings, state) } } }
+        compose.mainClock.advanceTimeBy(800)
+        compose.onNodeWithText("Beta").performTouchInput { longClick() }
+        compose.runOnIdle { assertTrue(state.selecting); assertEquals(setOf("b"), state.selected) }
+        compose.onNodeWithText("Gamma").performClick()
+        compose.runOnIdle { assertEquals(setOf("b", "c"), state.selected) }
+        compose.onNodeWithText("Gamma").performClick()
+        compose.onNodeWithText("Info").assertExists()
+        compose.onNodeWithText("Remove").performClick()
+        compose.mainClock.advanceTimeBy(500)
+        compose.onNodeWithText("Undo").assertExists()
+        compose.runOnIdle { assertTrue(quiet.library.get("b")!!.deletedAt != null) }
+        compose.onNodeWithText("Undo").performClick()
+        compose.runOnIdle { assertEquals(null, quiet.library.get("b")!!.deletedAt) }
+        // New from Want asks.
+        compose.runOnIdle { state.details = "a" }
+        compose.mainClock.advanceTimeBy(800)
+        compose.onAllNodesWithText("New").onLast().performClick()
+        compose.onNodeWithText("Mark as new?").assertExists()
+        compose.onNodeWithText("It will leave your Want to read list. Highlights, notes and bookmarks stay.").assertExists()
     }
 
     @Test fun libraryScreens() {

@@ -79,7 +79,7 @@ fun LibraryScreen(state: AppState) {
     val collections = remember(version) { quiet.collections.all() }
     val shelf = all.filter { it.deletedAt == null }
 
-    if (shelf.isEmpty()) { EmptyLibrary(state); LibrarySheets(state); return }
+    if (shelf.isEmpty()) { EmptyLibrary(state); return }
 
     val filtered = shelf.filter { b ->
         when (state.filter) {
@@ -116,7 +116,6 @@ fun LibraryScreen(state: AppState) {
         }
         if (state.selected.isNotEmpty() || state.selecting) SelectionBar(state, shelf)
     }
-    LibrarySheets(state)
 }
 
 @Composable
@@ -172,7 +171,11 @@ private fun Books(state: AppState, books: List<Book>, collections: Map<String, S
             )
         }
         if (books.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
-            Text("No books here.", style = Type.body.copy(color = c.muted), modifier = Modifier.padding(vertical = 24.dp))
+            Column(Modifier.padding(vertical = 24.dp)) {
+                Text("No books here.", style = Type.body.copy(color = c.muted))
+                Spacer(Modifier.height(10.dp))
+                TextKey("Show all books", { state.filter = Filter.All; state.collection = null; state.query = ""; state.searching = false })
+            }
         }
         groups.forEach { (name, list) ->
             if (name.isNotEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
@@ -191,11 +194,12 @@ private fun Modifier.bookClicks(book: Book, state: AppState, haptics: Haptics?) 
         haptics?.tick()
         if (state.selecting) state.toggleSelected(book.id) else state.open(book.id)
     },
+    // Hold a cover to start selecting (the Android way); tap more covers to add them.
     onLongClick = {
         haptics?.confirm()
-        if (state.selecting) state.toggleSelected(book.id) else state.details = book.id
+        if (state.selecting) state.toggleSelected(book.id) else { state.selecting = true; state.selected = setOf(book.id) }
     },
-    onLongClickLabel = "Book info",
+    onLongClickLabel = "Select",
 )
 
 @Composable
@@ -316,7 +320,11 @@ private fun SelectionBar(state: AppState, shelf: List<Book>) {
     val c = LocalColors.current
     Column(Modifier.fillMaxWidth().background(c.panelDeep).hairline(c.line, top = true).padding(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("${state.selected.size} selected", style = Type.rowTitle.copy(color = c.text), modifier = Modifier.weight(1f))
+            Column(Modifier.weight(1f)) {
+                Text("${state.selected.size} selected", style = Type.rowTitle.copy(color = c.text))
+                Text("Tap books to add or take them out", style = Type.hint.copy(color = c.muted))
+            }
+            if (state.selected.size == 1) { TextKey("Info", { state.details = state.selected.first() }); Spacer(Modifier.width(6.dp)) }
             TextKey("All", { state.selected = shelf.map { it.id }.toSet() })
             Spacer(Modifier.width(6.dp))
             TextKey("Done", { state.selecting = false; state.selected = emptySet() }, kind = KeyKind.Primary)

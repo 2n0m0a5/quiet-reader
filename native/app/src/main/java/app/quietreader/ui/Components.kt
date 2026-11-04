@@ -157,7 +157,7 @@ fun TextKey(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, ki
 
 /** A square key with an icon, like the top bar's Day/Night key. */
 @Composable
-fun IconKey(icon: ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier, kind: KeyKind = KeyKind.Normal, size: Dp = 36.dp) =
+fun IconKey(icon: ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier, kind: KeyKind = KeyKind.Normal, size: Dp = 44.dp) =
     Key(onClick, modifier, kind, padding = PaddingValues(0.dp), contentDescription = label) {
         Box(Modifier.size(size), contentAlignment = Alignment.Center) {
             Icon(icon, label, Modifier.size(18.dp), tint = LocalContentColor.current)

@@ -85,12 +85,12 @@ fun NotesTab(state: AppState) {
         items(shown, key = { it.id }) { n ->
             val book = byId[n.bookId]
             app.quietreader.reader.NoteRow(n, book?.title ?: "A book no longer in your library",
-                onLongClick = { haptics?.confirm(); if (!n.isBookmark) editing = n else { quiet.notes.delete(n.id); state.toast("Bookmark removed.") } },
+                onLongClick = { haptics?.confirm(); if (!n.isBookmark) editing = n else { quiet.notes.delete(n.id); state.undoable("Bookmark removed.") { quiet.notes.put(n) } } },
             ) {
                 if (book != null && book.deletedAt == null) { haptics?.tick(); state.open(book.id, n) } else state.toast("That book isn’t in your library.")
             }
             Divider()
         }
     }
-    editing?.let { n -> NoteEditor(n, byId[n.bookId]) { editing = null } }
+    editing?.let { n -> NoteEditor(n, byId[n.bookId], onDeleted = { gone -> state.undoable("Note deleted.") { quiet.notes.put(gone) } }) { editing = null } }
 }

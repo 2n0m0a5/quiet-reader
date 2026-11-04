@@ -103,6 +103,7 @@ private fun ReaderKey.icon(dark: Boolean): ImageVector = when (this) {
     ReaderKey.Mode -> Icons.BookOpen
     ReaderKey.Notes -> Icons.Bookmark
     ReaderKey.Search -> Icons.Search
+    ReaderKey.Bookmark -> Icons.Bookmark
 }
 
 private fun ReaderKey.title(dark: Boolean) = if (this == ReaderKey.DayNight) (if (dark) "Day" else "Night") else label
@@ -140,7 +141,10 @@ fun BottomBar(state: ReaderState, modifier: Modifier, onKey: (ReaderKey?) -> Uni
             }
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                settings.readerKeys.forEach { key -> BarKey(key.icon(c.isDark), key.title(c.isDark), Modifier.weight(1f)) { onKey(key) } }
+                settings.readerKeys.forEach { key ->
+                    val icon = if (key == ReaderKey.Bookmark && state.bookmarkHere) Icons.BookmarkFilled else key.icon(c.isDark)
+                    BarKey(icon, key.title(c.isDark), Modifier.weight(1f)) { onKey(key) }
+                }
                 BarKey(Icons.More, "More", Modifier.weight(1f)) { onKey(null) }
             }
         }
@@ -322,7 +326,7 @@ fun MoreSheet(pdf: Boolean, open: (String?) -> Unit) {
                 Divider()
                 row("Search in book", Icons.Search) { open("search") }
                 Divider()
-                row("Book info", Icons.Info, "L5") {}
+                row("Book info", Icons.Info) { open("info") }
             }
         }
     }
