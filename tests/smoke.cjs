@@ -1,5 +1,5 @@
 // The main paths in one quick run: add books, open and move through a book,
-// the four tabs, the four styles, and that choices survive a reload.
+// the four tabs, the Radio design with Night, and that choices survive a reload.
 const path = require('path')
 const t = require('./common.cjs')
 
@@ -43,24 +43,22 @@ t.suite('smoke', async ({ page, check, shot }) => {
     if (name !== 'library') await shot(page, `4-${name}`)
   }
 
-  // Styles
+  // The design: Radio only (0.4.0), and no style picker left in Settings.
   await page.click('#openSettings')
   await page.waitForTimeout(400)
-  const ids = await page.$$eval('.style-card', cards => cards.map(c => c.dataset.preview))
-  check(ids.join() === 'star,paper,tashkent,frost', 'four styles offered', ids.join())
-  for (const id of ids) {
-    await page.click(`.style-card[data-preview="${id}"]`)
-    await page.waitForTimeout(700)
-    check(await page.evaluate(() => document.documentElement.dataset.style) === id, `style ${id} applies`)
-    await shot(page, `5-style-${id}`)
-  }
+  check(await page.evaluate(() => document.documentElement.dataset.style) === 'radio', 'the Radio design is on')
+  check(await page.locator('.style-card').count() === 0, 'no style picker in Settings')
+  await page.click('.choice[data-key="theme"][data-value="dark"]')
+  await page.waitForTimeout(700)
+  check(await page.evaluate(() => document.documentElement.hasAttribute('data-dark')), 'Night applies')
+  await shot(page, '5-night')
 
   // Persistence
   await page.reload()
   await page.waitForSelector('#app', { state: 'attached' })
   await page.waitForTimeout(800)
   check(await view(page) === 'settings', 'reload keeps the open screen')
-  check(await page.evaluate(() => document.documentElement.dataset.style) === 'frost', 'style survives a reload')
+  check(await page.evaluate(() => document.documentElement.hasAttribute('data-dark')), 'Night survives a reload')
   await page.click('#navLibrary')
   await page.waitForTimeout(600)
   check((await page.locator('#library').innerText()).includes('The Quiet River'), 'library survives a reload')

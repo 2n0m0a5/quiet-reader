@@ -739,8 +739,14 @@ export class LibraryView {
     let fired = false
     let shownAt = 0
     const show = (byTouch: boolean) => {
-      // A held finger's release can count as a tap; that tap mustn't also open the book.
-      if (byTouch) fired = true
+      // A held finger's release can count as a tap; that tap mustn't also open the book, nor land
+      // on the details sheet that just opened (outside it, it would close it at once).
+      if (byTouch) {
+        fired = true
+        const swallow = (e: Event) => { e.stopPropagation(); e.preventDefault() }
+        document.addEventListener('click', swallow, { capture: true, once: true })
+        window.setTimeout(() => document.removeEventListener('click', swallow, { capture: true }), 700)
+      }
       if (Date.now() - shownAt < 1000) return
       shownAt = Date.now()
       haptic()

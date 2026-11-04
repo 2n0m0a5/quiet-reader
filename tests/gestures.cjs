@@ -38,4 +38,4 @@ t.suite('gestures', async ({ page, check, shot }) => {
   await page.waitForTimeout(1200)
   check(await view(page) === 'library', 'long edge swipe goes back to the library', await view(page))
   await shot(page, '2-after-swipe-back')
-})
+}, { context: { serviceWorkers: 'block' } })

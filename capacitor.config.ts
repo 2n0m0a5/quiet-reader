@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appId: 'app.quietreader',
   appName: 'Quiet',
   webDir: 'dist',
-  backgroundColor: '#f7f5f0',
+  backgroundColor: '#e8e6e1',
 }
 
 export default config

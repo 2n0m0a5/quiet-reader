@@ -72,7 +72,7 @@ export async function renderQuote(a: Annotation, book: BookRecord | undefined, s
   canvas.width = W
   canvas.height = H
   const g = canvas.getContext('2d')!
-  const style = document.documentElement.dataset.style ?? 'star'
+  const style = document.documentElement.dataset.style ?? 'radio'
   const colors = {
     bg: css('--reader-bg') || '#fcfbf8', text: css('--reader-text') || '#1b1a17', muted: css('--muted') || '#5e5a52',
     accent: css('--accent') || '#24407a', line: css('--line') || '#e4e0d8', mark: css('--mark') || css('--accent'),

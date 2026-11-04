@@ -1,5 +1,4 @@
-// Quiet's marks, for both design styles. CSS shows the one that fits (see styles.css):
-// Quiet Star uses the khatam, an eight-pointed star made of two squares; Paper uses an italic "q."
+// Quiet's marks. Radio (0.4.0) uses a knob; the khatam star stays for ratings.
 
 const NS = 'http://www.w3.org/2000/svg'
 // The outline of a square and the same square turned 45°, in a 24 × 24 box.
@@ -16,8 +15,29 @@ export function khatam(className = '') {
   return svg
 }
 
-// The app icon: a lapis tile with an ivory star, or "q." on white paper.
+// Radio's mark: a volume knob turned all the way down, with the orange "zero" dot.
+export function knob(className = '') {
+  const svg = document.createElementNS(NS, 'svg')
+  svg.setAttribute('class', `knob ${className}`.trim())
+  svg.setAttribute('viewBox', '0 0 64 64')
+  svg.setAttribute('aria-hidden', 'true')
+  svg.innerHTML = '<circle cx="32" cy="32" r="25" fill="var(--panel)" stroke="var(--key-edge)" stroke-width="3"/>'
+    + '<path d="M32 32 19 45" stroke="currentColor" stroke-width="6" stroke-linecap="round"/><circle cx="11" cy="53" r="4" fill="var(--accent)"/>'
+  return svg
+}
+
+// The app icon: the knob on the casing.
+export function radioLogo(className = '') {
+  const el = document.createElement('div')
+  el.className = `logo logo-radio ${className}`.trim()
+  el.setAttribute('aria-hidden', 'true')
+  el.append(knob())
+  return el
+}
+
+// (Before 0.4.0: a lapis tile with an ivory star, or "q." on white paper.)
 export function logo(className = '') {
+  if (document.documentElement.dataset.style === 'radio') return radioLogo(className)
   const el = document.createElement('div')
   el.className = `logo ${className}`.trim()
   el.setAttribute('aria-hidden', 'true')

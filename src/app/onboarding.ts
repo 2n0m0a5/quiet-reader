@@ -58,15 +58,8 @@ export function showWelcome(addBooks: () => void) {
   }
   const logo = art('welcome-logo', quietLogo())
 
-  const style = document.documentElement.dataset.style
   const pages: Page[] = [
-    style === 'paper'
-      ? { art: logo, title: 'A place to read. Nothing else.', text: 'EPUB, PDF, Word, comics, FB2, MOBI and more. No account, no ads, no feed. Your books, your place in them and your notes stay on this device.' }
-      : style === 'frost'
-      ? { art: logo, title: 'Clear as glass.', text: 'Your books, with everything else on a pane of frosted glass that floats out of the way. EPUB, PDF, Word, comics and more. Everything stays on this device.' }
-      : style === 'tashkent'
-      ? { art: logo, title: 'Come in, and read.', text: 'A quiet courtyard for your books: EPUB, PDF, Word, comics, FB2, MOBI and more. Everything stays on this device. No account, no ads.' }
-      : { art: logo, title: 'Just you and the book.', text: 'A calm place for your books: EPUB, PDF, Word, comics, FB2, MOBI and more. Everything stays on this device. No account, no ads, no tracking.' },
+    { art: logo, title: 'Just you and the book.', text: 'A calm place for your books: EPUB, PDF, Word, comics, FB2, MOBI and more. Everything stays on this device. No account, no ads, no tracking.' },
     { art: phone, title: 'Tap to read', text: 'Tap the middle of the page to show or hide the controls. In page mode, tap the left or right edge to turn the page.' },
     { art: marks, title: 'Make it yours', text: 'Select text to highlight it, write a note, save a quote or translate it. Themes, fonts and spacing are under the sliders button while you read.' },
   ]

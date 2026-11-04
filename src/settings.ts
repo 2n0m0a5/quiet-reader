@@ -1,8 +1,10 @@
 // Reading preferences, remembered between visits.
 
 // The design style: how the whole app looks (fonts, colours, shapes, controls).
-export type DesignStyle = 'star' | 'paper' | 'tashkent' | 'frost'
-export const DESIGN_STYLES: DesignStyle[] = ['star', 'paper', 'tashkent', 'frost']
+// 0.4.0 has one design, Radio. (Quiet Star, Paper, Old Tashkent and Frosty Glass were removed;
+// a saved one falls back to Radio in loadSettings.)
+export type DesignStyle = 'radio'
+export const DESIGN_STYLES: DesignStyle[] = ['radio']
 
 export type Theme = 'light' | 'dark' | 'black' | 'custom' | 'system'
 export type Flow = 'scrolled' | 'paginated'
@@ -52,7 +54,7 @@ export interface Settings {
 }
 
 export const defaults: Settings = {
-  style: 'star',
+  style: 'radio',
   pageTurn: 'slide',
   theme: 'light',
   customBg: '#f3efe6',

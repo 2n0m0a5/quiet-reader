@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <!-- Books can contain JavaScript. Only our own scripts may run; everything a book loads comes from blob: URLs. -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' blob: data:; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' blob:; img-src 'self' blob: data:; font-src 'self' blob: data:; frame-src blob:; connect-src 'self' blob: data: https://translate.googleapis.com https://api.mymemory.translated.net; object-src 'none'">
-  <meta name="theme-color" content="#fffdf9">
+  <meta name="theme-color" content="#e8e6e1">
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./apple-touch-icon.png">
   <title>Quiet</title>
@@ -15,11 +15,11 @@
   <header class="topbar">
     <div class="top-start">
       <button class="btn icon back-button" id="backToLibrary" title="Back to library" aria-label="Back to library"><i data-lucide="arrow-left"></i></button>
-      <div class="brand" aria-label="Quiet"><svg class="khatam brand-star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8 14.7 5.5H18.5V9.3L21.2 12 18.5 14.7V18.5H14.7L12 21.2 9.3 18.5H5.5V14.7L2.8 12 5.5 9.3V5.5H9.3Z"/></svg><span class="brand-name" aria-hidden="true">quiet</span><span class="brand-dot" aria-hidden="true">.</span></div>
+      <div class="brand" aria-label="Quiet"><svg class="knob brand-knob" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="25" fill="var(--panel)" stroke="var(--key-edge)" stroke-width="3"/><path d="M32 32 19 45" stroke="currentColor" stroke-width="6" stroke-linecap="round"/><circle cx="11" cy="53" r="4" fill="var(--accent)"/></svg><span class="brand-name" aria-hidden="true">quiet</span><span class="brand-dot" aria-hidden="true">.</span></div>
       <div class="top-title reader-only" id="topTitle"></div>
       <div class="top-title settings-only">Settings</div>
       <div class="top-title notes-only"><span class="star-only">Notes</span><span class="paper-only">Commonplace book</span></div>
-      <div class="top-title stats-only">Reading</div>
+      <div class="top-title stats-only">Stats</div>
     </div>
     <div class="top-actions">
       <button class="btn library-only" id="installApp" aria-label="Install Quiet" hidden><i data-lucide="download"></i><span class="label">Install</span></button>
@@ -39,7 +39,7 @@
   <nav class="tabbar" id="tabbar" aria-label="Main">
     <button class="tab" id="navLibrary" data-view="library"><i data-lucide="library"></i><span>Library</span></button>
     <button class="tab" id="openNotes" data-view="notes"><i data-lucide="notebook-text"></i><span>Notes</span></button>
-    <button class="tab" id="openStats" data-view="stats"><i data-lucide="chart-column"></i><span>Reading</span></button>
+    <button class="tab" id="openStats" data-view="stats"><i data-lucide="chart-column"></i><span>Stats</span></button>
     <button class="tab" id="openSettings" data-view="settings"><i data-lucide="settings"></i><span>Settings</span></button>
   </nav>
 

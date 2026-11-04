@@ -1,7 +1,7 @@
 import { clearLibrary, listBooks } from './library/db'
 import { lastBackup, pickBackupFile, readBackup, restoreBackup, saveBackup } from './library/backup'
 import { phoneWantsLessMotion } from './ui/motion'
-import { limits, type DesignStyle, type Settings } from './settings'
+import { limits, type Settings } from './settings'
 import { confirmDialog, h, icon } from './ui/dialog'
 import { fileSize, timeAgo } from './ui/format'
 import { toast } from './ui/toast'
@@ -9,7 +9,7 @@ import { haptic, isNativeApp, openExternal } from './app/native'
 import { showWelcome, showWhatsNew } from './app/onboarding'
 import { addFolder, listFolders, removeFolder, scanFolders } from './library/folders'
 import { X } from 'lucide'
-import { khatam, logo as quietLogo } from './ui/brand'
+import { logo as quietLogo } from './ui/brand'
 import { fillRange } from './ui/range'
 import { familyStack, loadedFamilies, loadedRecords, removeFamily } from './reader/custom-fonts'
 
@@ -22,12 +22,6 @@ export interface SettingsScreenActions {
 
 type Choice<K extends keyof Settings> = [Settings[K], string][]
 
-const STYLES: { id: DesignStyle, name: string, wordmark: string, text: string, action: string }[] = [
-  { id: 'star', name: 'Quiet Star', wordmark: 'Quiet', text: 'Almost nothing, and one small star. Lapis blue, soft paper and rounded shapes.', action: 'Continue reading' },
-  { id: 'paper', name: 'Paper', wordmark: 'quiet', text: 'Black ink on white paper. Nothing else. Hairlines, words instead of buttons, one red mark.', action: 'Continue reading' },
-  { id: 'tashkent', name: 'Old Tashkent', wordmark: 'Quiet', text: 'Ganch plaster, carved walnut and arched doorways, like a quiet courtyard in the old town.', action: 'Continue' },
-  { id: 'frost', name: 'Frosty Glass', wordmark: 'Quiet', text: 'Controls of frosted glass floating over a clear page, on soft, icy light.', action: 'Continue reading' },
-]
 
 // The Settings screen: reading defaults, behaviour, storage, and About.
 export class SettingsScreen {
@@ -42,7 +36,6 @@ export class SettingsScreen {
   render() {
     const inner = h('div', 'settings-inner')
     inner.append(
-      this.#styles(),
       this.#section('Appearance', 'System follows your device: Day while it’s light, Night while it’s in dark mode.', [
         this.#choices('Theme', 'theme', [['system', 'System'], ['light', 'Day'], ['dark', 'Night'], ['black', 'Black'], ['custom', 'Custom']]),
         this.#customColours(),
@@ -90,51 +83,6 @@ export class SettingsScreen {
       this.#about(),
     )
     this.#root.replaceChildren(inner)
-  }
-
-  // ---------- Design styles ----------
-  // Each style changes the whole look of Quiet: colours, type, shapes and marks. The book's own
-  // look only changes through its fonts and the Day and Night colours.
-
-  #styles() {
-    const section = h('section', 'settings-section style-section')
-    section.append(h('h2', '', 'Style'), h('p', 'settings-hint', 'How Quiet looks. Your books, notes and settings stay as they are.'))
-    const list = h('div', 'style-list')
-    const current = this.#actions.get().style
-    for (const style of STYLES) {
-      const on = style.id === current
-      const card = h('button', `style-card${on ? ' selected' : ''}`)
-      card.setAttribute('aria-pressed', String(on))
-      card.dataset.preview = style.id
-      // A small page in the style's own colours and type.
-      const art = h('div', 'style-art')
-      art.setAttribute('aria-hidden', 'true')
-      const mark = h('div', 'style-art-mark')
-      mark.append(khatam(), h('span', 'style-art-name', style.wordmark))
-      art.append(mark, h('div', 'style-art-text', 'It is a truth universally acknowledged…'), h('div', 'style-art-action', style.action))
-      const text = h('div', 'style-text')
-      text.append(h('div', 'style-name', style.name), h('div', 'settings-hint', style.text))
-      const state = h('span', 'style-state', on ? 'In use' : 'Use this style')
-      card.append(art, text, state)
-      card.addEventListener('click', () => {
-        if (on) return
-        haptic('confirm')
-        this.#actions.update({ style: style.id })
-        this.render()
-        toast(`${style.name} is in use.`)
-      })
-      list.append(card)
-    }
-    const soon = h('div', 'style-soon')
-    const more = h('div', 'style-soon-row')
-    more.append(h('div', 'settings-label', 'More styles are on the way'), h('div', 'settings-hint', 'New styles will arrive with updates, free, like these.'))
-    const own = h('div', 'style-soon-row')
-    const ownHead = h('div', 'style-soon-head')
-    ownHead.append(h('div', 'settings-label', 'Build your own style'), h('span', 'soon-badge', 'Coming soon'))
-    own.append(ownHead, h('div', 'settings-hint', 'Choose your own colours, type and shapes, and make Quiet look the way you like.'))
-    soon.append(more, own)
-    section.append(list, soon)
-    return section
   }
 
   // ---------- Your fonts ----------
