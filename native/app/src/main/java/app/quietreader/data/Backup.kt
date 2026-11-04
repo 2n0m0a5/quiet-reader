@@ -180,6 +180,19 @@ class Backup(private val library: Library, private val settings: QuietSettings, 
         s.put("font", settings.bookFont.key)
         s.put("fontSize", settings.bookSize)
         s.put("flow", settings.flow.key)
+        s.put("lineHeight", settings.lineHeight / 10.0)
+        s.put("margins", settings.margins.key)
+        s.put("align", settings.align.key)
+        s.put("hyphenate", settings.hyphenate)
+        s.put("fontWeight", settings.fontWeight)
+        s.put("paragraphSpacing", if (settings.paragraphSpacing < 0) -1 else settings.paragraphSpacing / 10.0)
+        s.put("indent", if (settings.indent < 0) -1 else settings.indent / 10.0)
+        s.put("brightness", if (settings.brightness < 0) 100 else settings.brightness)
+        s.put("warmth", settings.warmth)
+        s.put("volumeKeys", settings.volumeKeys)
+        s.put("showClock", settings.showClock)
+        s.put("keepAwake", settings.keepAwake)
+        s.put("readerKeys", org.json.JSONArray(settings.readerKeys.map { it.key }))
         all.put("quiet:settings", s.toString())
         return all
     }
@@ -198,6 +211,21 @@ class Backup(private val library: Library, private val settings: QuietSettings, 
         settings.bookFont = BookFont.entries.firstOrNull { it.key == font } ?: if (font.startsWith("custom:")) BookFont.Serif else settings.bookFont
         if (s.has("fontSize")) settings.bookSize = s.optInt("fontSize", 100)
         Flow.entries.firstOrNull { it.key == s.optString("flow") }?.let { settings.flow = it }
+        if (s.has("lineHeight")) settings.lineHeight = (s.optDouble("lineHeight", 1.7) * 10).toInt()
+        app.quietreader.Margins.entries.firstOrNull { it.key == s.optString("margins") }?.let { settings.margins = it }
+        app.quietreader.Align.entries.firstOrNull { it.key == s.optString("align") }?.let { settings.align = it }
+        if (s.has("hyphenate")) settings.hyphenate = s.optBoolean("hyphenate")
+        if (s.has("fontWeight")) settings.fontWeight = s.optInt("fontWeight", 400)
+        if (s.has("paragraphSpacing")) settings.paragraphSpacing = s.optDouble("paragraphSpacing", -1.0).let { if (it < 0) -1 else (it * 10).toInt() }
+        if (s.has("indent")) settings.indent = s.optDouble("indent", -1.0).let { if (it < 0) -1 else (it * 10).toInt() }
+        if (s.has("warmth")) settings.warmth = s.optInt("warmth", 0)
+        if (s.has("volumeKeys")) settings.volumeKeys = s.optBoolean("volumeKeys", true)
+        if (s.has("showClock")) settings.showClock = s.optBoolean("showClock", true)
+        if (s.has("keepAwake")) settings.keepAwake = s.optBoolean("keepAwake", true)
+        s.optJSONArray("readerKeys")?.let { arr ->
+            val keys = (0 until arr.length()).mapNotNull { i -> app.quietreader.ReaderKey.entries.firstOrNull { it.key == arr.optString(i) } }
+            if (keys.isNotEmpty()) settings.readerKeys = keys
+        }
     }
 
     companion object {

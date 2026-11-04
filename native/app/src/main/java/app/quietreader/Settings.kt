@@ -40,6 +40,22 @@ object BookSize {
     const val DEFAULT = 100
 }
 
+enum class Margins(val key: String, val label: String, val readium: Double) {
+    Narrow("narrow", "Narrow", 0.5), Normal("normal", "Normal", 1.0), Wide("wide", "Wide", 1.6);
+}
+
+enum class Align(val key: String, val label: String) { Start("start", "Left"), Justify("justify", "Justified") }
+
+/** The keys of the reader bar (the web app's `readerKeys`). More is always last and not listed. */
+enum class ReaderKey(val key: String, val label: String) {
+    Contents("contents", "Contents"), DayNight("daynight", "Day/Night"), Light("light", "Light"),
+    Text("text", "Text"), Layout("layout", "Layout"), GoTo("goto", "Go to"), Mode("mode", "Scroll/Pages");
+
+    companion object {
+        val DEFAULT = listOf(Contents, DayNight, Light, Text)
+    }
+}
+
 enum class Rotation(val key: String, val label: String) {
     Auto("auto", "Automatic"), Portrait("portrait", "Portrait"), Landscape("landscape", "Landscape");
 }
@@ -61,6 +77,29 @@ class QuietSettings(private val prefs: SharedPreferences) {
     var bookFont by pref("font", BookFont.Serif, BookFont.entries, { it.key })
     var flow by pref("flow", Flow.Scrolled, Flow.entries, { it.key })
     var bookSize by intPref("fontSize", BookSize.DEFAULT, BookSize.MIN..BookSize.MAX)
+    var lineHeight by intPref("lineHeight10", 17, 10..25)          // ×10: 17 = 1.7, the web default
+    var margins by pref("margins", Margins.Normal, Margins.entries, { it.key })
+    var align by pref("align", Align.Start, Align.entries, { it.key })
+    var hyphenate by boolPref("hyphenate", false)
+    var fontWeight by intPref("fontWeight", 400, 300..700)
+    var paragraphSpacing by intPref("paragraphSpacing10", -1, -1..20) // ×10 em; -1 keeps the book's own
+    var indent by intPref("indent10", -1, -1..30)                     // ×10 em; -1 keeps the book's own
+    var brightness by intPref("brightness", -1, -1..100)              // -1 follows the phone
+    var warmth by intPref("warmth", 0, 0..100)
+    var volumeKeys by boolPref("volumeKeys", true)
+    var showClock by boolPref("showClock", true)
+    var keepAwake by boolPref("keepAwake", true)
+    var readerKeys: List<ReaderKey>
+        get() = readerKeysState.value
+        set(value) {
+            val keys = value.distinct().take(4)
+            readerKeysState.value = keys
+            prefs.edit().putString("readerKeys", keys.joinToString(",") { it.key }).apply()
+        }
+    private val readerKeysState = mutableStateOf(
+        prefs.getString("readerKeys", null)?.split(',')?.mapNotNull { k -> ReaderKey.entries.firstOrNull { it.key == k } }
+            ?.takeIf { it.isNotEmpty() } ?: ReaderKey.DEFAULT
+    )
 
     // This phone only
     var lastBackup: Long?

@@ -64,6 +64,7 @@ fun SettingsScreen(state: AppState, settings: QuietSettings) {
         when (page) {
             SettingsPage.Home -> SettingsHome(state)
             SettingsPage.Interface -> InterfacePage(state, settings)
+            SettingsPage.Reader -> ReaderPage(state, settings)
             SettingsPage.Files -> FilesPage(state)
             SettingsPage.Trash -> TrashPage(state)
             SettingsPage.About -> AboutPage(state)
@@ -84,7 +85,7 @@ private data class Section(val number: String, val title: String, val hint: Stri
 
 private val sections = listOf(
     Section("01", "Interface", "Day and night, app text size, motion, vibration", null, SettingsPage.Interface),
-    Section("02", "Reader", "Scroll or pages, page turn, fonts, spacing, the reader bar", "L3", null),
+    Section("02", "Reader", "Scroll or pages, the reader bar, volume keys, time and battery", null, SettingsPage.Reader),
     Section("03", "Library", "Book folders Quiet watches for new books", "L5", null),
     Section("04", "Files & storage", "Back up and restore, space used, delete everything", null, SettingsPage.Files),
     Section("05", "Privacy & translation", "What leaves your phone: only text you translate", "L4", null),
@@ -486,5 +487,50 @@ private fun TrashPage(state: AppState) {
     ) {
         confirmEmpty = false
         quiet.library.deleteForever(trash.map { it.id })
+    }
+}
+
+/** Reader: reading defaults (also in the reader's More), the bar, keys and screen. */
+@Composable
+private fun ReaderPage(state: AppState, settings: QuietSettings) {
+    val c = LocalColors.current
+    Page {
+        PageHeader("Reader", state)
+        SectionTitle("Page", "Size, font, light and layout are also under More while a book is open.")
+        Card {
+            SettingBlock("Reading mode") {
+                ChoiceRow(app.quietreader.Flow.entries.map { it to it.label }, settings.flow, { settings.flow = it }, perRow = 2)
+            }
+            Divider()
+            SettingBlock("Page turn (in page mode)", "Slide for now; Curl arrives in L3b.") {
+                ChoiceRow(listOf("slide" to "Slide"), "slide", {}, perRow = 1)
+            }
+        }
+        Spacer(Modifier.height(28.dp))
+        SectionTitle("Reader bar", "The four keys at the bottom of the page. More always has the rest.")
+        Card { Column(Modifier.padding(16.dp)) { app.quietreader.reader.CustomizeKeys() } }
+        Spacer(Modifier.height(28.dp))
+        SectionTitle("While reading")
+        Card {
+            ToggleRow("Volume keys turn pages", "Volume down for the next page, up for the previous one.", settings.volumeKeys) { settings.volumeKeys = it }
+            Divider()
+            ToggleRow("Time and battery", "Small, in the corner, while the bars are hidden.", settings.showClock) { settings.showClock = it }
+            Divider()
+            ToggleRow("Keep the screen on", "While a book is open.", settings.keepAwake) { settings.keepAwake = it }
+        }
+    }
+}
+
+@Composable
+private fun ToggleRow(title: String, hint: String, on: Boolean, set: (Boolean) -> Unit) {
+    val c = LocalColors.current
+    Row(Modifier.fillMaxWidth().clickable { set(!on) }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = Type.label.copy(color = c.text, fontWeight = FontWeight.Normal))
+            Spacer(Modifier.height(2.dp))
+            Text(hint, style = Type.hint.copy(color = c.muted))
+        }
+        Spacer(Modifier.width(12.dp))
+        Switch(on, set, title)
     }
 }

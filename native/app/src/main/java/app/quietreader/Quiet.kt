@@ -29,6 +29,9 @@ class Quiet(context: Context, dbName: String? = "library.db") {
     }
 
     @Volatile var safetyDirty = false
+
+    /** Turns a page in the open book (volume keys); null when no book is open. */
+    var pageTurner: ((forward: Boolean) -> Unit)? = null
 }
 
 val LocalQuiet = staticCompositionLocalOf<Quiet> { error("Quiet isn’t set up") }

@@ -30,6 +30,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.readium.r2.navigator.epub.EpubNavigatorFactory
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
@@ -85,14 +86,33 @@ private fun EpubView(book: Book, publication: Publication, state: ReaderState) {
         value = saved ?: startFromWeb(book, publication) ?: publication.readingOrder.firstOrNull()?.let { publication.locatorFromLink(it) }
     }
     val initial = start ?: return
-    val totalPositions by produceState(0, publication) { value = runCatching { publication.positions().size }.getOrDefault(0) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val positions by produceState<List<Locator>>(emptyList(), publication) { value = runCatching { publication.positions() }.getOrDefault(emptyList()) }
+    val totalPositions = positions.size
 
     // Contents, flattened.
     LaunchedEffect(publication) {
         fun flatten(links: List<Link>, depth: Int): List<ContentsEntry> =
             links.flatMap { listOf(ContentsEntry(it.title ?: "", depth, it)) + flatten(it.children, depth + 1) }
         state.contents = flatten(publication.tableOfContents, 0).filter { it.title.isNotBlank() }
-        state.goTo = { entry -> (entry.key as? Link)?.let { navigator?.go(it, animated = false) } }
+        state.goTo = { entry -> state.markBack(); (entry.key as? Link)?.let { navigator?.go(it, animated = false) } }
+    }
+    // The chapters as stations on the tuning scale; jumps by page or percentage; page turns.
+    LaunchedEffect(positions, navigator) {
+        val nav = navigator ?: return@LaunchedEffect
+        state.pages = positions.size
+        state.stations = publication.tableOfContents.mapNotNull { link ->
+            val href = link.url().removeFragment()
+            positions.firstOrNull { it.href.removeFragment() == href }?.locations?.totalProgression
+        }.filter { it > 0.0 }.distinct()
+        state.goToPage = { n -> positions.getOrNull(n - 1)?.let { nav.go(it) } }
+        state.goToProgress = { p -> scope.launch { publication.locateProgression(p)?.let { nav.go(it) } } }
+        state.turn = { forward -> if (forward) nav.goForward(animated = true) else nav.goBackward(animated = true) }
+        state.markBack = {
+            val here = nav.currentLocator.value
+            val label = here.locations.position?.let { "page $it" } ?: "where you were"
+            state.backTo = label to { nav.go(here) }
+        }
     }
 
     AndroidView(
@@ -138,7 +158,10 @@ private fun EpubView(book: Book, publication: Publication, state: ReaderState) {
     }
 
     // Settings and theme follow along live.
-    LaunchedEffect(navigator, settings.bookSize, settings.bookFont, settings.flow, colors.readerBg, colors.readerText) {
+    LaunchedEffect(
+        navigator, settings.bookSize, settings.bookFont, settings.flow, colors.readerBg, colors.readerText,
+        settings.lineHeight, settings.margins, settings.align, settings.hyphenate, settings.fontWeight, settings.paragraphSpacing, settings.indent,
+    ) {
         navigator?.submitPreferences(preferences(settings, colors))
     }
 
@@ -151,6 +174,7 @@ private fun EpubView(book: Book, publication: Publication, state: ReaderState) {
             state.progress = locator.locations.totalProgression ?: state.progress
             state.chapter = chapterTitle(publication, locator, state) ?: ""
             val position = locator.locations.position
+            state.page = position ?: 0
             state.pageLabel = if (position != null && totalPositions > 0) "$position / $totalPositions" else ""
             if (!first && state.barsShown && settings.flow == Flow.Scrolled) state.barsShown = false
             first = false
@@ -173,6 +197,10 @@ private fun EpubView(book: Book, publication: Publication, state: ReaderState) {
 @OptIn(ExperimentalReadiumApi::class)
 private fun preferences(settings: QuietSettings, colors: QuietColors): EpubPreferences {
     val (bg, ink) = pageColors(colors)
+    // Readium applies line spacing, alignment, hyphenation and paragraph settings only when the
+    // publisher's styles are off: keep the book's own look until one of them is changed.
+    val ownLayout = settings.bookFont == BookFont.Original && settings.lineHeight == 17 && settings.align == app.quietreader.Align.Start &&
+        !settings.hyphenate && settings.paragraphSpacing < 0 && settings.indent < 0
     return EpubPreferences(
         backgroundColor = ReadiumColor(bg.toArgb()),
         textColor = ReadiumColor(ink.toArgb()),
@@ -182,8 +210,14 @@ private fun preferences(settings: QuietSettings, colors: QuietColors): EpubPrefe
             BookFont.Sans -> ARCHIVO
         },
         fontSize = settings.bookSize / 100.0,
-        publisherStyles = settings.bookFont == BookFont.Original,
-        lineHeight = if (settings.bookFont == BookFont.Original) null else 1.6,
+        fontWeight = settings.fontWeight / 400.0,
+        publisherStyles = ownLayout,
+        lineHeight = if (ownLayout) null else settings.lineHeight / 10.0,
+        pageMargins = settings.margins.readium,
+        textAlign = if (ownLayout) null else if (settings.align == app.quietreader.Align.Justify) org.readium.r2.navigator.preferences.TextAlign.JUSTIFY else org.readium.r2.navigator.preferences.TextAlign.START,
+        hyphens = if (ownLayout) null else settings.hyphenate,
+        paragraphSpacing = if (ownLayout || settings.paragraphSpacing < 0) null else settings.paragraphSpacing / 10.0,
+        paragraphIndent = if (ownLayout || settings.indent < 0) null else settings.indent / 10.0,
         scroll = settings.flow == Flow.Scrolled,
     )
 }

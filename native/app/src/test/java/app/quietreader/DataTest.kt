@@ -117,6 +117,8 @@ class DataTest {
         val lamp = quiet.library.books.value.first { it.title == "The Lamp and the Clock" }
         quiet.library.put(lamp.with({ put("progress", 0.42); put("lastOpenedAt", 1_800_000_000_000L); put("cfi", "epubcfi(/6/4!/4)") }, locator = """{"href":"x.xhtml","type":"application/xhtml+xml"}"""))
         quiet.settings.theme = ThemeMode.Night
+        quiet.settings.lineHeight = 20
+        quiet.settings.readerKeys = listOf(ReaderKey.GoTo, ReaderKey.Contents, ReaderKey.Light, ReaderKey.Text)
 
         // Also kept in build/ so the web app's test can restore it (scripts/check-native-backup.cjs).
         val out = File("build/outputs/native.quietbackup").apply { parentFile?.mkdirs() }
@@ -150,6 +152,9 @@ class DataTest {
         assertEquals(0.42, back.progress, 1e-9)
         assertEquals("epubcfi(/6/4!/4)", back.cfi)
         assertNull("Readium's locator isn't in the web format", back.locator)
+        // Reader settings came along too.
+        assertEquals(20, fresh.settings.lineHeight)
+        assertEquals(ReaderKey.GoTo, fresh.settings.readerKeys.first())
     }
 
     @Test fun safetyCopyRebuildsALostDatabase() = runBlocking {

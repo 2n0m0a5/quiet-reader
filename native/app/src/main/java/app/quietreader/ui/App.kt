@@ -73,7 +73,7 @@ enum class Tab(val label: String, val icon: ImageVector) {
     Settings("Settings", Icons.Settings),
 }
 
-enum class SettingsPage { Home, Interface, Files, Trash, About }
+enum class SettingsPage { Home, Interface, Reader, Files, Trash, About }
 
 /** Where the reader is in the app, plus the message at the bottom. */
 class AppState(tab: Tab = Tab.Library, page: SettingsPage = SettingsPage.Home) {

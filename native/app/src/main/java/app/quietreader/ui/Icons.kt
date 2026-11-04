@@ -64,4 +64,10 @@ object Icons {
     val BookOpen = lucide("book-open", "M12 5v16", "M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z")
     val Check = lucide("check", "M20 6 9 17l-5-5")
     val Close = lucide("x", "M18 6 6 18", "m6 6 12 12")
+    val Layout = lucide("layout-template", rect(3f, 3f, 18f, 7f, 1f), rect(3f, 14f, 9f, 7f, 1f), rect(16f, 14f, 5f, 7f, 1f))
+    val Hash = lucide("hash", "M4 9h16", "M4 15h16", "M10 3 8 21", "M16 3 14 21")
+    val More = lucide("ellipsis", circle(12f, 12f, 1f), circle(19f, 12f, 1f), circle(5f, 12f, 1f))
+    val Bookmark = lucide("bookmark", "M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z")
+    val Search = lucide("search", "m21 21-4.34-4.34", circle(11f, 11f, 8f))
+    val Info = lucide("info", circle(12f, 12f, 10f), "M12 16v-4", "M12 8h.01")
 }

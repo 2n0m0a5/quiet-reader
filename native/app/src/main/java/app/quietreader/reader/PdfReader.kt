@@ -112,10 +112,20 @@ private fun PdfView(book: Book, pdf: PdfPages, state: ReaderState) {
 
     LaunchedEffect(pdf) {
         state.contents = (0 until pdf.count).map { ContentsEntry("Page ${it + 1}", 0, it) }
-        state.goTo = { entry ->
-            val page = entry.key as Int
-            scope.launch { if (settings.flow == Flow.Scrolled) list.scrollToItem(page) else pager.scrollToPage(page) }
+        state.pages = pdf.count
+        fun jump(page: Int) = scope.launch {
+            val p = page.coerceIn(0, pdf.count - 1)
+            if (settings.flow == Flow.Scrolled) list.scrollToItem(p) else pager.scrollToPage(p)
         }
+        fun here() = if (settings.flow == Flow.Scrolled) list.firstVisibleItemIndex else pager.currentPage
+        state.goTo = { entry -> state.markBack(); jump(entry.key as Int) }
+        state.goToPage = { n -> jump(n - 1) }
+        state.goToProgress = { p -> jump((p * pdf.count).toInt()) }
+        state.turn = { forward ->
+            val target = (here() + if (forward) 1 else -1).coerceIn(0, pdf.count - 1)
+            scope.launch { if (settings.flow == Flow.Scrolled) list.animateScrollToItem(target) else pager.animateScrollToPage(target) }
+        }
+        state.markBack = { val page = here(); state.backTo = "page ${page + 1}" to { jump(page) } }
         quiet.library.get(book.id)?.let { quiet.library.put(it.with({ put("lastOpenedAt", System.currentTimeMillis()) })) }
         kotlinx.coroutines.delay(1800); state.barsShown = false
     }
@@ -130,6 +140,7 @@ private fun PdfView(book: Book, pdf: PdfPages, state: ReaderState) {
     LaunchedEffect(current) {
         state.progress = (current + 1).toDouble() / pdf.count
         state.pageLabel = "${current + 1} / ${pdf.count}"
+        state.page = current + 1
         state.chapter = ""
         state.currentContents = current
     }

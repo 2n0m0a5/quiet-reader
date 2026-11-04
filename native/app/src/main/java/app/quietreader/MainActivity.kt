@@ -84,6 +84,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** Volume keys turn pages while a book is open (Settings → Reader). Down = next page. */
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        val turner = quiet.pageTurner
+        val code = event.keyCode
+        if (turner != null && quiet.settings.volumeKeys &&
+            (code == android.view.KeyEvent.KEYCODE_VOLUME_DOWN || code == android.view.KeyEvent.KEYCODE_VOLUME_UP)) {
+            if (event.action == android.view.KeyEvent.ACTION_DOWN) turner(code == android.view.KeyEvent.KEYCODE_VOLUME_DOWN)
+            return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handle(intent)

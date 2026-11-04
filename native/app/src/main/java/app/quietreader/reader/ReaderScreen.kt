@@ -57,6 +57,7 @@ import app.quietreader.BookSize
 import app.quietreader.Flow
 import app.quietreader.LocalQuiet
 import app.quietreader.ThemeMode
+import app.quietreader.ReaderKey
 import app.quietreader.data.Book
 import app.quietreader.data.BookFormat
 import app.quietreader.ui.ChoiceRow
@@ -77,15 +78,25 @@ import kotlin.math.roundToInt
 /** One entry of a book's contents, flattened with its depth. */
 data class ContentsEntry(val title: String, val depth: Int, val key: Any)
 
-/** What a book view tells the chrome around it. */
+/** What a book view tells the chrome around it, and what the chrome can ask of it. */
 class ReaderState {
     var chapter by mutableStateOf("")
     var progress by mutableStateOf(0.0)       // 0–1 through the whole book
+    var page by mutableStateOf(0)             // 1-based; 0 when unknown
+    var pages by mutableStateOf(0)
     var pageLabel by mutableStateOf("")       // "12 / 340"
+    var stations by mutableStateOf<List<Double>>(emptyList()) // where chapters start, 0–1
     var contents by mutableStateOf<List<ContentsEntry>>(emptyList())
     var currentContents by mutableStateOf<Any?>(null)
     var barsShown by mutableStateOf(true)
+    /** Where you were before a jump (Contents, Go to, the scale), to go back. */
+    var backTo by mutableStateOf<Pair<String, () -> Unit>?>(null)
     var goTo: (ContentsEntry) -> Unit = {}
+    var goToProgress: (Double) -> Unit = {}
+    var goToPage: (Int) -> Unit = {}
+    var turn: (forward: Boolean) -> Unit = {}
+    /** Remembers the current place as "back", for the jump that follows. */
+    var markBack: () -> Unit = {}
     fun toggleBars() { barsShown = !barsShown }
 }
 
@@ -108,24 +119,43 @@ fun ReaderScreen(book: Book, onClose: () -> Unit) {
     BackHandler { onClose() }
     ImmersiveWhileReading(hidden = !state.barsShown)
 
+    ReaderWindow(settings)
+    androidx.compose.runtime.DisposableEffect(state) {
+        quiet.pageTurner = { forward -> state.turn(forward) }
+        onDispose { quiet.pageTurner = null }
+    }
     Box(Modifier.fillMaxSize().background(c.readerBg)) {
         when (book.format) {
             BookFormat.Pdf -> PdfReader(book, state)
             else -> EpubReader(book, state)
         }
-        ReaderBars(
-            state = state,
-            book = book,
-            onBack = onClose,
-            onContents = { sheet = "contents" },
-            onDayNight = { settings.theme = if (c.isDark) ThemeMode.Day else ThemeMode.Night },
-            onText = { sheet = "text" },
-        )
+        Warmth(settings.warmth)
+        if (settings.showClock && !state.barsShown) Clock(Modifier.align(Alignment.TopEnd))
+        ReaderBars(state = state, book = book, onBack = onClose)
+        BottomBar(state, Modifier.align(Alignment.BottomCenter)) { key ->
+            when (key) {
+                null -> sheet = "more"
+                ReaderKey.Contents -> sheet = "contents"
+                ReaderKey.DayNight -> settings.theme = if (c.isDark) ThemeMode.Day else ThemeMode.Night
+                ReaderKey.Light -> sheet = "light"
+                ReaderKey.Text -> sheet = "text"
+                ReaderKey.Layout -> sheet = "layout"
+                ReaderKey.GoTo -> sheet = "goto"
+                ReaderKey.Mode -> settings.flow = if (settings.flow == Flow.Scrolled) Flow.Paginated else Flow.Scrolled
+            }
+        }
     }
 
+    val pdf = book.format == BookFormat.Pdf
+    val close = { sheet = null }
     when (sheet) {
-        "contents" -> ContentsSheet(state, book.format == BookFormat.Pdf) { sheet = null }
-        "text" -> TextSheet(book.format == BookFormat.Pdf) { sheet = null }
+        "contents" -> ContentsSheet(state, pdf, close)
+        "text" -> TextSheet(pdf, close)
+        "more" -> MoreSheet(pdf) { sheet = it }
+        "light" -> LightSheet(close)
+        "layout" -> LayoutSheet(pdf, close)
+        "goto" -> GoToSheet(state, close)
+        "keys" -> CustomizeSheet(close)
     }
 }
 
@@ -147,9 +177,6 @@ private fun ReaderBars(
     state: ReaderState,
     book: Book,
     onBack: () -> Unit,
-    onContents: () -> Unit,
-    onDayNight: () -> Unit,
-    onText: () -> Unit,
 ) {
     val c = LocalColors.current
     val reduced = LocalReducedMotion.current
@@ -173,68 +200,12 @@ private fun ReaderBars(
                 }
             }
         }
-        AnimatedVisibility(
-            visible = state.barsShown,
-            modifier = Modifier.align(Alignment.BottomCenter),
-            enter = if (reduced) fadeIn(snap()) else fadeIn(tween(180)) + slideInVertically(tween(220)) { it },
-            exit = if (reduced) fadeOut(snap()) else fadeOut(tween(160)) + slideOutVertically(tween(200)) { it },
-        ) {
-            Column(
-                Modifier.fillMaxWidth().background(c.panelDeep).hairline(c.line, top = true)
-                    .windowInsetsPadding(WindowInsets.navigationBars).padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 12.dp),
-            ) {
-                // Your place: a thin scale with the orange needle, and the readout.
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    ProgressScale(state.progress, Modifier.weight(1f))
-                    Spacer(Modifier.width(10.dp))
-                    Text("${(state.progress * 100).roundToInt()}%", style = Type.mono.copy(color = c.text))
-                }
-                if (state.pageLabel.isNotBlank()) {
-                    Spacer(Modifier.height(2.dp))
-                    Text(state.pageLabel, style = Type.mono.copy(color = c.muted, fontSize = Type.hint.fontSize))
-                }
-                Spacer(Modifier.height(10.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ReaderKey(Icons.ListIcon, "Contents", Modifier.weight(1f), onContents)
-                    ReaderKey(if (c.isDark) Icons.Sun else Icons.Moon, if (c.isDark) "Day" else "Night", Modifier.weight(1f), onDayNight)
-                    ReaderKey(Icons.TypeIcon, "Text", Modifier.weight(1f), onText)
-                }
-            }
-        }
-    }
-}
-
-/** The progress scale: a hairline track, ticks every tenth, and the orange needle at your place. */
-@Composable
-private fun ProgressScale(progress: Double, modifier: Modifier) {
-    val c = LocalColors.current
-    androidx.compose.foundation.Canvas(modifier.height(18.dp)) {
-        val y = size.height / 2
-        drawLine(c.keyEdge, androidx.compose.ui.geometry.Offset(0f, y), androidx.compose.ui.geometry.Offset(size.width, y), 1.dp.toPx())
-        for (i in 0..10) {
-            val x = size.width * i / 10
-            drawLine(c.keyEdge, androidx.compose.ui.geometry.Offset(x, y - 3.dp.toPx()), androidx.compose.ui.geometry.Offset(x, y + 3.dp.toPx()), 1.dp.toPx())
-        }
-        val x = (size.width * progress.toFloat()).coerceIn(0f, size.width)
-        drawLine(c.accent, androidx.compose.ui.geometry.Offset(x, 0f), androidx.compose.ui.geometry.Offset(x, size.height), 2.dp.toPx())
-    }
-}
-
-@Composable
-private fun ReaderKey(icon: ImageVector, label: String, modifier: Modifier, onClick: () -> Unit) {
-    val c = LocalColors.current
-    app.quietreader.ui.Key(onClick, modifier, padding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp), contentDescription = label) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(icon, null, Modifier.size(18.dp), tint = c.text)
-            Spacer(Modifier.height(3.dp))
-            Text(label, style = Type.tab.copy(color = c.text))
-        }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun Sheet(onClose: () -> Unit, content: @Composable () -> Unit) {
+internal fun Sheet(onClose: () -> Unit, content: @Composable () -> Unit) {
     val c = LocalColors.current
     ModalBottomSheet(
         onDismissRequest = onClose,

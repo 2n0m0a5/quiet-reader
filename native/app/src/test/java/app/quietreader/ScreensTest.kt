@@ -1,6 +1,7 @@
 package app.quietreader
 
 import android.content.Context
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -108,9 +109,39 @@ class ScreensTest {
         compose.onNodeWithText("Your notes will gather here.").assertIsDisplayed()
     }
 
+    /** L3a: the reader's bottom bar (scale with stations, readouts, keys) and Settings → Reader. */
+    @Test fun readerBarAndReaderPage() {
+        val reader = app.quietreader.reader.ReaderState().apply {
+            progress = 0.31; page = 177; pages = 571; pageLabel = "177 / 571"
+            stations = listOf(0.05, 0.12, 0.2, 0.33, 0.48, 0.61, 0.77, 0.9)
+            backTo = "page 21" to {}
+        }
+        compose.setContent {
+            androidx.compose.runtime.CompositionLocalProvider(LocalQuiet provides quiet) {
+                QuietTheme(settings, null) {
+                    androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSizeCompat()) {
+                        app.quietreader.reader.BottomBar(reader, androidx.compose.ui.Modifier.align(androidx.compose.ui.Alignment.BottomCenter)) {}
+                    }
+                }
+            }
+        }
+        compose.onNodeWithText("More").assertIsDisplayed()
+        compose.onNodeWithText("Light").assertIsDisplayed()
+        compose.onNodeWithText("283 min left", substring = true).assertDoesNotExist()
+        shot("day-reader-bar")
+    }
+
+    @Test fun readerSettingsPage() {
+        show(AppState(Tab.Settings, SettingsPage.Reader))
+        compose.onNodeWithText("Volume keys turn pages").assertExists()
+        shot("day-reader-settings")
+    }
+
     @Test fun textSizeScalesTheApp() {
         settings.textScale = 130
         show(AppState(Tab.Settings, SettingsPage.Interface))
         shot("day-interface-larger-text")
     }
 }
+
+private fun androidx.compose.ui.Modifier.fillMaxSizeCompat() = this.then(androidx.compose.ui.Modifier.fillMaxSize())
