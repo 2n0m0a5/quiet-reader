@@ -1,5 +1,14 @@
 # Quiet 0.5.0 L5 — organizing (native test build)
 
+## 0.5.0 L5.1 (your fixes)
+- **A collection (or status, or rating) chosen on a book's page didn't stay.** Closing the page
+  saved the copy of the book it had opened with, undoing the change. Now every change is saved the
+  moment you tap it, on the book as it is, and closing never overwrites anything. (A test does
+  exactly what you did.) The page also lets you make a new collection right there.
+- **Tags are chips now:** type a tag and tap Add (or Enter, or a comma); tap a tag to remove it
+  (×). Tags you've used on other books are offered below, one tap to add.
+- More formats (MOBI, AZW3, FB2, Word, comics…) are layer 7, as planned.
+
 Layer 5 (`docs/plan-native.md`). Installs over L4.1, next to 0.4.2.
 
 ## What's new

@@ -143,16 +143,22 @@ private fun BookPage(id: String, state: AppState, onClose: () -> Unit) {
     val book = books.firstOrNull { it.id == id } ?: return
     val collections = remember(version) { quiet.collections.all() }
     val notes = remember(version) { quiet.notes.forBook(id) }
-    fun put(b: Book) = quiet.library.put(b)
+    // Every change is saved at once, always on the book as it is now in the library
+    // (0.5.0 L5 saved the page's first copy on close, which undid collection and status changes).
+    fun update(change: (Book) -> Book) { quiet.library.get(id)?.let { quiet.library.put(change(it)) } }
     var review by remember(id) { mutableStateOf(book.json.optString("review")) }
-    var tags by remember(id) { mutableStateOf(book.tags.joinToString(", ")) }
+    androidx.compose.runtime.LaunchedEffect(review) {
+        kotlinx.coroutines.delay(500)
+        if (quiet.library.get(id)?.json?.optString("review") != review) update { it.with({ put("review", review) }) }
+    }
+    val allTags = remember(books) { books.flatMap { it.tags }.distinct().sortedBy { it.lowercase() } }
     // Pages (Readium positions) and words, counted once and kept in the record.
     val counts by produceState(book.json.optInt("pages", 0) to book.json.optInt("words", 0), id) {
         if (value.first > 0 || book.format == BookFormat.Other) return@produceState
         value = withContext(Dispatchers.IO) { countPagesAndWords(quiet, book) }
         quiet.library.get(id)?.let { quiet.library.put(it.with({ put("pages", value.first); put("words", value.second) })) }
     }
-    Sheet({ put(book.with({ put("review", review) }).withTags(tags.split(','))); onClose() }) {
+    Sheet({ update { it.with({ put("review", review) }) }; onClose() }) {
         SheetBody("") {
             Row {
                 Cover(book, Modifier.width(92.dp))
@@ -163,17 +169,17 @@ private fun BookPage(id: String, state: AppState, onClose: () -> Unit) {
                     if (book.series.isNotBlank()) Text("${book.series}${book.seriesIndex?.let { " #" + fmt(it) } ?: ""}", style = Type.hint.copy(color = c.accentStrong))
                     Spacer(Modifier.height(10.dp))
                     TextKey(if (book.lastOpenedAt == null) "Read" else "Go on reading", {
-                        put(book.with({ put("review", review) })); onClose(); state.open(id)
+                        update { it.with({ put("review", review) }) }; onClose(); state.open(id)
                     }, Modifier.fillMaxWidth(), kind = KeyKind.Primary)
                 }
             }
             Label("Status")
             ChoiceRow(listOf(Status.Want to "Want", Status.Reading to "Reading", Status.Finished to "Finished", Status.New to "New"),
-                book.status(), { put(book.withStatus(it)) })
+                book.status(), { s -> update { it.withStatus(s) } })
             Label("Rating")
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 (1..5).forEach { n ->
-                    Key({ put(book.with({ put("rating", if (book.rating == n) 0 else n) })) }, padding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                    Key({ update { b -> b.with({ put("rating", if (b.rating == n) 0 else n) }) } }, padding = androidx.compose.foundation.layout.PaddingValues(0.dp),
                         contentDescription = "$n stars") {
                         Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
                             Text(if (n <= book.rating) "★" else "☆", style = Type.section.copy(color = if (n <= book.rating) c.accent else c.muted))
@@ -184,18 +190,29 @@ private fun BookPage(id: String, state: AppState, onClose: () -> Unit) {
             Spacer(Modifier.height(8.dp))
             Field(review, { review = it }, "A few words about it (only for you)")
             Label("Collections")
-            if (collections.isEmpty()) Text("No collections yet: Library ⋯ → Collections.", style = Type.hint.copy(color = c.muted))
-            Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                collections.entries.sortedBy { it.value.lowercase() }.take(6).forEach { (cid, name) ->
+            Text("Tap to put the book in a collection or take it out.", style = Type.hint.copy(color = c.muted))
+            Spacer(Modifier.height(8.dp))
+            var newCollection by remember { mutableStateOf("") }
+            @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                collections.entries.sortedBy { it.value.lowercase() }.forEach { (cid, name) ->
                     val on = cid in book.collectionIds
-                    Key({ put(book.withCollection(cid, !on)) }, kind = if (on) KeyKind.Primary else KeyKind.Normal,
+                    Key({ update { it.withCollection(cid, !on) } }, kind = if (on) KeyKind.Primary else KeyKind.Normal,
                         padding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp)) {
-                        Text(name, style = Type.hint.copy(color = if (on) c.bg else c.text, fontSize = 12.sp), maxLines = 1)
+                        Text((if (on) "✓ " else "") + name, style = Type.hint.copy(color = if (on) c.bg else c.text, fontSize = 12.sp), maxLines = 1)
                     }
                 }
             }
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Field(newCollection, { newCollection = it }, "New collection", Modifier.weight(1f), singleLine = true)
+                Spacer(Modifier.width(8.dp))
+                TextKey("Add", {
+                    if (newCollection.isNotBlank()) { val cid = quiet.collections.create(newCollection); update { it.withCollection(cid, true) }; newCollection = "" }
+                })
+            }
             Label("Tags")
-            Field(tags, { tags = it }, "Tags, separated by commas", singleLine = true)
+            TagEditor(book.tags, allTags) { list -> update { it.withTags(list) } }
 
             Facts("The book", listOfNotNull(
                 counts.first.takeIf { it > 0 }?.let { "Length" to "$it pages" },
@@ -237,7 +254,7 @@ private fun BookPage(id: String, state: AppState, onClose: () -> Unit) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextKey("Export notes", { exportNotes(context, book, notes) }, Modifier.weight(1f), enabled = notes.isNotEmpty())
                 TextKey("Remove", {
-                    put(book.with({ put("deletedAt", System.currentTimeMillis()) })); onClose()
+                    update { it.with({ put("deletedAt", System.currentTimeMillis()) }) }; onClose()
                     state.toast("Moved to Recently deleted. It stays there for 30 days.")
                 }, Modifier.weight(1f), kind = KeyKind.Danger)
             }
@@ -344,7 +361,7 @@ private fun EditBook(id: String, close: () -> Unit) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextKey("Cancel", close, Modifier.weight(1f))
                 TextKey("Save", {
-                    quiet.library.put(book.with({
+                    quiet.library.put((quiet.library.get(id) ?: book).with({
                         put("title", title.trim().ifBlank { book.title }); put("author", author.trim())
                         put("series", series.trim()); index.replace(',', '.').toDoubleOrNull()?.let { put("seriesIndex", it) } ?: put("seriesIndex", org.json.JSONObject.NULL)
                         put("publisher", publisher.trim()); put("language", language.trim()); put("description", description.trim())
@@ -503,5 +520,50 @@ private fun BulkRemove(state: AppState, close: () -> Unit) {
         quiet.library.putAll(selectedBooks(state, quiet).map { it.with({ put("deletedAt", now) }) })
         state.selected = emptySet(); state.selecting = false
         close()
+    }
+}
+
+/**
+ * Tags as chips: type one and tap Add (or Enter, or a comma) to add it; × removes it. Tags used on
+ * other books are offered below, one tap to add.
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+fun TagEditor(tags: List<String>, suggestions: List<String>, onChange: (List<String>) -> Unit) {
+    val c = LocalColors.current
+    var typing by remember { mutableStateOf("") }
+    fun add(text: String) {
+        val new = text.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+        if (new.isNotEmpty()) onChange((tags + new).distinctBy { it.lowercase() })
+        typing = ""
+    }
+    if (tags.isNotEmpty()) {
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            tags.forEach { tag ->
+                Key({ onChange(tags - tag) }, kind = KeyKind.Primary, padding = androidx.compose.foundation.layout.PaddingValues(start = 10.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+                    contentDescription = "Remove tag $tag") {
+                    Text("#$tag", style = Type.hint.copy(color = c.bg, fontSize = 12.sp), maxLines = 1)
+                    Spacer(Modifier.width(6.dp))
+                    Icon(Icons.Close, null, Modifier.size(12.dp), tint = c.bg)
+                }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Field(typing, { v -> if (v.contains(',')) add(v) else typing = v }, "Add a tag", Modifier.weight(1f), singleLine = true, onDone = { add(typing) })
+        Spacer(Modifier.width(8.dp))
+        TextKey("Add", { add(typing) }, enabled = typing.isNotBlank())
+    }
+    val offer = suggestions.filter { s -> tags.none { it.equals(s, ignoreCase = true) } && (typing.isBlank() || s.contains(typing.trim(), ignoreCase = true)) }.take(12)
+    if (offer.isNotEmpty()) {
+        Spacer(Modifier.height(8.dp))
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            offer.forEach { s ->
+                Key({ onChange(tags + s); typing = "" }, padding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp)) {
+                    Text("+ $s", style = Type.hint.copy(color = c.text, fontSize = 12.sp), maxLines = 1)
+                }
+            }
+        }
     }
 }

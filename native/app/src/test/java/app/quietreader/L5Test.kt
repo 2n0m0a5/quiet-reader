@@ -4,6 +4,11 @@ import android.content.Context
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.filterToOne
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.onLast
 import androidx.test.core.app.ApplicationProvider
@@ -83,6 +88,30 @@ class L5Test {
         quiet.collections.delete(id)
         assertTrue(quiet.library.get("a")!!.collectionIds.isEmpty())
         assertEquals(1, quiet.library.books.value.size)
+    }
+
+    /** The owner's L5 report: a collection chosen on the book's page must stay after closing it. */
+    @Test fun bookPageSavesAtOnce() {
+        quiet.library.put(book("a", "A"))
+        val summer = quiet.collections.create("Summer")
+        val state = AppState().apply { details = "a" }
+        compose.setContent { CompositionLocalProvider(LocalQuiet provides quiet) { QuietTheme(quiet.settings, null) { QuietApp(quiet.settings, state) } } }
+        compose.mainClock.advanceTimeBy(800)
+        compose.onAllNodesWithText("Summer").onLast().performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(listOf(summer), quiet.library.get("a")!!.collectionIds) }
+        compose.onAllNodesWithText("Want").onLast().performClick()
+        // Close the page the way the reader does (Read): nothing is undone.
+        compose.onNodeWithText("Read").performScrollTo().performClick()
+        compose.runOnIdle {
+            val b = quiet.library.get("a")!!
+            assertEquals(listOf(summer), b.collectionIds)
+            assertEquals(Status.Want, b.status())
+        }
+        // And out again.
+        compose.runOnIdle { state.openBookId = null; state.details = "a" }
+        compose.mainClock.advanceTimeBy(800)
+        compose.onAllNodesWithText("✓ Summer").onLast().performScrollTo().performClick()
+        compose.runOnIdle { assertTrue(quiet.library.get("a")!!.collectionIds.isEmpty()) }
     }
 
     @Test fun libraryScreens() {
