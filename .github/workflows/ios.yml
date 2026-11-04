@@ -1,5 +1,5 @@
 # Builds the iPhone app on a Mac (GitHub's macOS machines): an unsigned .ipa to install with
-# Sideloadly or AltStore (they sign it with your own Apple ID). Run it from the Actions tab
+# Sideloadly or AltStore (they sign it with your own Apple ID), and a simulator build for Appetize.io. Run it from the Actions tab
 # ("iOS app" → Run workflow), or it runs when the iOS project or the app changes.
 name: iOS app
 
@@ -40,4 +40,20 @@ jobs:
         with:
           name: Quiet-iOS
           path: ${{ env.IPA }}
+          retention-days: 30
+      # For Appetize.io (an iPhone simulator in the browser): the app built for the simulator,
+      # zipped. Both Intel and Apple-silicon simulators.
+      - name: Build for the simulator (Appetize)
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/sim" \
+            ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO build | tail -20
+          APP=$(find "$RUNNER_TEMP/sim/Build/Products" -name App.app -maxdepth 2 | head -1)
+          mkdir -p sim-out
+          ditto -c -k --sequesterRsrc --keepParent "$APP" sim-out/Quiet-iOS-simulator.zip
+          ls -la sim-out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Quiet-iOS-simulator
+          path: sim-out/Quiet-iOS-simulator.zip
           retention-days: 30
