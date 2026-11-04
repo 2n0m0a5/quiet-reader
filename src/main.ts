@@ -28,6 +28,7 @@ import { getBook, getFile, moveToTrash, restoreBooks, updateBook, type BookRecor
 import { asFile, importBook, ImportError } from './library/import'
 import { LibraryView } from './library/library-view'
 import { showBookDetails } from './library/details'
+import { customizeBar, renderMoreGrid, renderReaderKeys, type KeyActions } from './reader-keys'
 import { closeTopDialog, formDialog, icon, menuDialog } from './ui/dialog'
 import { addFolder, scanFolders } from './library/folders'
 import { libraryEmptiedOnPurpose, recoverLibrary, startSafetyCopy } from './library/safety'
@@ -272,9 +273,51 @@ fontInput.addEventListener('change', async () => {
 
 // Reading settings: a popover on wide screens, a sheet from the bottom on phones.
 // Closes on outside click, a tap on the backdrop, or Escape.
-function setSettingsOpen(open: boolean) {
+// `focus`: what the panel opens at. 'more' shows the grid of every control at its top (the More
+// key); 'light' and 'text' scroll to brightness or to text size; 'top' is the plain panel.
+function setSettingsOpen(open: boolean, focus: 'top' | 'more' | 'light' | 'text' = 'top') {
   ui.settings.classList.toggle('open', open)
   ui.sheetScrim.classList.toggle('open', open)
+  if (!open) return
+  ui.settings.dataset.focus = focus
+  if (focus === 'more') renderMoreGrid($('moreGrid'), settings.readerKeys, keyActions, () => customizeBar(settings.readerKeys, keys => { update({ readerKeys: keys }); drawReaderKeys() }), () => setSettingsOpen(false))
+  const target = focus === 'light' ? $('brightRange') : focus === 'text' ? $('fontRange') : null
+  requestAnimationFrame(() => {
+    if (target) target.closest('.setting')?.scrollIntoView({ block: 'start' })
+    else ui.settings.scrollTop = 0
+  })
+}
+
+// ---------- The reader bar (reader-keys.ts) ----------
+const keyActions: KeyActions = {
+  contents: () => $('tocToggle').click(),
+  dayNight: () => update({ theme: paletteOf(settings).dark ? 'light' : 'dark' }),
+  light: () => setSettingsOpen(true, 'light'),
+  text: () => setSettingsOpen(true, 'text'),
+  search: () => $('searchToggle').click(),
+  bookmark: () => ui.bookmarkToggle.click(),
+  notes: () => { setSidebar(true); showPanel('notes') },
+  goTo: () => ui.progressText.click(),
+  info: async () => {
+    const record = readingId ? await getBook(readingId) : undefined
+    if (record) showBookDetails(record, { read: () => {}, remove: book => removeBooks([book]), changed: () => library.refresh() })
+  },
+  look: () => setSettingsOpen(true, 'top'),
+}
+function drawReaderKeys() {
+  renderReaderKeys($('readerKeys'), settings.readerKeys, keyActions, () => setSettingsOpen(!ui.settings.classList.contains('open'), 'more'))
+}
+// Keys open the panel; the click mustn't then reach the page, which closes it.
+$('readerKeys').addEventListener('click', e => e.stopPropagation())
+drawReaderKeys()
+
+// The tuning scale: a tick where each chapter starts.
+function drawChapterTicks() {
+  const ticks = $('progressTicks')
+  const fractions = (reader?.view as unknown as { getSectionFractions?: () => number[] })?.getSectionFractions?.() ?? []
+  const marks = fractions.filter(f => f > 0.002 && f < 0.998)
+  if (marks.length > 80 || reader?.view.isFixedLayout) { ticks.style.background = ''; return }
+  ticks.style.background = marks.map(f => `linear-gradient(currentColor, currentColor) ${(f * 100).toFixed(2)}% 0 / 1px 100% no-repeat`).join(', ')
 }
 ui.settingsToggle.addEventListener('click', e => {
   e.stopPropagation()
@@ -400,8 +443,6 @@ const library = new LibraryView($('library'), {
     changed: () => library.refresh(),
   }),
   remove: removeBooks,
-  summary: readingSummary,
-  stats: () => { location.hash = '#/stats' },
 })
 
 function openBook(id: string) {
@@ -523,29 +564,6 @@ async function checkDailyGoal() {
   try { localStorage.setItem(GOAL_KEY, today) } catch { /* storage unavailable */ }
   haptic('confirm')
   toast(stats.streak > 1 ? `Daily goal reached. ${stats.streak} days in a row.` : 'Daily goal reached. Well read.', 5000)
-}
-
-// The line at the top of the library: today's reading and the streak. Opens the stats.
-async function readingSummary() {
-  const days = await listReading()
-  if (!days.length && !settings.dailyGoal) return null
-  const stats = computeStats(days, [], settings.dailyGoal)
-  const strip = document.createElement('button')
-  strip.className = 'reading-strip'
-  const goal = settings.dailyGoal * 60
-  const done = goal ? Math.min(1, stats.today / goal) : 0
-  strip.style.setProperty('--done', String(done))
-  const today = goal ? `${readingTime(stats.today)} of ${readingTime(goal)} today` : `${readingTime(stats.today)} today`
-  strip.innerHTML = '<span class="strip-ring" aria-hidden="true"></span>'
-  const text = document.createElement('span')
-  text.className = 'strip-text'
-  text.textContent = stats.streak > 1 ? `${today} · ${stats.streak} days in a row` : today
-  const more = document.createElement('span')
-  more.className = 'strip-more'
-  more.textContent = 'Stats'
-  strip.append(text, more)
-  strip.addEventListener('click', () => { location.hash = '#/stats' })
-  return strip
 }
 
 const statsScreen = new StatsScreen($('statsScreen'), {
@@ -855,6 +873,7 @@ async function showReader(id: string) {
   // Opening a book takes it off "Want to read".
   updateBook(id, { lastOpenedAt: Date.now(), wantToRead: false })
   ui.progress.disabled = false
+  drawChapterTicks()
 
   const count = toc.render(next.book.toc ?? [], href => {
     rememberJump()

@@ -86,6 +86,7 @@
           <button class="btn icon" id="settingsToggle" title="Reading settings" aria-label="Reading settings"><i data-lucide="settings-2"></i></button>
           <div class="settings-pop" id="settings" role="dialog" aria-label="Reading settings">
             <div class="sheet-handle" aria-hidden="true"></div>
+            <div class="more-grid" id="moreGrid"></div>
             <div class="setting">
               <div class="choice-row theme-row" data-setting="theme">
                 <button class="choice theme-choice" data-value="system" style="--swatch:linear-gradient(135deg,var(--day-bg) 50%,var(--night-bg) 50%);--ink:#8c8a82" title="Day or Night, following your device" aria-label="Day or Night, following your device">System</button>
@@ -207,7 +208,9 @@
 
       <footer class="reader-footer">
         <div class="progress-wrap">
-          <input type="range" class="progress" id="progress" min="0" max="1" step="0.001" value="0" disabled aria-label="Reading progress">
+          <!-- The tuning scale: a tick for each chapter (main.ts drawChapterTicks), the needle is your place. -->
+          <div class="progress-track"><div class="progress-ticks" id="progressTicks" aria-hidden="true"></div>
+          <input type="range" class="progress" id="progress" min="0" max="1" step="0.001" value="0" disabled aria-label="Reading progress"></div>
           <button class="percent" id="progressText" title="Go to a place in the book" aria-label="Go to a place in the book">0%</button>
           <div class="time-left" id="timeLeft"></div>
         </div>
@@ -215,6 +218,8 @@
           <button class="btn icon" id="prev" title="Previous page" aria-label="Previous page"><i data-lucide="chevron-up" class="when-scrolled"></i><i data-lucide="chevron-left" class="when-paginated"></i></button>
           <button class="btn icon" id="next" title="Next page" aria-label="Next page"><i data-lucide="chevron-down" class="when-scrolled"></i><i data-lucide="chevron-right" class="when-paginated"></i></button>
         </div>
+        <!-- The reader bar: four keys you choose (Settings → Reader bar), then More. See reader-keys.ts. -->
+        <div class="reader-keys" id="readerKeys" role="toolbar" aria-label="Reading controls"></div>
       </footer>
     </main>
   </div>

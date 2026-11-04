@@ -198,3 +198,50 @@ svg.knob { width: 22px; height: 22px; flex-shrink: 0; color: var(--text); }
 .logo.logo-radio { display: grid; place-items: center; background: var(--bg); border: 1px solid var(--key-edge); }
 .logo.logo-radio svg.knob { width: 62%; height: 62%; }
 .logo.logo-radio :is(.khatam, .logo-q) { display: none; }
+
+/* ---------- The reader bar (reader-keys.ts) ----------
+   At the bottom, where the thumb is: the tuning scale (progress, a tick per chapter), then four
+   keys you choose and More. On phones the top keeps only Back, the chapter and the bookmark. */
+.reader-footer { height: auto; flex-direction: column; align-items: stretch; gap: 8px; padding: 8px 12px 10px; }
+.reader-footer .progress-wrap { width: 100%; }
+.progress-track { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; }
+.progress-track .progress { width: 100%; position: relative; }
+.progress-ticks { position: absolute; left: 11px; right: 11px; top: 50%; height: 9px; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.reader-keys { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.reader-key {
+  min-height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  border: 1px solid var(--key-edge, var(--line)); border-radius: var(--radius-m); background: var(--panel); color: var(--text);
+  font: inherit; font-size: 12px; box-shadow: 0 1px 0 var(--key-edge, var(--line)); transition: transform .08s, box-shadow .08s;
+}
+.reader-key:active { transform: translateY(1px); box-shadow: none; }
+.reader-key svg.lucide { width: 20px; height: 20px; }
+.reader-key.more { background: var(--text); border-color: var(--text); color: var(--bg); }
+.reader-key.customize { border-style: dashed; box-shadow: none; background: transparent; }
+@media (max-width: 850px) {
+  .reader-toolbar :is(#searchToggle, #smaller, #larger, #settingsToggle, .divider) { display: none; }
+  .reader-footer .page-nav { display: none; }
+  .reader-footer { padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+}
+
+/* More: every control that isn't in the bar, above the reading settings. */
+.more-grid { display: none; }
+.settings-pop[data-focus="more"] .more-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 4px 0 14px; }
+.more-grid .reader-key { min-height: 58px; }
+
+/* Choosing the keys. */
+.key-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 4px; }
+.key-row { display: flex; align-items: center; gap: 6px; }
+.key-toggle {
+  flex: 1; display: grid; grid-template-columns: 22px 1fr; column-gap: 10px; align-items: center; text-align: left; min-height: 48px;
+  padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--radius-m); background: transparent; color: var(--text); font: inherit;
+}
+.key-toggle svg.lucide { grid-row: span 2; width: 20px; height: 20px; color: var(--muted); }
+.key-name { font-size: 14px; font-weight: 600; }
+.key-hint { font-size: 12px; color: var(--muted); }
+.key-row.on .key-toggle { border-color: var(--key-edge, var(--text)); background: var(--panel); box-shadow: 0 1px 0 var(--key-edge, var(--line)); }
+.key-row.on .key-toggle svg.lucide { color: var(--accent); }
+/* (app.css fixes the footer's height for the old one-row footer; the bar needs its two rows.) */
+.app[data-view="reader"] .reader-footer { height: auto; }
+@media (max-width: 850px) {
+  .reader-footer, .app[data-view="reader"] .reader-footer { height: auto; padding: 8px 12px calc(10px + env(safe-area-inset-bottom)); }
+}

@@ -27,6 +27,7 @@ node tests/smoke.cjs            # one suite
 | `gestures` | Long-press for details; swipe back from the left edge (short springs back, long leaves) |
 | `legibility` | Book text coloured black (Night), white (Day) or faded out by the book stays readable; a readable red heading keeps its colour |
 | `motion-settings` | Motion: Follow phone / Full / Reduced (with the phone asking for less motion); Curl switches to pages; Sepia is gone |
+| `reader-bar` | The bottom bar (Contents · Day/Night · Light · Text · More), chapter ticks, More grid, changing the keys |
 | `safety` | The library database is wiped and comes back from the safety copy; "Delete everything" stays deleted |
 
 To add a suite, make `tests/<name>.cjs` with `require('./common.cjs').suite('<name>', async ({ page, check, shot }) => { … })`.

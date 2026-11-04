@@ -49,6 +49,7 @@ export interface Settings {
   orientation: Orientation // Android app
   haptics: boolean        // Android app
   motion: Motion
+  readerKeys: string[]    // the four keys in the reader bar, in order (reader-keys.ts)
   dailyGoal: number       // minutes of reading a day; 0 for no goal
   yearGoal: number        // books to finish this year; 0 for no goal
 }
@@ -83,6 +84,7 @@ export const defaults: Settings = {
   orientation: 'auto',
   haptics: true,
   motion: 'system',
+  readerKeys: ['contents', 'daynight', 'light', 'text'],
   dailyGoal: 0,
   yearGoal: 0,
 }
