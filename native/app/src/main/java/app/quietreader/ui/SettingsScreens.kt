@@ -66,6 +66,7 @@ fun SettingsScreen(state: AppState, settings: QuietSettings) {
             SettingsPage.Interface -> InterfacePage(state, settings)
             SettingsPage.Reader -> ReaderPage(state, settings)
             SettingsPage.Files -> FilesPage(state)
+            SettingsPage.Privacy -> PrivacyPage(state, settings)
             SettingsPage.Trash -> TrashPage(state)
             SettingsPage.About -> AboutPage(state)
         }
@@ -88,7 +89,7 @@ private val sections = listOf(
     Section("02", "Reader", "Scroll or pages, the reader bar, volume keys, time and battery", null, SettingsPage.Reader),
     Section("03", "Library", "Book folders Quiet watches for new books", "L5", null),
     Section("04", "Files & storage", "Back up and restore, space used, delete everything", null, SettingsPage.Files),
-    Section("05", "Privacy & translation", "What leaves your phone: only text you translate", "L4", null),
+    Section("05", "Privacy & translation", "What leaves your phone: only text you translate", null, SettingsPage.Privacy),
 )
 
 @Composable
@@ -573,5 +574,39 @@ private fun YourFonts(state: AppState, settings: QuietSettings) {
         }
         if (families.isNotEmpty()) Divider()
         Column(Modifier.padding(16.dp)) { TextKey("Add a font…", { state.pickFont() }) }
+    }
+}
+
+/** Privacy & translation: what leaves the phone (only text you choose to translate), and into which language. */
+@Composable
+private fun PrivacyPage(state: AppState, settings: QuietSettings) {
+    val c = LocalColors.current
+    Page {
+        PageHeader("Privacy & translation", state)
+        SectionTitle("What leaves your phone")
+        Card {
+            Column(Modifier.padding(16.dp)) {
+                listOf(
+                    "No account, no ads, no tracking, no analytics.",
+                    "Your books, places, notes and stats stay on this phone. Backups are files you keep.",
+                    "Only text you choose to translate is sent: to Google Translate, or to MyMemory if Google refuses.",
+                    "No AI features.",
+                ).forEach { line ->
+                    Row(Modifier.padding(vertical = 6.dp)) {
+                        Box(Modifier.padding(top = 7.dp).size(7.dp).background(c.done, RoundedCornerShape(4.dp)))
+                        Spacer(Modifier.width(12.dp))
+                        Text(line, style = Type.body.copy(color = c.text))
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(28.dp))
+        SectionTitle("Translate into", "Select text in a book, then Translate.")
+        Card {
+            Column(Modifier.padding(16.dp)) {
+                ChoiceRow(app.quietreader.reader.Translate.LANGUAGES.map { it to app.quietreader.reader.Translate.name(it) }, settings.translateTo,
+                    { settings.translateTo = it }, perRow = 3)
+            }
+        }
     }
 }

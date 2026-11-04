@@ -101,6 +101,8 @@ private fun ReaderKey.icon(dark: Boolean): ImageVector = when (this) {
     ReaderKey.Layout -> Icons.Layout
     ReaderKey.GoTo -> Icons.Hash
     ReaderKey.Mode -> Icons.BookOpen
+    ReaderKey.Notes -> Icons.Bookmark
+    ReaderKey.Search -> Icons.Search
 }
 
 private fun ReaderKey.title(dark: Boolean) = if (this == ReaderKey.DayNight) (if (dark) "Day" else "Night") else label
@@ -316,11 +318,9 @@ fun MoreSheet(pdf: Boolean, open: (String?) -> Unit) {
                 Divider()
                 row("Customize bar", Icons.Settings) { open("keys") }
                 Divider()
-                row("Bookmarks", Icons.Bookmark, "L4") {}
+                row("Notes, quotes & bookmarks", Icons.Bookmark) { open("notes") }
                 Divider()
-                row("Notes & quotes", Icons.NotebookText, "L4") {}
-                Divider()
-                row("Search in book", Icons.Search, "L4") {}
+                row("Search in book", Icons.Search) { open("search") }
                 Divider()
                 row("Book info", Icons.Info, "L5") {}
             }

@@ -73,7 +73,7 @@ enum class Tab(val label: String, val icon: ImageVector) {
     Settings("Settings", Icons.Settings),
 }
 
-enum class SettingsPage { Home, Interface, Reader, Files, Trash, About }
+enum class SettingsPage { Home, Interface, Reader, Files, Trash, Privacy, About }
 
 /** Where the reader is in the app, plus the message at the bottom. */
 class AppState(tab: Tab = Tab.Library, page: SettingsPage = SettingsPage.Home) {
@@ -93,7 +93,8 @@ class AppState(tab: Tab = Tab.Library, page: SettingsPage = SettingsPage.Home) {
 
     /** The book being read, if any. */
     var openBookId by mutableStateOf<String?>(null)
-    fun open(id: String) { openBookId = id }
+    var openNote: app.quietreader.data.Note? = null
+    fun open(id: String, note: app.quietreader.data.Note? = null) { openNote = note; openBookId = id }
 
     // Things only the activity can do (system pickers), set by MainActivity.
     var pickBooks: () -> Unit = {}
@@ -163,7 +164,7 @@ fun QuietApp(settings: QuietSettings, state: AppState = remember { AppState() })
                 ) { tab ->
                     when (tab) {
                         Tab.Library -> LibraryScreen(state)
-                        Tab.Notes -> NotesScreen()
+                        Tab.Notes -> NotesTab(state)
                         Tab.Stats -> StatsScreen()
                         Tab.Settings -> SettingsScreen(state, settings)
                     }
@@ -187,7 +188,7 @@ fun QuietApp(settings: QuietSettings, state: AppState = remember { AppState() })
                         state.toast("${b.fileName.substringAfterLast('.').uppercase()} books open in a later layer (L7). It’s safe in your library.")
                         state.openBookId = null
                     }
-                } else app.quietreader.reader.ReaderScreen(b) { state.openBookId = null }
+                } else app.quietreader.reader.ReaderScreen(b, remember(b.id) { state.openNote.also { state.openNote = null } }) { state.openBookId = null }
             }
         }
         // A long job (backup, restore): a quiet sheet over the app.

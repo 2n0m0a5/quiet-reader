@@ -135,6 +135,17 @@ private fun PdfView(book: Book, pdf: PdfPages, state: ReaderState) {
             }
         }
         state.markBack = { val page = here(); state.backTo = "page ${page + 1}" to { jump(page) } }
+        state.toggleBookmark = {
+            val page = here()
+            val marks = quiet.notes.forBook(book.id).filter { it.isBookmark && it.page == page }
+            state.bookmarkHere = marks.isEmpty()
+            if (marks.isNotEmpty()) marks.forEach { quiet.notes.delete(it.id) }
+            else quiet.notes.put(app.quietreader.data.Note.new(book.id, "bookmark", "", "").with {
+                put("page", page); put("label", "Page ${page + 1}"); put("progress", (page + 1).toDouble() / pdf.count)
+            })
+        }
+        state.goToNote = { n -> jump(n.page ?: (n.progress * pdf.count).toInt()) }
+        state.pendingNote?.let { n -> state.pendingNote = null; state.goToNote(n) }
         state.jump = { forward ->
             val target = here() + if (forward) 1 else -1
             if (target !in 0 until pdf.count) false else { jump(target); true }
@@ -156,6 +167,7 @@ private fun PdfView(book: Book, pdf: PdfPages, state: ReaderState) {
         state.page = current + 1
         state.chapter = ""
         state.currentContents = current
+        state.bookmarkHere = quiet.notes.forBook(book.id).any { it.isBookmark && it.page == current }
     }
     LaunchedEffect(Unit) {
         snapshotFlow { if (settings.flow == Flow.Scrolled) list.firstVisibleItemIndex else pager.currentPage }

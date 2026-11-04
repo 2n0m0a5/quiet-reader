@@ -80,6 +80,10 @@ class Library(private val context: Context, dbName: String? = "library.db") {
     /** Every book, newest reading first. Includes Recently deleted ones; see [shelf]. */
     val books: StateFlow<List<Book>> = _books
 
+    private val _recordsVersion = MutableStateFlow(0)
+    /** Goes up after any change to the other records (notes, fonts…), so screens can follow. */
+    val recordsVersion: StateFlow<Int> = _recordsVersion
+
     /** Called after every change (the safety copy follows it, L2). */
     var onChange: () -> Unit = {}
 
@@ -146,6 +150,7 @@ class Library(private val context: Context, dbName: String? = "library.db") {
             }, SQLiteDatabase.CONFLICT_REPLACE)
             db.setTransactionSuccessful()
         } finally { db.endTransaction() }
+        _recordsVersion.value++
         onChange()
     }
 
@@ -153,12 +158,14 @@ class Library(private val context: Context, dbName: String? = "library.db") {
         if (ids.isEmpty()) return
         val db = helper.writableDatabase
         for (id in ids) db.delete("records", "store = ? AND id = ?", arrayOf(store, id))
+        _recordsVersion.value++
         onChange()
     }
 
     fun clearAll() {
         helper.writableDatabase.apply { delete("books", null, null); delete("records", null, null) }
         listOf(booksDir, coversDir, derivedDir).forEach { dir -> dir.listFiles()?.forEach { it.delete() } }
+        _recordsVersion.value++
         reload()
         onChange()
     }

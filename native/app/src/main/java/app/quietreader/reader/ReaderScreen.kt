@@ -105,6 +105,18 @@ class ReaderState {
     var pageView: android.view.View? = null
     var footnote by mutableStateOf<String?>(null)
     var image by mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null)
+    // L4: notes, bookmarks, search
+    var annotatable by mutableStateOf(false)
+    var bookmarkHere by mutableStateOf(false)
+    var toggleBookmark: () -> Unit = {}
+    var editing by mutableStateOf<Pair<app.quietreader.data.Note, Boolean>?>(null) // the note, and whether to type a note
+    var translating by mutableStateOf<String?>(null)
+    var goToNote: (app.quietreader.data.Note) -> Unit = {}
+    var pendingNote: app.quietreader.data.Note? = null
+    var search: (suspend (String) -> List<SearchHit>)? = null
+    var showHit: (SearchHit) -> Unit = {}
+    var lastSearch = ""
+    var lastHits: List<SearchHit> = emptyList()
     fun toggleBars() { barsShown = !barsShown }
     /** A page turn by key or volume button, with the chosen page turn. */
     fun pageTurn(forward: Boolean) { curlTurn?.invoke(forward) ?: turn(forward) }
@@ -119,11 +131,11 @@ fun pageColors(c: QuietColors) = c.readerBg to c.readerText
  * The full reader bar (tuning scale, five keys, More) comes in L3.
  */
 @Composable
-fun ReaderScreen(book: Book, onClose: () -> Unit) {
+fun ReaderScreen(book: Book, startNote: app.quietreader.data.Note? = null, onClose: () -> Unit) {
     val quiet = LocalQuiet.current
     val settings = quiet.settings
     val c = LocalColors.current
-    val state = remember(book.id) { ReaderState() }
+    val state = remember(book.id) { ReaderState().also { it.pendingNote = startNote } }
     var sheet by remember { mutableStateOf<String?>(null) }
 
     BackHandler { onClose() }
@@ -162,6 +174,8 @@ fun ReaderScreen(book: Book, onClose: () -> Unit) {
                 ReaderKey.Layout -> sheet = "layout"
                 ReaderKey.GoTo -> sheet = "goto"
                 ReaderKey.Mode -> settings.flow = if (settings.flow == Flow.Scrolled) Flow.Paginated else Flow.Scrolled
+                ReaderKey.Notes -> sheet = "notes"
+                ReaderKey.Search -> sheet = "search"
             }
         }
     }
@@ -176,7 +190,11 @@ fun ReaderScreen(book: Book, onClose: () -> Unit) {
         "layout" -> LayoutSheet(pdf, close)
         "goto" -> GoToSheet(state, close)
         "keys" -> CustomizeSheet(close)
+        "notes" -> BookNotesSheet(state, book, close)
+        "search" -> SearchSheet(state, close)
     }
+    state.editing?.let { (note, typing) -> NoteEditor(note, book, typing) { state.editing = null } }
+    state.translating?.let { TranslateSheet(it) { state.translating = null } }
     state.footnote?.let { FootnoteSheet(it) { state.footnote = null } }
 
 }
@@ -219,6 +237,14 @@ private fun ReaderBars(
                 Column(Modifier.weight(1f)) {
                     Text(state.chapter.ifBlank { book.title }, style = Type.rowTitle.copy(color = c.text), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     if (state.chapter.isNotBlank()) Text(book.title, style = Type.hint.copy(color = c.muted), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Spacer(Modifier.width(8.dp))
+                app.quietreader.ui.Key({ state.toggleBookmark() }, padding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                    contentDescription = if (state.bookmarkHere) "Remove bookmark" else "Bookmark this page") {
+                    Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+                        Icon(if (state.bookmarkHere) Icons.BookmarkFilled else Icons.Bookmark, null, Modifier.size(18.dp),
+                            tint = if (state.bookmarkHere) c.accent else c.text)
+                    }
                 }
             }
         }

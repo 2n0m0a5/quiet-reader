@@ -53,7 +53,8 @@ enum class Align(val key: String, val label: String) { Start("start", "Left"), J
 /** The keys of the reader bar (the web app's `readerKeys`). More is always last and not listed. */
 enum class ReaderKey(val key: String, val label: String) {
     Contents("contents", "Contents"), DayNight("daynight", "Day/Night"), Light("light", "Light"),
-    Text("text", "Text"), Layout("layout", "Layout"), GoTo("goto", "Go to"), Mode("mode", "Scroll/Pages");
+    Text("text", "Text"), Layout("layout", "Layout"), GoTo("goto", "Go to"), Mode("mode", "Scroll/Pages"),
+    Notes("notes", "Notes"), Search("search", "Search");
 
     companion object {
         val DEFAULT = listOf(Contents, DayNight, Light, Text)
@@ -99,6 +100,14 @@ class QuietSettings(private val prefs: SharedPreferences) {
         get() = customFontState.value
         set(value) { customFontState.value = value; prefs.edit().putString("customFont", value).apply() }
     private val customFontState = mutableStateOf(prefs.getString("customFont", null))
+    var translateTo: String
+        get() = translateState.value
+        set(value) { translateState.value = value; prefs.edit().putString("translateTo", value).apply() }
+    private val translateState = mutableStateOf(prefs.getString("translateTo", null) ?: app.quietreader.reader.Translate.defaultTarget())
+    /** The colour the last highlight got (the next one starts with it). */
+    var lastColor: String
+        get() = prefs.getString("lastColor", null) ?: "#f2c94c"
+        set(value) { prefs.edit().putString("lastColor", value).apply() }
     var volumeKeys by boolPref("volumeKeys", true)
     var showClock by boolPref("showClock", true)
     var keepAwake by boolPref("keepAwake", true)

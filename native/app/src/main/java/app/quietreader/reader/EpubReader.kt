@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -51,6 +52,7 @@ import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.services.locateProgression
 import org.readium.r2.shared.publication.services.positions
+import org.readium.r2.shared.publication.services.search.search
 
 private const val TAG = "quiet-epub"
 private val CRIMSON = FontFamily("Crimson Pro")
@@ -81,6 +83,7 @@ private fun EpubView(book: Book, publication: Publication, state: ReaderState) {
     val settings = quiet.settings
     val colors = LocalColors.current
     val activity = LocalContext.current as FragmentActivity
+    val haptics = app.quietreader.ui.LocalHaptics.current
     var navigator by remember { mutableStateOf<EpubNavigatorFragment?>(null) }
 
     // Where to start: the exact place saved here, or (from a web app backup) the reading
@@ -127,6 +130,85 @@ private fun EpubView(book: Book, publication: Publication, state: ReaderState) {
         }
     }
 
+    // ---------- L4: highlights, notes, quotes, bookmarks, search ----------
+    val notesVersion by quiet.library.recordsVersion.collectAsState()
+    fun chapterCfi(locator: Locator): String {
+        val i = publication.readingOrder.indexOfFirst { it.url().removeFragment() == locator.href.removeFragment() }
+        return if (i >= 0) "epubcfi(/6/${2 * (i + 1)}!/4)" else ""
+    }
+    fun onSelected(action: Int, locator: Locator) {
+        val text = locator.text.highlight?.trim().orEmpty()
+        if (text.isBlank()) return
+        if (action == 104) { state.translating = text; return }
+        val note = app.quietreader.data.Note.new(book.id, "highlight", text, chapterCfi(locator)).with {
+            put("color", settings.lastColor)
+            put("style", if (action == 103) "plain" else "highlight")
+            if (action == 103) put("quote", true)
+            put("label", state.chapter)
+            put("progress", locator.locations.totalProgression ?: state.progress)
+            put("locator", locator.toJSON().toString())
+        }
+        quiet.notes.put(note)
+        haptics?.confirm()
+        if (action != 101) state.editing = note to (action == 102)
+    }
+    LaunchedEffect(navigator) {
+        val nav = navigator ?: return@LaunchedEffect
+        state.annotatable = true
+        nav.addDecorationListener("highlights", object : org.readium.r2.navigator.DecorableNavigator.Listener {
+            override fun onDecorationActivated(event: org.readium.r2.navigator.DecorableNavigator.OnActivatedEvent): Boolean {
+                quiet.notes.all().firstOrNull { it.id == event.decoration.id }?.let { state.editing = it to false }
+                return true
+            }
+        })
+        state.goToNote = { note ->
+            locatorOf(note, publication)?.let { l ->
+                // From 0.4.2 notes the chapter is known; Readium finds the text in it.
+                if (note.locator == null) scope.launch { publication.locateProgression(note.progress)?.let { nav.go(it) } ?: nav.go(l) } else nav.go(l)
+            }
+        }
+        state.toggleBookmark = {
+            val here = nav.currentLocator.value
+            val marks = quiet.notes.forBook(book.id).filter { it.isBookmark && sameSpot(it, here) }
+            if (marks.isNotEmpty()) marks.forEach { quiet.notes.delete(it.id) }
+            else quiet.notes.put(app.quietreader.data.Note.new(book.id, "bookmark", here.text.highlight?.take(200) ?: "", chapterCfi(here)).with {
+                put("label", listOfNotNull(state.chapter.ifBlank { null }, here.locations.position?.let { "page $it" }).joinToString(" · "))
+                put("progress", here.locations.totalProgression ?: state.progress)
+                put("locator", here.toJSON().toString())
+            })
+            haptics?.tick()
+        }
+        state.search = { query ->
+            val hits = mutableListOf<SearchHit>()
+            runCatching {
+                val iterator = publication.search(query) ?: return@runCatching
+                while (hits.size < 300) {
+                    val page = iterator.next().getOrNull() ?: break
+                    page.locators.forEach { l ->
+                        hits += SearchHit(l.text.before.orEmpty(), l.text.highlight.orEmpty(), l.text.after.orEmpty(), l.title ?: "", l)
+                    }
+                }
+                iterator.close()
+            }
+            hits
+        }
+        state.showHit = { hit ->
+            val l = hit.key as Locator
+            nav.go(l)
+            scope.launch {
+                nav.applyDecorations(listOf(org.readium.r2.navigator.Decoration("search", l,
+                    org.readium.r2.navigator.Decoration.Style.Underline(colors.accent.toArgb()))), "search")
+            }
+        }
+        state.pendingNote?.let { state.pendingNote = null; kotlinx.coroutines.delay(400); state.markBack(); state.goToNote(it) }
+    }
+    // Highlights drawn on the page, kept in step with your notes.
+    LaunchedEffect(navigator, notesVersion) {
+        val nav = navigator ?: return@LaunchedEffect
+        nav.applyDecorations(quiet.notes.forBook(book.id).mapNotNull { decorationOf(it, publication) }, "highlights")
+        state.bookmarkHere = quiet.notes.forBook(book.id).any { it.isBookmark && sameSpot(it, nav.currentLocator.value) }
+    }
+
     // Pictures, bionic reading and your font, in each page (PageScripts.kt).
     suspend fun runPageScript() {
         navigator?.evaluateJavascript(PageScripts.script(settings.bionic, settings.customFont, settings.flow == Flow.Scrolled))
@@ -170,6 +252,27 @@ private fun EpubView(book: Book, publication: Publication, state: ReaderState) {
                                     onChapter = { forward -> scope.launch { navigator?.let { chapterStep(it, publication, forward) } } })
                             }
                             servedAssets = listOf("fonts/.*")
+                            decorationTemplates = quietTemplates()
+                            // Select text: Highlight · Note · Quote · Translate, then the phone's own (Copy…).
+                            selectionActionModeCallback = object : android.view.ActionMode.Callback {
+                                override fun onCreateActionMode(mode: android.view.ActionMode, menu: android.view.Menu): Boolean {
+                                    menu.add(0, 101, 0, "Highlight"); menu.add(0, 102, 1, "Note")
+                                    menu.add(0, 103, 2, "Quote"); menu.add(0, 104, 3, "Translate")
+                                    return true
+                                }
+                                override fun onPrepareActionMode(mode: android.view.ActionMode, menu: android.view.Menu) = false
+                                override fun onActionItemClicked(mode: android.view.ActionMode, item: android.view.MenuItem): Boolean {
+                                    if (item.itemId !in 101..104) return false
+                                    scope.launch {
+                                        val nav = navigator ?: return@launch
+                                        val selection = nav.currentSelection()
+                                        mode.finish(); nav.clearSelection()
+                                        if (selection != null) onSelected(item.itemId, selection.locator)
+                                    }
+                                    return true
+                                }
+                                override fun onDestroyActionMode(mode: android.view.ActionMode) {}
+                            }
                             // Scroll mode reads by scrolling: a sideways swipe doesn't change chapters.
                             disablePageTurnsWhileScrolling = true
                             addFontFamilyDeclaration(CRIMSON) {
@@ -219,6 +322,7 @@ private fun EpubView(book: Book, publication: Publication, state: ReaderState) {
             state.chapter = chapterTitle(publication, locator, state) ?: ""
             val position = locator.locations.position
             state.page = position ?: 0
+            state.bookmarkHere = quiet.notes.forBook(book.id).any { it.isBookmark && sameSpot(it, locator) }
             state.pageLabel = if (position != null && totalPositions > 0) "$position / $totalPositions" else ""
             if (!first && state.barsShown && settings.flow == Flow.Scrolled) state.barsShown = false
             first = false
@@ -313,4 +417,13 @@ private fun chapterStep(nav: EpubNavigatorFragment, publication: Publication, fo
     val link = publication.readingOrder.getOrNull(i + if (forward) 1 else -1) ?: return
     val start = publication.locatorFromLink(link) ?: return
     nav.go(if (forward) start else start.copyWithLocations(progression = 0.999), animated = false)
+}
+
+/** A bookmark is "here" when it's on the same page (Readium position), or very close for 0.4.2's. */
+private fun sameSpot(note: app.quietreader.data.Note, here: Locator): Boolean {
+    val at = note.locator?.let { runCatching { Locator.fromJSON(JSONObject(it)) }.getOrNull() }
+    val p = here.locations.position
+    if (at != null && p != null && at.locations.position != null) return at.locations.position == p
+    val t = here.locations.totalProgression ?: return false
+    return kotlin.math.abs(note.progress - t) < 0.0015
 }

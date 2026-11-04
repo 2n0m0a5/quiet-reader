@@ -198,12 +198,14 @@ class Backup(private val library: Library, private val settings: QuietSettings, 
         s.put("keepAwake", settings.keepAwake)
         s.put("readerKeys", org.json.JSONArray(settings.readerKeys.map { it.key }))
         all.put("quiet:settings", s.toString())
+        all.put("quiet:translate-to", settings.translateTo)
         return all
     }
 
     /** Takes over a backup's settings: the ones this app has, and the rest kept for later layers. */
     fun applyWebSettings(all: JSONObject) {
         settings.webSettings = all.toString()
+        all.optString("quiet:translate-to").takeIf { it.isNotBlank() }?.let { settings.translateTo = it }
         val s = runCatching { JSONObject(all.optString("quiet:settings", "{}")) }.getOrNull() ?: return
         ThemeMode.entries.firstOrNull { it.key == s.optString("theme") }?.let { settings.theme = it }
         if (s.optString("theme") == "custom") settings.theme = ThemeMode.Day // Custom colours come later

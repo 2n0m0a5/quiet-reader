@@ -23,6 +23,13 @@ private fun lucide(name: String, vararg shapes: String): ImageVector =
         )
     }.build()
 
+/** A filled shape (the bookmark when it's set). */
+private fun filled(name: String, d: String): ImageVector =
+    ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f).apply {
+        addPath(pathData = addPathNodes(d), fill = SolidColor(Color.Black), stroke = SolidColor(Color.Black),
+            strokeLineWidth = 2f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
+    }.build()
+
 private fun rect(x: Float, y: Float, w: Float, h: Float, r: Float) =
     "M${x + r},${y}h${w - 2 * r}a$r,$r 0 0 1 $r,$r" + "v${h - 2 * r}a$r,$r 0 0 1 -$r,$r" +
         "h-${w - 2 * r}a$r,$r 0 0 1 -$r,-$r" + "v-${h - 2 * r}a$r,$r 0 0 1 $r,-${r}z"
@@ -68,6 +75,7 @@ object Icons {
     val Hash = lucide("hash", "M4 9h16", "M4 15h16", "M10 3 8 21", "M16 3 14 21")
     val More = lucide("ellipsis", circle(12f, 12f, 1f), circle(19f, 12f, 1f), circle(5f, 12f, 1f))
     val Bookmark = lucide("bookmark", "M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z")
+    val BookmarkFilled = filled("bookmark-filled", "M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z")
     val Search = lucide("search", "m21 21-4.34-4.34", circle(11f, 11f, 8f))
     val Info = lucide("info", circle(12f, 12f, 10f), "M12 16v-4", "M12 8h.01")
 }

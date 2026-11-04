@@ -8,6 +8,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import app.quietreader.data.Backup
 import app.quietreader.data.Fonts
 import app.quietreader.data.Importer
+import app.quietreader.data.Notes
 import app.quietreader.data.Safety
 import java.io.File
 import app.quietreader.data.Library
@@ -23,6 +24,7 @@ class Quiet(context: Context, dbName: String? = "library.db") {
     val backup = Backup(library, settings, File(app.filesDir, "fonts"))
     val safety = Safety(library, app.filesDir)
     val fonts = Fonts(app, library)
+    val notes = Notes(library)
 
     /** On start: recover from the safety copy if needed, empty old trash, then follow every change. */
     fun start(): Int {
