@@ -7,6 +7,15 @@ import android.util.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.isSpecified
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -63,7 +72,7 @@ private class PdfPages(file: File) {
     private val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
     private val renderer = PdfRenderer(fd)
     private val lock = Mutex() // the renderer opens one page at a time
-    private val cache = object : LruCache<Int, Bitmap>(48 * 1024 * 1024) {
+    private val cache = object : LruCache<Int, Bitmap>(72 * 1024 * 1024) {
         override fun sizeOf(key: Int, value: Bitmap) = value.byteCount
     }
     val count = renderer.pageCount
@@ -180,27 +189,67 @@ private fun PdfView(book: Book, pdf: PdfPages, state: ReaderState) {
             }
     }
 
+    // Zoom: pinch, or double-tap; drag to move around while zoomed.
+    var zoom by remember { mutableFloatStateOf(1f) }
+    var pan by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    LaunchedEffect(pager.currentPage, scroll) { if (!scroll) { zoom = 1f; pan = androidx.compose.ui.geometry.Offset.Zero } }
     BoxWithConstraints(
-        Modifier.fillMaxSize().background(c.readerBg).pointerInput(scroll) {
-            detectTapGestures { offset ->
-                val third = size.width / 3
-                when {
-                    !scroll && offset.x < third -> scope.launch { pager.animateScrollToPage((pager.currentPage - 1).coerceAtLeast(0)) }
-                    !scroll && offset.x > size.width - third -> scope.launch { pager.animateScrollToPage((pager.currentPage + 1).coerceAtMost(pdf.count - 1)) }
-                    else -> state.toggleBars()
+        Modifier.fillMaxSize().background(c.readerBg).clipToBounds()
+            .pointerInput(scroll) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    do {
+                        val event = awaitPointerEvent()
+                        val pressed = event.changes.filter { it.pressed }
+                        if (pressed.size >= 2 || zoom > 1.01f) {
+                            val z = event.calculateZoom(); val move = event.calculatePan()
+                            val centroid = event.calculateCentroid()
+                            val newZoom = (zoom * z).coerceIn(1f, 5f)
+                            if (newZoom != zoom && centroid.isSpecified) {
+                                // Zoom around the fingers.
+                                val c0 = centroid - androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f)
+                                pan = (pan - c0) * (newZoom / zoom) + c0
+                            }
+                            zoom = newZoom
+                            var dy = move.y
+                            if (scroll && zoom > 1.01f) { list.dispatchRawDelta(-move.y / zoom); dy = 0f }
+                            val maxX = size.width * (zoom - 1) / 2; val maxY = size.height * (zoom - 1) / 2
+                            pan = androidx.compose.ui.geometry.Offset((pan.x + move.x).coerceIn(-maxX, maxX), if (scroll) 0f else (pan.y + dy).coerceIn(-maxY, maxY))
+                            if (zoom <= 1.01f) { zoom = 1f; pan = androidx.compose.ui.geometry.Offset.Zero }
+                            if (pressed.size >= 2 || zoom > 1f) event.changes.forEach { it.consume() }
+                        }
+                    } while (event.changes.any { it.pressed })
                 }
             }
-        },
+            .pointerInput(scroll) {
+                detectTapGestures(
+                    onDoubleTap = { at ->
+                        if (zoom > 1f) { zoom = 1f; pan = androidx.compose.ui.geometry.Offset.Zero }
+                        else { zoom = 2.5f; pan = (androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f) - at) * 1.5f }
+                    },
+                ) { offset ->
+                    val third = size.width / 3
+                    when {
+                        zoom > 1f -> state.toggleBars()
+                        !scroll && offset.x < third -> scope.launch { pager.animateScrollToPage((pager.currentPage - 1).coerceAtLeast(0)) }
+                        !scroll && offset.x > size.width - third -> scope.launch { pager.animateScrollToPage((pager.currentPage + 1).coerceAtMost(pdf.count - 1)) }
+                        else -> state.toggleBars()
+                    }
+                }
+            },
     ) {
         val width = with(LocalDensity.current) { maxWidth.roundToPx() }
+        // Sharper pictures when zoomed in (drawn at twice the width).
+        val renderWidth = if (zoom > 1.4f) width * 2 else width
+        val layer = Modifier.fillMaxSize().graphicsLayer { scaleX = zoom; scaleY = zoom; translationX = pan.x; translationY = pan.y }
         if (scroll) {
-            LazyColumn(state = list, contentPadding = PaddingValues(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(pdf.count, key = { it }) { i -> PdfPage(pdf, i, width, Modifier.fillMaxWidth()) }
+            LazyColumn(state = list, modifier = layer, contentPadding = PaddingValues(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(pdf.count, key = { it }) { i -> PdfPage(pdf, i, renderWidth, Modifier.fillMaxWidth()) }
             }
         } else {
-            HorizontalPager(state = pager, beyondViewportPageCount = 1) { i ->
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    PdfPage(pdf, i, width, Modifier.fillMaxWidth())
+            HorizontalPager(state = pager, beyondViewportPageCount = 1, userScrollEnabled = zoom <= 1f) { i ->
+                Box(if (i == pager.currentPage) layer else Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    PdfPage(pdf, i, if (i == pager.currentPage) renderWidth else width, Modifier.fillMaxWidth())
                 }
             }
         }

@@ -96,7 +96,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(null)
         val recovered = quiet.start()
         if (recovered > 0) state.toast("Quiet rebuilt your library from its safety copy: $recovered books.")
-        state.pickBooks = { pickBooks.launch(arrayOf("application/epub+zip", "application/pdf", "text/plain", "application/octet-stream")) }
+        // Any file: book types are many and phones label them loosely; the importer decides.
+        state.pickBooks = { pickBooks.launch(arrayOf("*/*")) }
         state.saveBackup = { saveBackup.launch("Quiet backup ${SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())}.quietbackup") }
         state.pickBackup = { pickBackup.launch(arrayOf("*/*")) }
         state.pickFont = { pickFont.launch(arrayOf("*/*")) }
@@ -228,7 +229,7 @@ class MainActivity : AppCompatActivity() {
             when {
                 results.size == 1 && added.size == 1 -> "Added “${added[0].book.title}”."
                 results.size == 1 && there.size == 1 -> "“${there[0].book.title}” is already in your library."
-                results.size == 1 && unsupported.size == 1 -> "${unsupported[0].format} books open in a later layer (L7). For now: EPUB, PDF and TXT."
+                results.size == 1 && unsupported.size == 1 -> "Quiet can’t open ${unsupported[0].format} files. It reads EPUB, MOBI, AZW3, FB2, PDF, Word, ODT, RTF, Markdown, TXT, HTML and comics."
                 results.size == 1 -> "Couldn’t add “${failed[0].name}”: ${failed[0].reason}"
                 else -> listOfNotNull(
                     added.size.takeIf { it > 0 }?.let { "Added $it ${if (it == 1) "book" else "books"}" },

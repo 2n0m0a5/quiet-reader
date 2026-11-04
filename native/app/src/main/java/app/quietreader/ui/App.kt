@@ -211,7 +211,7 @@ fun QuietApp(settings: QuietSettings, state: AppState = remember { AppState() })
             shown?.let { b ->
                 if (b.format == app.quietreader.data.BookFormat.Other) {
                     LaunchedEffect(b.id) {
-                        state.toast("${b.fileName.substringAfterLast('.').uppercase()} books open in a later layer (L7). It’s safe in your library.")
+                        state.toast("Quiet can’t open ${b.fileName.substringAfterLast('.').uppercase()} files. It’s safe in your library.")
                         state.openBookId = null
                     }
                 } else app.quietreader.reader.ReaderScreen(b, remember(b.id) { state.openNote.also { state.openNote = null } }, onInfo = { state.details = b.id },

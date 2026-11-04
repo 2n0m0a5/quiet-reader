@@ -65,9 +65,11 @@ fun EpubReader(book: Book, state: ReaderState) {
     var failed by remember(book.id) { mutableStateOf(false) }
     if (failed) return CantOpen("This book couldn’t be opened. The file may be damaged or protected (DRM).")
     val publication = rememberOpened(book.id, open = {
-        val file = if (book.format == BookFormat.Txt) quiet.library.derivedOf(book.id).also { derived ->
+        // Other kinds were turned into an EPUB when added (made again here if it's missing,
+        // for example after restoring a backup from 0.4.2, which keeps only the original).
+        val file = if (book.format.converted) quiet.library.derivedOf(book.id).also { derived ->
             if (!derived.exists()) withContext(Dispatchers.IO) {
-                app.quietreader.data.TextBook.toEpub(quiet.library.fileOf(book.id), book.title, derived)
+                app.quietreader.data.convert.Converters.toEpub(quiet.library.fileOf(book.id), book.fileName, derived)
             }
         } else quiet.library.fileOf(book.id)
         quiet.readium.open(file)

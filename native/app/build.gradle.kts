@@ -9,7 +9,7 @@ plugins {
 
 // The layer being built. The switch (end of L8) drops it and moves to app.quietreader.
 val quietVersion = "0.5.0"
-val quietLayer = "L6.1"
+val quietLayer = "L7"
 
 android {
     namespace = "app.quietreader"
@@ -19,7 +19,7 @@ android {
         applicationId = "app.quietreader.n"
         minSdk = 26
         targetSdk = 36
-        versionCode = 514
+        versionCode = 515
         versionName = "$quietVersion $quietLayer"
         buildConfigField("String", "QUIET_VERSION", "\"$quietVersion\"")
         buildConfigField("String", "QUIET_LAYER", "\"$quietLayer\"")
@@ -82,6 +82,12 @@ dependencies {
     implementation("androidx.fragment:fragment-ktx:1.8.9")
     implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("androidx.documentfile:documentfile:1.1.0")
+    // L7, every format: HTML cleaning, Markdown, and comic archives (7z, tar, RAR4).
+    implementation("org.jsoup:jsoup:1.18.1")
+    implementation("org.commonmark:commonmark:0.24.0")
+    implementation("org.apache.commons:commons-compress:1.27.1")
+    implementation("org.tukaani:xz:1.10")
+    implementation("com.github.junrar:junrar:7.5.5")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.4")
 
     // Readium (BSD-3): opens EPUB and draws its pages. See docs/plan-native.md.

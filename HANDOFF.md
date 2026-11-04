@@ -23,7 +23,9 @@ maybe the App Store) later. Core message: "a reader should be very simple. Perio
   keys, Page turn in Text, hold-to-move ruler). **L4** (notes) built and sent; L4.1 fixed translation (Google
   refused plain Java requests, MyMemory can't take 'auto'). **L5** (organizing) built and sent; L5.1–L5.3 fixed the owner's
   findings (book page saves at once, tags as chips, New asks, hold a cover to select, Undo) and added
-  `docs/ux-review-native.md`. **L6** (stats) built and sent. Next: phone results, then L7 (every format). Gotcha: if `processDebugResources` fails, `compileDebugKotlin` prints no `e:` lines, so check the exit code.
+  `docs/ux-review-native.md`. **L6** (stats) built and sent; L6.1: no duplicate keys, hold to select in
+  Recently deleted and Notes. **L7** (every format) built and sent. Next: phone results, then L8 (polish and
+  the switch). Calibre is installable here (`apt-get install calibre`) to make MOBI/AZW3 test files. Gotcha: if `processDebugResources` fails, `compileDebugKotlin` prints no `e:` lines, so check the exit code.
   `scripts/check-page-script.cjs` runs the in-page script in Chromium (after the JVM tests). 0.4.x gets bug fixes only. The owner has some 0.4.2 issues to report.
 - **Android 0.4.2 (versionCode 420)** and **iPhone 1.0 (build 1)**, all committed and pushed to
   `main` (last commit `cb20689`). The working tree is clean.

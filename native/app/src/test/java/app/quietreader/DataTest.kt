@@ -81,9 +81,12 @@ class DataTest {
         assertEquals(russian, TextBook.decode(russian.toByteArray()))
     }
 
-    @Test fun otherFormatsWaitForTheirLayer() = runBlocking {
-        val mobi = File(context.cacheDir, "book.mobi").apply { writeText("x") }
-        assertTrue(quiet.importer.importFile(mobi, "book.mobi") is ImportResult.NotSupported)
+    @Test fun unknownOrBrokenFilesSaySo() = runBlocking {
+        val odd = File(context.cacheDir, "notes.xyz").apply { writeText("x") }
+        assertTrue(quiet.importer.importFile(odd, "notes.xyz") is ImportResult.NotSupported)
+        val broken = File(context.cacheDir, "book.mobi").apply { writeText("not really a mobi") }
+        assertTrue(quiet.importer.importFile(broken, "book.mobi") is ImportResult.Failed)
+        assertEquals(0, quiet.library.books.value.size)
     }
 
     @Test fun restoresABackupMadeByTheWebApp() {

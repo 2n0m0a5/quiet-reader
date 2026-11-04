@@ -83,21 +83,21 @@ class Importer(private val context: Context, private val library: Library, priva
             put("lastOpenedAt", JSONObject.NULL)
             put("progress", 0)
             put("cfi", JSONObject.NULL)
-            put("format", format.label)
+            put("format", BookFormat.labelOf(name))
         }
         try {
-            when (format) {
-                BookFormat.Epub -> readEpub(library.fileOf(id), id, record)
-                BookFormat.Txt -> {
-                    TextBook.toEpub(library.fileOf(id), record.getString("title"), library.derivedOf(id))
-                    readEpub(library.derivedOf(id), id, record, keepTitle = true)
+            when {
+                format == BookFormat.Epub -> readEpub(library.fileOf(id), id, record)
+                format == BookFormat.Pdf -> readPdf(library.fileOf(id), id)
+                else -> {
+                    // Every other kind becomes an EPUB; its title, author and cover come from there.
+                    app.quietreader.data.convert.Converters.toEpub(library.fileOf(id), name, library.derivedOf(id))
+                    readEpub(library.derivedOf(id), id, record, keepTitle = format == BookFormat.Txt)
                 }
-                BookFormat.Pdf -> readPdf(library.fileOf(id), id)
-                BookFormat.Other -> Unit
             }
         } catch (e: Exception) {
             library.fileOf(id).delete(); library.derivedOf(id).delete()
-            return@withContext ImportResult.Failed(name, "This ${format.label} couldn’t be opened.")
+            return@withContext ImportResult.Failed(name, e.message?.takeIf { it.endsWith(".") } ?: "This ${BookFormat.labelOf(name)} couldn’t be opened.")
         }
         val book = Book(record, null)
         library.put(book)

@@ -315,7 +315,7 @@ private fun AboutPage(state: AppState) {
 
                 Overline("Formats")
                 Text(
-                    "This native build opens EPUB, PDF and TXT (without DRM). Every other format (MOBI, AZW3, FB2, Word, comics…) arrives in L7; books in those formats are kept safe in your library until then.",
+                    "EPUB, MOBI, AZW3 and AZW (without DRM), FB2, PDF, Word (DOCX), OpenDocument (ODT), RTF, Markdown, TXT, HTML, Palm (PDB) and comics (CBZ, CBR, CB7, CBT).",
                     style = Type.body.copy(color = c.text),
                 )
 

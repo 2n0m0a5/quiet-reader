@@ -36,7 +36,7 @@ class Folders(private val context: Context, private val library: Library, privat
         saveList(all() - uri)
     }
 
-    data class Scan(val added: List<Book>, val waiting: Int, val missing: Int)
+    data class Scan(val added: List<Book>, val waiting: Int, val missing: Int) // waiting: none since L7
 
     /** Looks through every folder and adds the books it hasn't seen. [waiting]: files in formats that come in L7. */
     suspend fun scan(): Scan = withContext(Dispatchers.IO) {
@@ -53,7 +53,7 @@ class Folders(private val context: Context, private val library: Library, privat
                 val name = file.name ?: continue
                 val key = file.uri.toString()
                 val format = BookFormat.of(name, file.type)
-                if (format == BookFormat.Other) { if (isBook(name)) waiting++; continue }
+                if (format == BookFormat.Other) continue
                 if (key in seen) continue
                 when (val r = importer.import(file.uri)) {
                     is ImportResult.Added -> { added += r.book; seen += key }

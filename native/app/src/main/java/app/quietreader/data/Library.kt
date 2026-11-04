@@ -39,21 +39,44 @@ data class Book(val json: JSONObject, val locator: String?) {
     }
 }
 
-enum class BookFormat(val label: String, val mime: String) {
-    Epub("EPUB", "application/epub+zip"),
-    Pdf("PDF", "application/pdf"),
-    Txt("TXT", "text/plain"),
-    Other("", "application/octet-stream");
+/**
+ * The kinds of book Quiet reads (the same list as the web app's formats.ts). EPUB and PDF are read
+ * as they are; every other kind is turned into an EPUB when it's added (data/convert/).
+ */
+enum class BookFormat(val label: String, val mime: String, val extensions: Set<String>) {
+    Epub("EPUB", "application/epub+zip", setOf("epub")),
+    Pdf("PDF", "application/pdf", setOf("pdf")),
+    Txt("TXT", "text/plain", setOf("txt")),
+    Mobi("MOBI", "application/x-mobipocket-ebook", setOf("mobi", "azw", "azw3", "prc")),
+    Fb2("FB2", "application/x-fictionbook+xml", setOf("fb2", "fbz")),
+    Docx("DOCX", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", setOf("docx")),
+    Odt("ODT", "application/vnd.oasis.opendocument.text", setOf("odt")),
+    Rtf("RTF", "application/rtf", setOf("rtf")),
+    Markdown("MD", "text/markdown", setOf("md", "markdown")),
+    Html("HTML", "text/html", setOf("html", "htm", "xhtml", "htmlz")),
+    Palm("PDB", "application/vnd.palm", setOf("pdb")),
+    Comic("CBZ", "application/vnd.comicbook+zip", setOf("cbz", "cbr", "cb7", "cbt", "zip", "rar", "7z", "tar")),
+    Other("", "application/octet-stream", emptySet());
+
+    /** Turned into an EPUB when added. */
+    val converted get() = this != Epub && this != Pdf && this != Other
 
     companion object {
         fun of(fileName: String, mime: String?): BookFormat {
-            val ext = fileName.substringAfterLast('.', "").lowercase()
-            return when {
-                ext == "epub" || mime == Epub.mime -> Epub
-                ext == "pdf" || mime == Pdf.mime -> Pdf
-                ext == "txt" || mime == Txt.mime -> Txt
-                else -> Other
+            val lower = fileName.lowercase()
+            if (lower.endsWith(".fb2.zip")) return Fb2
+            val ext = lower.substringAfterLast('.', "")
+            entries.firstOrNull { ext in it.extensions }?.let { return it }
+            return when (mime) {
+                Epub.mime -> Epub; Pdf.mime -> Pdf; Txt.mime -> Txt
+                else -> entries.firstOrNull { it.mime == mime && it != Other } ?: Other
             }
+        }
+
+        /** The label the web app gives a file (formatOf in import.ts): "AZW3", "CBR", "FB2"… */
+        fun labelOf(fileName: String): String {
+            val ext = fileName.lowercase().substringAfterLast('.', "")
+            return mapOf("azw" to "AZW", "azw3" to "AZW3", "fbz" to "FB2", "htm" to "HTML").getOrElse(ext) { ext.uppercase().ifBlank { "Unknown" } }
         }
     }
 }

@@ -307,7 +307,7 @@ private suspend fun countPagesAndWords(quiet: app.quietreader.Quiet, book: Book)
             android.graphics.pdf.PdfRenderer(fd).use { it.pageCount to 0 }
         }
     } else {
-        val file = if (book.format == BookFormat.Txt) quiet.library.derivedOf(book.id) else quiet.library.fileOf(book.id)
+        val file = if (book.format.converted) quiet.library.derivedOf(book.id) else quiet.library.fileOf(book.id)
         val publication = quiet.readium.open(file) ?: return@runCatching 0 to 0
         try {
             val pages = publication.positions().size
