@@ -1,7 +1,7 @@
 // The Reading screen: time read today, this week and this year, the streak, goals, speed,
 // finished books, and a card about the library. From 0.3.3 also: the reading year, when you read,
 // your pace, finished books over the months, and book by book.
-import { BookCheck, Flame, Library } from 'lucide'
+import { BookCheck, Library } from 'lucide'
 import { listBooks, listReading, statusOf, type BookRecord } from './library/db'
 import { generatedCover } from './library/library-view'
 import type { Settings } from './settings'
@@ -38,12 +38,28 @@ export class StatsScreen {
     this.#urls.forEach(URL.revokeObjectURL)
     this.#urls = []
     const inner = h('div', 'stats-inner')
-    inner.append(
-      this.#today(stats, settings), this.#week(stats),
+    // Radio (0.4.1): a needle meter for today, the week as lights, three readouts; everything
+    // else (the year, when you read, pace, finished books, book by book) behind one key.
+    const details = h('div', 'stats-details')
+    details.hidden = !this.#detailsOpen
+    details.append(
       this.#calendar(more), this.#when(more), this.#pace(more),
       this.#year(stats, settings), this.#finished(more), this.#bookByBook(more),
       this.#totals(stats), this.#library(stats),
     )
+    const toggle = h('button', 'btn stats-more', this.#detailsOpen ? 'Fewer details' : 'Year, hours, pace and every book')
+    toggle.setAttribute('aria-expanded', String(this.#detailsOpen))
+    toggle.addEventListener('click', () => {
+      this.#detailsOpen = !this.#detailsOpen
+      details.hidden = !this.#detailsOpen
+      toggle.textContent = this.#detailsOpen ? 'Fewer details' : 'Year, hours, pace and every book'
+      toggle.setAttribute('aria-expanded', String(this.#detailsOpen))
+      if (this.#detailsOpen) {
+        details.querySelectorAll<HTMLElement>('.chart-columns, .chart-heatmap').forEach(growWhenSeen)
+        details.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    })
+    inner.append(this.#meter(stats, settings), this.#weekLights(stats), this.#readouts(stats, settings), toggle, details)
     this.#root.replaceChildren(inner)
     inner.querySelectorAll<HTMLElement>('.chart-columns, .chart-heatmap').forEach(growWhenSeen)
     // The big numbers count up to their value.
@@ -51,6 +67,78 @@ export class StatsScreen {
   }
 
   reset() { this.#root.scrollTop = 0 }
+
+  #detailsOpen = false
+
+  // ---------- Today: a needle meter ----------
+  // From 0 to the daily goal (or to an hour, without one); the last stretch, past the goal, is orange.
+  #meter(stats: Stats, settings: Settings) {
+    const goal = settings.dailyGoal * 60
+    const scale = goal || 3600
+    const minutes = Math.round(stats.today / 60)
+    const angle = -50 + 100 * Math.min(1, stats.today / scale)
+    const P = (deg: number, r: number) => { const a = deg * Math.PI / 180; return [150 + r * Math.sin(a), 150 - r * Math.cos(a)].map(v => v.toFixed(1)).join(' ') }
+    const arc = (from: number, to: number, r: number) => `M${P(from, r)}A${r} ${r} 0 0 1 ${P(to, r)}`
+    const ticks = Array.from({ length: 11 }, (_, i) => -50 + i * 10).map(d => `M${P(d, 112)}L${P(d, d % 25 === 0 ? 98 : 104)}`).join('')
+    const label = (d: number, text: string) => { const [x, y] = P(d, 86).split(' ').map(Number); return `<text x="${x}" y="${y}" text-anchor="middle">${text}</text>` }
+    const max = Math.round(scale / 60)
+    const wrap = h('div', 'stats-meter')
+    wrap.innerHTML = `<svg viewBox="20 22 260 142" role="img" aria-label="Today: ${minutes} of ${max} minutes">
+      <path class="meter-scale" d="${arc(-50, goal ? 30 : 50, 112)}"/>
+      ${goal ? `<path class="meter-over" d="${arc(30, 50, 112)}"/>` : ''}
+      <path class="meter-ticks" d="${ticks}"/>
+      <g class="meter-labels">${label(-50, '0')}${label(0, String(Math.round(max / 2)))}${label(50, String(max))}</g>
+      <g class="meter-needle" style="--angle:${angle}deg"><path d="M150 150L150 44"/></g>
+      <circle class="meter-hub" cx="150" cy="150" r="7"/>
+    </svg>`
+    // The needle swings up from zero when the screen opens.
+    const needle = wrap.querySelector<SVGGElement>('.meter-needle')!
+    needle.style.setProperty('--from', '-50deg')
+    requestAnimationFrame(() => requestAnimationFrame(() => needle.classList.add('on')))
+    const read = h('div', 'stats-meter-read')
+    read.append(h('span', 'stats-big stats-mono', String(minutes)), h('span', 'settings-hint', ' min today'))
+    const note = !goal ? 'Choose a daily goal below, if you’d like one.'
+      : stats.today >= goal ? 'Today’s goal is done. Well read.'
+      : `${readingTime(goal - stats.today)} to your goal.`
+    return this.#section('Today', wrap, read, h('p', 'settings-hint stats-meter-note', note), this.#choices('Daily goal', 'dailyGoal', DAILY_GOALS))
+  }
+
+  // ---------- The week as level lights ----------
+  #weekLights(stats: Stats) {
+    const max = Math.max(...stats.week.map(d => d.seconds), 1)
+    const grid = h('div', 'stats-lights')
+    grid.setAttribute('role', 'img')
+    grid.setAttribute('aria-label', stats.week.map(d => `${d.label}: ${readingTime(d.seconds)}`).join(', '))
+    for (const d of stats.week) {
+      const lit = d.seconds ? Math.max(1, Math.round(10 * d.seconds / max)) : 0
+      const col = h('div', `light-col${d.label === 'Today' ? ' today' : ''}`)
+      col.title = `${d.label === 'Today' ? 'Today' : longDate(d.day)}: ${readingTime(d.seconds)}`
+      const bars = h('div', 'light-bars')
+      for (let i = 10; i >= 1; i--) bars.append(h('span', i <= lit ? 'on' : ''))
+      col.append(bars, h('span', 'light-day', d.label === 'Today' ? 'Today' : d.label.slice(0, 2)))
+      grid.append(col)
+    }
+    const head = h('div', 'stats-head')
+    head.append(h('span', 'stats-big stats-mono', readingTime(stats.totals.week)), h('span', 'settings-hint', 'in the last 7 days'))
+    return this.#section('This week', head, grid)
+  }
+
+  // ---------- Three readouts ----------
+  #readouts(stats: Stats, settings: Settings) {
+    const tiles = h('div', 'stats-readouts')
+    const tile = (value: string, label: string) => {
+      const t = h('div', 'stats-readout')
+      t.append(h('div', 'stats-value stats-mono', value), h('div', 'settings-hint', label))
+      tiles.append(t)
+    }
+    tile(String(stats.streak).padStart(2, '0'), stats.streak === 1 ? 'day in a row' : 'days in a row')
+    tile(stats.wordsPerMinute ? String(stats.wordsPerMinute) : '—', 'words a minute')
+    const finished = stats.finishedThisYear.length
+    tile(settings.yearGoal ? `${finished}/${settings.yearGoal}` : String(finished).padStart(2, '0'), 'books this year')
+    const section = h('section', 'settings-section')
+    section.append(tiles)
+    return section
+  }
 
   #section(title: string, ...content: Node[]) {
     const section = h('section', 'settings-section')
@@ -71,32 +159,6 @@ export class StatsScreen {
     }
     row.append(h('div', 'settings-label', label), group)
     return row
-  }
-
-  #today(stats: Stats, settings: Settings) {
-    const goal = settings.dailyGoal * 60
-    const top = h('div', 'stats-today')
-    top.append(ring(goal ? Math.min(1, stats.today / goal) : stats.today ? 1 : 0, readingTime(stats.today), goal ? `of ${readingTime(goal)}` : 'today'))
-    const side = h('div', 'stats-today-side')
-    const streak = h('div', 'stats-streak')
-    streak.append(icon(Flame), h('span', '', stats.streak === 1 ? '1 day in a row' : `${stats.streak} days in a row`))
-    streak.classList.toggle('on', stats.streak > 0)
-    const message = !goal ? 'Set a daily goal below, if you’d like one.'
-      : stats.today >= goal ? 'Today’s goal is done. Well read.'
-      : `${readingTime(goal - stats.today)} to go today.`
-    side.append(streak, h('p', 'settings-hint', message))
-    top.append(side)
-    return this.#section('Today', top, this.#choices('Daily goal', 'dailyGoal', DAILY_GOALS))
-  }
-
-  #week(stats: Stats) {
-    const head = h('div', 'stats-head')
-    head.append(h('span', 'stats-big', readingTime(stats.totals.week)), h('span', 'settings-hint', 'in the last 7 days'))
-    const out = readout('Minutes each day. Touch a day for its time.')
-    const chart = columns(stats.week.map(d => ({
-      label: d.label, value: d.seconds, now: d.label === 'Today', tip: `${d.label === 'Today' ? 'Today' : longDate(d.day)}: ${readingTime(d.seconds)}`,
-    })), out, { max: Math.max(...stats.week.map(d => d.seconds), 60) })
-    return this.#section('This week', head, out, chart)
   }
 
   #year(stats: Stats, settings: Settings) {
@@ -284,21 +346,6 @@ export class StatsScreen {
 }
 
 // A progress ring with the time in the middle.
-function ring(fraction: number, value: string, label: string) {
-  const wrap = h('div', 'stats-ring')
-  const size = 112, stroke = 10, r = (size - stroke) / 2, c = 2 * Math.PI * r
-  wrap.innerHTML = `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" aria-hidden="true">
-    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="var(--line)" stroke-width="${stroke}"/>
-    <circle class="stats-ring-fill" cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="var(--accent)" stroke-width="${stroke}"
-      stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - fraction)}" transform="rotate(-90 ${size / 2} ${size / 2})"/>
-  </svg>`
-  const text = h('div', 'stats-ring-text')
-  text.append(h('div', 'stats-ring-value', value), h('div', 'settings-hint', label))
-  wrap.append(text)
-  wrap.setAttribute('role', 'img')
-  wrap.setAttribute('aria-label', `${value} ${label}`)
-  return wrap
-}
 
 // A guess, rounded the way you'd say it: "40 min", "1 h 30 min", "11 h".
 function roughTime(seconds: number) {
