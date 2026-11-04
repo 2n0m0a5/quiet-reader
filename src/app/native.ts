@@ -5,6 +5,9 @@ import { App } from '@capacitor/app'
 import type { Orientation } from '../settings'
 
 export const isNativeApp = Capacitor.isNativePlatform()
+// Book folders, volume keys and rotation lock exist only in the Android app.
+export const isAndroid = Capacitor.getPlatform() === 'android'
+export const isIOS = Capacitor.getPlatform() === 'ios'
 
 const quietly = (promise: Promise<unknown>) => { promise.catch(() => {}) }
 
@@ -53,6 +56,7 @@ interface QuietNativePlugin {
   safetyDelete(options: { name: string }): Promise<void>
   createDocument(options: { name: string; mime: string }): Promise<{ uri?: string; cancelled?: boolean }>
   writeDocument(options: { uri: string; data: string; append: boolean }): Promise<void>
+  finishDocument(options: { uri: string }): Promise<{ saved: boolean }>
 }
 
 export interface FolderFile { uri: string; name: string; size: number; modified: number }
@@ -250,6 +254,8 @@ export async function saveFile(blob: Blob, name: string, mime: string, progress?
     progress?.(Math.min(1, (start + CHUNK) / Math.max(1, blob.size)))
     if (!blob.size) break
   }
+  // iPhone: the file is ready in the app; now iOS asks where to save it (Files, iCloud Drive…).
+  if (isIOS) return (await QuietNative.finishDocument({ uri })).saved
   return true
 }
 

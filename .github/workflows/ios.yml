@@ -1,0 +1,43 @@
+# Builds the iPhone app on a Mac (GitHub's macOS machines): an unsigned .ipa to install with
+# Sideloadly or AltStore (they sign it with your own Apple ID). Run it from the Actions tab
+# ("iOS app" → Run workflow), or it runs when the iOS project or the app changes.
+name: iOS app
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['ios/**', 'src/**', 'index.html', 'package.json', '.github/workflows/ios.yml']
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx cap sync ios
+      - name: Build (unsigned)
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Quiet.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" archive | tail -40
+      - name: Make the .ipa
+        run: |
+          VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$RUNNER_TEMP/Quiet.xcarchive/Products/Applications/App.app/Info.plist")
+          BUILD=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$RUNNER_TEMP/Quiet.xcarchive/Products/Applications/App.app/Info.plist")
+          mkdir -p out/Payload
+          cp -R "$RUNNER_TEMP/Quiet.xcarchive/Products/Applications/App.app" out/Payload/
+          (cd out && zip -qry "Quiet-iOS-$VERSION-$BUILD.ipa" Payload)
+          echo "IPA=out/Quiet-iOS-$VERSION-$BUILD.ipa" >> "$GITHUB_ENV"
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Quiet-iOS
+          path: ${{ env.IPA }}
+          retention-days: 30

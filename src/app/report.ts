@@ -3,7 +3,7 @@
 // privacy promise holds. The last few errors are kept in memory only (never stored).
 import { button, h, openDialog } from '../ui/dialog'
 import { toast } from '../ui/toast'
-import { isNativeApp, openExternal } from './native'
+import { isIOS, isNativeApp, openExternal } from './native'
 import { phoneWantsLessMotion, reducedMotion } from '../ui/motion'
 
 const errors: string[] = []
@@ -15,7 +15,7 @@ export function buildReport(extra: Record<string, string | number>) {
   const ua = navigator.userAgent
   const chrome = ua.match(/Chrome\/([\d.]+)/)?.[1]
   const lines = [
-    `Quiet ${__APP_VERSION__} (${isNativeApp ? 'Android app' : 'website'})`,
+    `Quiet ${__APP_VERSION__} (${isIOS ? 'iPhone app' : isNativeApp ? 'Android app' : 'website'})`,
     `Browser engine: ${chrome ? `Chrome ${chrome}` : ua}`,
     `Screen: ${screen.width}×${screen.height}, window ${innerWidth}×${innerHeight}, pixel ratio ${devicePixelRatio}`,
     `Motion: ${reducedMotion.matches ? 'reduced' : 'full'}${phoneWantsLessMotion() ? ' (the phone asks for less motion)' : ''}`,

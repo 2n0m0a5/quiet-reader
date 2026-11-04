@@ -6,7 +6,7 @@ import { addToLibrary } from './import'
 import { countBooks } from './db'
 import { button, h, icon, openDialog } from '../ui/dialog'
 import { toast } from '../ui/toast'
-import { forgetFolder, isNativeApp, pickFolder, readFolderFile, scanFolder, type FolderFile } from '../app/native'
+import { forgetFolder, isAndroid as isNativeApp, pickFolder, readFolderFile, scanFolder, type FolderFile } from '../app/native'
 import { isBookFile } from '../formats/formats'
 
 export interface BookFolder {

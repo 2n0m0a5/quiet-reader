@@ -40,7 +40,7 @@ import { duration, percent } from './ui/format'
 import { setUpInstallButton, setUpOffline } from './app/install'
 import { ACCEPTED } from './formats/load'
 import {
-  haptic, isNativeApp, keepScreenOn, onBackButton, onIncomingFile, setHaptics, setOrientation,
+  haptic, isAndroid, isIOS, isNativeApp, keepScreenOn, onBackButton, onIncomingFile, setHaptics, setOrientation,
   setSystemBarsHidden, setSystemBarsTheme, setVolumeKeys,
 } from './app/native'
 import { SettingsScreen } from './settings-screen'
@@ -722,10 +722,11 @@ $('openFile').addEventListener('click', () => menuDialog({
   title: 'Add books',
   items: [
     { label: 'Choose books', hint: 'Pick one or more book files.', icon: icon(FilePlus), run: chooseFiles },
-    {
+    // (iPhone: no folder picker for web pages, and book folders are Android only.)
+    ...(isIOS ? [] : [{
       label: 'Add a book folder', icon: icon(FolderOpen), run: () => addFolder(() => library.refresh()),
-      hint: isNativeApp ? 'Every book in a folder, and new ones as you add them.' : 'Every book in a folder.',
-    },
+      hint: isAndroid ? 'Every book in a folder, and new ones as you add them.' : 'Every book in a folder.',
+    }]),
   ],
 }))
 
@@ -734,7 +735,7 @@ $('openFile').addEventListener('click', () => menuDialog({
 const RESCAN_AFTER = 10 * 60_000
 let lastFolderScan = 0
 function checkFolders() {
-  if (!isNativeApp || Date.now() - lastFolderScan < RESCAN_AFTER) return
+  if (!isAndroid || Date.now() - lastFolderScan < RESCAN_AFTER) return
   lastFolderScan = Date.now()
   scanFolders(() => { if (ui.app.dataset.view === 'library') library.refresh() })
 }

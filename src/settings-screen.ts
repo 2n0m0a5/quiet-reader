@@ -5,7 +5,7 @@ import { limits, type Settings } from './settings'
 import { confirmDialog, h, icon } from './ui/dialog'
 import { fileSize, timeAgo } from './ui/format'
 import { toast } from './ui/toast'
-import { haptic, isNativeApp, openExternal } from './app/native'
+import { haptic, isAndroid, isIOS, isNativeApp, openExternal } from './app/native'
 import { showWhatsNew } from './app/onboarding'
 import { showReport } from './app/report'
 import { addFolder, listFolders, removeFolder, scanFolders } from './library/folders'
@@ -130,8 +130,8 @@ export class SettingsScreen {
           h('div', 'settings-hint motion-hint', phoneWantsLessMotion()
             ? 'Your phone is asking apps for less motion right now (Battery saver or “Remove animations”). Choose Full to keep Quiet’s animations anyway.'
             : 'Your phone isn’t asking for less motion, so Follow phone means full motion.'),
+          ...(isAndroid ? [this.#choices('Screen rotation', 'orientation', [['auto', 'Automatic'], ['portrait', 'Portrait'], ['landscape', 'Landscape']])] : []),
           ...(isNativeApp ? [
-            this.#choices('Screen rotation', 'orientation', [['auto', 'Automatic'], ['portrait', 'Portrait'], ['landscape', 'Landscape']]),
             this.#toggle('Vibration', 'A light tap when you bookmark, highlight or change a setting.', 'haptics'),
           ] : []),
         ]),
@@ -172,7 +172,7 @@ export class SettingsScreen {
             this.#toggle('Tap the sides to turn pages', 'In page mode, tap the left or right edge of the screen.', 'tapZones'),
             this.#toggle('Scroll on to the next chapter', 'In scroll mode, keep scrolling at the end of a chapter to continue.', 'scrollPastEnd'),
             this.#toggle('Keep the screen on while reading', 'The screen won’t dim or lock while a book is open.', 'keepAwake'),
-            ...(isNativeApp ? [this.#toggle('Turn pages with the volume keys', 'Volume down for the next page, volume up for the previous one.', 'volumeKeys')] : []),
+            ...(isAndroid ? [this.#toggle('Turn pages with the volume keys', 'Volume down for the next page, volume up for the previous one.', 'volumeKeys')] : []),
           ]),
         ]
       }
@@ -339,8 +339,9 @@ export class SettingsScreen {
 
   // Book folders: the folders Quiet adds books from (and, in the app, checks for new ones).
   #folders() {
+    if (isIOS) return this.#section('Book folders', 'Book folders are in the Android app only. On iPhone, add books with Add books: you can pick several at once from Files.', [])
     const rows: HTMLElement[] = []
-    for (const folder of isNativeApp ? listFolders() : []) {
+    for (const folder of isAndroid ? listFolders() : []) {
       const row = h('div', 'settings-row folder-row')
       const text = h('div')
       text.append(h('div', 'settings-label', folder.name), h('div', `settings-hint${folder.error ? ' danger-text' : ''}`, folder.error
@@ -377,7 +378,7 @@ export class SettingsScreen {
     addButton.addEventListener('click', () => addFolder(() => { this.#actions.libraryCleared(); this.render() }))
     add.append(addText, addButton)
     rows.push(add)
-    return this.#section('Book folders', isNativeApp
+    return this.#section('Book folders', isAndroid
       ? 'Quiet adds every book in these folders, and checks them for new books each time it opens.'
       : 'Add every book in a folder at once. The Android app also keeps checking the folder for new books.', rows)
   }
