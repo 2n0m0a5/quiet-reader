@@ -502,10 +502,25 @@ private fun ReaderPage(state: AppState, settings: QuietSettings) {
                 ChoiceRow(app.quietreader.Flow.entries.map { it to it.label }, settings.flow, { settings.flow = it }, perRow = 2)
             }
             Divider()
-            SettingBlock("Page turn (in page mode)", "Slide for now; Curl arrives in L3b.") {
-                ChoiceRow(listOf("slide" to "Slide"), "slide", {}, perRow = 1)
+            SettingBlock("Page turn (in page mode)", "Curl bends the page like paper under your finger. Choosing it switches to Pages.") {
+                ChoiceRow(app.quietreader.PageTurn.entries.map { it to it.label }, settings.pageTurn, {
+                    settings.pageTurn = it
+                    if (it == app.quietreader.PageTurn.Curl && settings.flow != app.quietreader.Flow.Paginated) {
+                        settings.flow = app.quietreader.Flow.Paginated
+                        state.toast("Curl turns pages, so reading mode is now Pages.")
+                    }
+                }, perRow = 3)
             }
+            Divider()
+            SettingBlock("Reading ruler", "Line marks the line you’re on; Focus dims the rest. Drag its handle to move it.") {
+                ChoiceRow(app.quietreader.Ruler.entries.map { it to it.label }, settings.ruler, { settings.ruler = it }, perRow = 3)
+            }
+            Divider()
+            ToggleRow("Bionic reading", "The start of each word in bold, to guide the eye.", settings.bionic) { settings.bionic = it }
         }
+        Spacer(Modifier.height(28.dp))
+        SectionTitle("Your fonts", "TTF, OTF, WOFF or WOFF2 files. They appear under Text → Font.")
+        YourFonts(state, settings)
         Spacer(Modifier.height(28.dp))
         SectionTitle("Reader bar", "The four keys at the bottom of the page. More always has the rest.")
         Card { Column(Modifier.padding(16.dp)) { app.quietreader.reader.CustomizeKeys() } }
@@ -532,5 +547,31 @@ private fun ToggleRow(title: String, hint: String, on: Boolean, set: (Boolean) -
         }
         Spacer(Modifier.width(12.dp))
         Switch(on, set, title)
+    }
+}
+
+@Composable
+private fun YourFonts(state: AppState, settings: QuietSettings) {
+    val quiet = app.quietreader.LocalQuiet.current
+    val c = LocalColors.current
+    // Re-read when the library's records change (a font added or removed).
+    val books by quiet.library.books.collectAsState()
+    var version by remember { mutableStateOf(0) }
+    val families = remember(books, version, state.fontsVersion) { quiet.fonts.families() }
+    Card {
+        families.forEachIndexed { i, family ->
+            if (i > 0) Divider()
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(family, style = Type.body.copy(color = c.text), modifier = Modifier.weight(1f))
+                if (settings.customFont == family) { Text("in use", style = Type.hint.copy(color = c.accentStrong)); Spacer(Modifier.width(10.dp)) }
+                IconKey(Icons.Trash, "Remove $family", {
+                    quiet.fonts.remove(family)
+                    if (settings.customFont == family) settings.customFont = null
+                    version++
+                }, kind = KeyKind.Danger)
+            }
+        }
+        if (families.isNotEmpty()) Divider()
+        Column(Modifier.padding(16.dp)) { TextKey("Add a font…", { state.pickFont() }) }
     }
 }

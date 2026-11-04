@@ -19,6 +19,10 @@ import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.FragmentContainerView
 import app.quietreader.BookFont
 import app.quietreader.Flow
+import app.quietreader.PageTurn
+import androidx.compose.ui.graphics.asImageBitmap
+import org.readium.r2.navigator.HyperlinkNavigator
+import org.readium.r2.shared.util.AbsoluteUrl
 import app.quietreader.LocalQuiet
 import app.quietreader.QuietSettings
 import app.quietreader.data.Book
@@ -107,12 +111,26 @@ private fun EpubView(book: Book, publication: Publication, state: ReaderState) {
         }.filter { it > 0.0 }.distinct()
         state.goToPage = { n -> positions.getOrNull(n - 1)?.let { nav.go(it) } }
         state.goToProgress = { p -> scope.launch { publication.locateProgression(p)?.let { nav.go(it) } } }
-        state.turn = { forward -> if (forward) nav.goForward(animated = true) else nav.goBackward(animated = true) }
+        state.turn = { forward ->
+            val animated = settings.pageTurn != PageTurn.None
+            if (forward) nav.goForward(animated) else nav.goBackward(animated)
+        }
+        state.jump = { forward -> if (forward) nav.goForward(false) else nav.goBackward(false) }
         state.markBack = {
             val here = nav.currentLocator.value
             val label = here.locations.position?.let { "page $it" } ?: "where you were"
             state.backTo = label to { nav.go(here) }
         }
+    }
+
+    // Pictures, bionic reading and your font, in each page (PageScripts.kt).
+    suspend fun runPageScript() {
+        navigator?.evaluateJavascript(PageScripts.script(settings.bionic, settings.customFont))
+    }
+    LaunchedEffect(navigator, settings.bionic, settings.customFont) { runPageScript() }
+    LaunchedEffect(navigator) {
+        var href: Any? = null
+        navigator?.currentLocator?.collect { l -> if (l.href != href) { href = l.href; kotlinx.coroutines.delay(300); runPageScript() } }
     }
 
     AndroidView(
@@ -127,7 +145,24 @@ private fun EpubView(book: Book, publication: Publication, state: ReaderState) {
                     fm.fragmentFactory = EpubNavigatorFactory(publication).createFragmentFactory(
                         initialLocator = initial,
                         initialPreferences = preferences(settings, colors),
+                        listener = object : EpubNavigatorFragment.Listener {
+                            // Footnotes open in a sheet; other links jump (with "Back to page N").
+                            override fun shouldFollowInternalLink(link: Link, context: HyperlinkNavigator.LinkContext?): Boolean {
+                                if (context is HyperlinkNavigator.FootnoteContext) { state.footnote = context.noteContent; return false }
+                                state.markBack()
+                                return true
+                            }
+                            override fun onExternalLinkActivated(url: AbsoluteUrl) {
+                                runCatching { activity.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url.toString()))) }
+                            }
+                        },
+                        paginationListener = object : EpubNavigatorFragment.PaginationListener {
+                            override fun onPageLoaded() { scope.launch { runPageScript() } }
+                        },
                         configuration = EpubNavigatorFragment.Configuration {
+                            registerJavascriptInterface(PageScripts.BRIDGE) {
+                                PageBridge(quiet.fonts) { url -> scope.launch { state.image = loadImage(publication, url) } }
+                            }
                             servedAssets = listOf("fonts/.*")
                             addFontFamilyDeclaration(CRIMSON) {
                                 addFontFace { addSource("fonts/crimson_pro.ttf"); setFontWeight(200..900) }
@@ -141,11 +176,12 @@ private fun EpubView(book: Book, publication: Publication, state: ReaderState) {
                     fm.beginTransaction().replace(id, EpubNavigatorFragment::class.java, null, TAG).commitNow()
                     val nav = fm.findFragmentByTag(TAG) as EpubNavigatorFragment
                     // Taps: the edges turn pages (in page mode), the middle shows or hides the bars.
-                    nav.addInputListener(DirectionalNavigationAdapter(nav, animatedTransition = true))
+                    nav.addInputListener(DirectionalNavigationAdapter(nav, animatedTransition = settings.pageTurn != PageTurn.None))
                     nav.addInputListener(object : InputListener {
                         override fun onTap(event: TapEvent): Boolean { state.toggleBars(); return true }
                     })
                     navigator = nav
+                    state.pageView = this
                 } }
             }
         },
@@ -159,7 +195,7 @@ private fun EpubView(book: Book, publication: Publication, state: ReaderState) {
 
     // Settings and theme follow along live.
     LaunchedEffect(
-        navigator, settings.bookSize, settings.bookFont, settings.flow, colors.readerBg, colors.readerText,
+        navigator, settings.bookSize, settings.bookFont, settings.customFont, settings.flow, colors.readerBg, colors.readerText,
         settings.lineHeight, settings.margins, settings.align, settings.hyphenate, settings.fontWeight, settings.paragraphSpacing, settings.indent,
     ) {
         navigator?.submitPreferences(preferences(settings, colors))
@@ -199,12 +235,12 @@ private fun preferences(settings: QuietSettings, colors: QuietColors): EpubPrefe
     val (bg, ink) = pageColors(colors)
     // Readium applies line spacing, alignment, hyphenation and paragraph settings only when the
     // publisher's styles are off: keep the book's own look until one of them is changed.
-    val ownLayout = settings.bookFont == BookFont.Original && settings.lineHeight == 17 && settings.align == app.quietreader.Align.Start &&
+    val ownLayout = settings.customFont == null && settings.bookFont == BookFont.Original && settings.lineHeight == 17 && settings.align == app.quietreader.Align.Start &&
         !settings.hyphenate && settings.paragraphSpacing < 0 && settings.indent < 0
     return EpubPreferences(
         backgroundColor = ReadiumColor(bg.toArgb()),
         textColor = ReadiumColor(ink.toArgb()),
-        fontFamily = when (settings.bookFont) {
+        fontFamily = settings.customFont?.let { FontFamily(it) } ?: when (settings.bookFont) {
             BookFont.Original -> null
             BookFont.Serif -> CRIMSON
             BookFont.Sans -> ARCHIVO
@@ -252,3 +288,12 @@ private fun save(library: Library, id: String, publication: Publication, locator
         if (progress >= Book.FINISHED && !has("finishedAt")) put("finishedAt", System.currentTimeMillis())
     }, locator = locator.toJSON().toString()))
 }
+
+/** A picture from the book, by the address the page gave (https://readium/publication/…). */
+private suspend fun loadImage(publication: Publication, url: String): androidx.compose.ui.graphics.ImageBitmap? =
+    kotlinx.coroutines.withContext(Dispatchers.IO) {
+        val href = url.substringAfter("https://readium/publication/", url).substringBefore('#')
+        val resource = org.readium.r2.shared.util.Url(href)?.let { publication.get(it) } ?: return@withContext null
+        val bytes = resource.read().getOrNull() ?: return@withContext null
+        android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+    }

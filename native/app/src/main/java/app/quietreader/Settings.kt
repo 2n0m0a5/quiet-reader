@@ -40,6 +40,10 @@ object BookSize {
     const val DEFAULT = 100
 }
 
+enum class PageTurn(val key: String, val label: String) { Slide("slide", "Slide"), Curl("curl", "Curl"), None("none", "None") }
+
+enum class Ruler(val key: String, val label: String) { Off("off", "Off"), Line("line", "Line"), Focus("focus", "Focus") }
+
 enum class Margins(val key: String, val label: String, val readium: Double) {
     Narrow("narrow", "Narrow", 0.5), Normal("normal", "Normal", 1.0), Wide("wide", "Wide", 1.6);
 }
@@ -86,6 +90,15 @@ class QuietSettings(private val prefs: SharedPreferences) {
     var indent by intPref("indent10", -1, -1..30)                     // ×10 em; -1 keeps the book's own
     var brightness by intPref("brightness", -1, -1..100)              // -1 follows the phone
     var warmth by intPref("warmth", 0, 0..100)
+    var pageTurn by pref("pageTurn", PageTurn.Slide, PageTurn.entries, { it.key })
+    var bionic by boolPref("bionic", false)
+    var ruler by pref("ruler", Ruler.Off, Ruler.entries, { it.key })
+    var rulerY by intPref("rulerY100", 40, 5..95)                     // % of the screen height
+    /** A font you added (its family), used instead of [bookFont]; null for Quiet's own fonts. */
+    var customFont: String?
+        get() = customFontState.value
+        set(value) { customFontState.value = value; prefs.edit().putString("customFont", value).apply() }
+    private val customFontState = mutableStateOf(prefs.getString("customFont", null))
     var volumeKeys by boolPref("volumeKeys", true)
     var showClock by boolPref("showClock", true)
     var keepAwake by boolPref("keepAwake", true)

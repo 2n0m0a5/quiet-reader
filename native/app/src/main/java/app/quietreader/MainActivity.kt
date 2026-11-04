@@ -46,6 +46,14 @@ class MainActivity : AppCompatActivity() {
         if (uri != null) readBackup(uri)
     }
 
+    private val pickFont = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) lifecycleScope.launch {
+            val family = withContext(Dispatchers.IO) { runCatching { quiet.fonts.add(uri) }.getOrNull() }
+            state.fontsVersion++
+            state.toast(if (family != null) "Added the font “$family”. Choose it under Text → Font." else "That isn’t a font file (TTF, OTF, WOFF or WOFF2).")
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         // The book view is a fragment made with Readium's factory; Android can't rebuild it on its
@@ -57,6 +65,7 @@ class MainActivity : AppCompatActivity() {
         state.pickBooks = { pickBooks.launch(arrayOf("application/epub+zip", "application/pdf", "text/plain", "application/octet-stream")) }
         state.saveBackup = { saveBackup.launch("Quiet backup ${SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())}.quietbackup") }
         state.pickBackup = { pickBackup.launch(arrayOf("*/*")) }
+        state.pickFont = { pickFont.launch(arrayOf("*/*")) }
         handle(intent)
         followLibraryForSafetyCopy()
 

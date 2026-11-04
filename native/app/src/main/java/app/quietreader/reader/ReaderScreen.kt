@@ -97,7 +97,17 @@ class ReaderState {
     var turn: (forward: Boolean) -> Unit = {}
     /** Remembers the current place as "back", for the jump that follows. */
     var markBack: () -> Unit = {}
+    /** Turns a page at once, with no animation (the curl draws its own). False at the book's end. */
+    var jump: (forward: Boolean) -> Boolean = { false }
+    /** Set while the curl layer is on: turns with the curl. */
+    var curlTurn: ((forward: Boolean) -> Unit)? = null
+    /** The book's own view (EPUB), so taps can pass through the curl layer. */
+    var pageView: android.view.View? = null
+    var footnote by mutableStateOf<String?>(null)
+    var image by mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null)
     fun toggleBars() { barsShown = !barsShown }
+    /** A page turn by key or volume button, with the chosen page turn. */
+    fun pageTurn(forward: Boolean) { curlTurn?.invoke(forward) ?: turn(forward) }
 }
 
 /** The book's page colours for the theme (Radio's reading colours). */
@@ -121,7 +131,7 @@ fun ReaderScreen(book: Book, onClose: () -> Unit) {
 
     ReaderWindow(settings)
     androidx.compose.runtime.DisposableEffect(state) {
-        quiet.pageTurner = { forward -> state.turn(forward) }
+        quiet.pageTurner = { forward -> state.pageTurn(forward) }
         onDispose { quiet.pageTurner = null }
     }
     Box(Modifier.fillMaxSize().background(c.readerBg)) {
@@ -129,9 +139,19 @@ fun ReaderScreen(book: Book, onClose: () -> Unit) {
             BookFormat.Pdf -> PdfReader(book, state)
             else -> EpubReader(book, state)
         }
+        val curl = settings.pageTurn == app.quietreader.PageTurn.Curl && settings.flow == Flow.Paginated
+        if (curl) {
+            CurlLayer(state) { at ->
+                val view = state.pageView
+                if (view == null) state.toggleBars() else passTap(view, at)
+            }
+            androidx.compose.runtime.DisposableEffect(Unit) { onDispose { state.curlTurn = null } }
+        }
+        RulerLayer()
         Warmth(settings.warmth)
         if (settings.showClock && !state.barsShown) Clock(Modifier.align(Alignment.TopEnd))
         ReaderBars(state = state, book = book, onBack = onClose)
+        state.image?.let { ImageViewer(it) { state.image = null } }
         BottomBar(state, Modifier.align(Alignment.BottomCenter)) { key ->
             when (key) {
                 null -> sheet = "more"
@@ -157,6 +177,8 @@ fun ReaderScreen(book: Book, onClose: () -> Unit) {
         "goto" -> GoToSheet(state, close)
         "keys" -> CustomizeSheet(close)
     }
+    state.footnote?.let { FootnoteSheet(it) { state.footnote = null } }
+
 }
 
 /** Hides the phone's status and navigation bars while the reader's own bars are hidden. */
@@ -275,7 +297,18 @@ private fun TextSheet(pdf: Boolean, onClose: () -> Unit) {
                 Spacer(Modifier.height(14.dp))
                 Text("Font", style = Type.label.copy(color = c.text))
                 Spacer(Modifier.height(8.dp))
-                ChoiceRow(BookFont.entries.map { it to it.label }, settings.bookFont, { settings.bookFont = it }, perRow = 3)
+                val quiet = LocalQuiet.current
+                val custom = remember { quiet.fonts.families() }
+                val options: List<Pair<String, String>> = BookFont.entries.map { "q:" + it.key to it.label } + custom.map { "c:$it" to it }
+                val chosen = settings.customFont?.let { "c:$it" } ?: ("q:" + settings.bookFont.key)
+                ChoiceRow(options, chosen, { v ->
+                    if (v.startsWith("c:")) settings.customFont = v.removePrefix("c:")
+                    else { settings.customFont = null; settings.bookFont = BookFont.entries.first { "q:" + it.key == v } }
+                }, perRow = 3)
+                if (custom.isEmpty()) {
+                    Spacer(Modifier.height(6.dp))
+                    Text("Add your own fonts in Settings → Reader → Your fonts.", style = Type.hint.copy(color = c.muted))
+                }
                 Spacer(Modifier.height(16.dp))
             }
             Text("Reading mode", style = Type.label.copy(color = c.text))
@@ -311,4 +344,15 @@ fun CantOpen(text: String) {
     Box(Modifier.fillMaxSize().background(c.readerBg).padding(32.dp), contentAlignment = Alignment.Center) {
         Text(text, style = Type.body.copy(color = c.muted, textAlign = androidx.compose.ui.text.style.TextAlign.Center))
     }
+}
+
+/** Passes a tap through the curl layer to the book's view (links, pictures, the bars). */
+private fun passTap(view: android.view.View, at: androidx.compose.ui.geometry.Offset) {
+    val loc = IntArray(2).also { view.getLocationOnScreen(it) }
+    val x = at.x - loc[0]; val y = at.y - loc[1]
+    val t = android.os.SystemClock.uptimeMillis()
+    val down = android.view.MotionEvent.obtain(t, t, android.view.MotionEvent.ACTION_DOWN, x, y, 0)
+    val up = android.view.MotionEvent.obtain(t, t + 40, android.view.MotionEvent.ACTION_UP, x, y, 0)
+    view.dispatchTouchEvent(down); view.dispatchTouchEvent(up)
+    down.recycle(); up.recycle()
 }

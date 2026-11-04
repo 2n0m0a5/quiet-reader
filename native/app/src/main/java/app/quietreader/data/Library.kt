@@ -149,6 +149,13 @@ class Library(private val context: Context, dbName: String? = "library.db") {
         onChange()
     }
 
+    fun removeRecords(store: String, ids: List<String>) {
+        if (ids.isEmpty()) return
+        val db = helper.writableDatabase
+        for (id in ids) db.delete("records", "store = ? AND id = ?", arrayOf(store, id))
+        onChange()
+    }
+
     fun clearAll() {
         helper.writableDatabase.apply { delete("books", null, null); delete("records", null, null) }
         listOf(booksDir, coversDir, derivedDir).forEach { dir -> dir.listFiles()?.forEach { it.delete() } }

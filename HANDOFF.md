@@ -18,8 +18,9 @@ maybe the App Store) later. Core message: "a reader should be very simple. Perio
   owner asked for a text-size slider and working vibration (both done). **L1 + L2** (read EPUB/PDF/
   TXT; backup/restore in the web format both ways, Recently deleted, safety copy) are built and sent
   as `Quiet-0.5.0-L2.apk` (app ID `app.quietreader.n`, installs next to 0.4.2). L2.1 fixed blank books (cleanup closed
-  the book right after opening; `reader/OpenedResource.kt`). **L3a** (the reader bar) built and sent.
-  Next: L3a phone results, then L3b (curl, footnotes, pictures, bionic, ruler, your fonts). 0.4.x gets bug fixes only. The owner has some 0.4.2 issues to report.
+  the book right after opening; `reader/OpenedResource.kt`). **L3a** (the reader bar) and **L3b** (curl,
+  footnotes, pictures, bionic, ruler, your fonts) built and sent. Next: phone results, then L4 (notes).
+  `scripts/check-page-script.cjs` runs the in-page script in Chromium (after the JVM tests). 0.4.x gets bug fixes only. The owner has some 0.4.2 issues to report.
 - **Android 0.4.2 (versionCode 420)** and **iPhone 1.0 (build 1)**, all committed and pushed to
   `main` (last commit `cb20689`). The working tree is clean.
 - **Sent to the owner:** `Quiet-0.4.0.apk`, `Quiet-0.4.1.apk`, `Quiet-0.4.2.apk`,

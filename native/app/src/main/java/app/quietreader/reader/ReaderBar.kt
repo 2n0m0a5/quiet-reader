@@ -288,6 +288,20 @@ fun MoreSheet(pdf: Boolean, open: (String?) -> Unit) {
     Sheet({ open(null) }) {
         SheetColumn("More") {
             Labelled("Theme") { ChoiceRow(ThemeMode.entries.map { it to it.label }, settings.theme, { settings.theme = it }) }
+            Labelled("Page turn") {
+                ChoiceRow(app.quietreader.PageTurn.entries.map { it to it.label }, settings.pageTurn, {
+                    settings.pageTurn = it
+                    if (it == app.quietreader.PageTurn.Curl) settings.flow = app.quietreader.Flow.Paginated
+                }, perRow = 3)
+            }
+            Labelled("Reading ruler") { ChoiceRow(app.quietreader.Ruler.entries.map { it to it.label }, settings.ruler, { settings.ruler = it }, perRow = 3) }
+            if (!pdf) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Bionic reading", style = Type.label.copy(color = c.text), modifier = Modifier.weight(1f))
+                    Switch(settings.bionic, { settings.bionic = it }, "Bionic reading")
+                }
+                Spacer(Modifier.height(16.dp))
+            }
             Column(Modifier.fillMaxWidth().background(c.panel, KeyShape).border(1.dp, c.line, KeyShape)) {
                 @Composable fun row(label: String, icon: ImageVector, layer: String? = null, go: () -> Unit) {
                     Row(Modifier.fillMaxWidth().clickable(enabled = layer == null) { go() }.padding(14.dp).alpha(if (layer == null) 1f else 0.55f),

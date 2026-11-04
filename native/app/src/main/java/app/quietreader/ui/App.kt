@@ -99,6 +99,8 @@ class AppState(tab: Tab = Tab.Library, page: SettingsPage = SettingsPage.Home) {
     var pickBooks: () -> Unit = {}
     var saveBackup: () -> Unit = {}
     var pickBackup: () -> Unit = {}
+    var pickFont: () -> Unit = {}
+    var fontsVersion by mutableIntStateOf(0)
     var busy by mutableStateOf<String?>(null)
     /** A backup that was read and waits for "Restore" (its summary, and what restoring does). */
     var confirmRestore by mutableStateOf<Pair<app.quietreader.data.Backup.Summary, () -> Unit>?>(null)

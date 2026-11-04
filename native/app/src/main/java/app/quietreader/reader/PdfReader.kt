@@ -123,9 +123,17 @@ private fun PdfView(book: Book, pdf: PdfPages, state: ReaderState) {
         state.goToProgress = { p -> jump((p * pdf.count).toInt()) }
         state.turn = { forward ->
             val target = (here() + if (forward) 1 else -1).coerceIn(0, pdf.count - 1)
-            scope.launch { if (settings.flow == Flow.Scrolled) list.animateScrollToItem(target) else pager.animateScrollToPage(target) }
+            scope.launch {
+                val none = settings.pageTurn == app.quietreader.PageTurn.None
+                if (settings.flow == Flow.Scrolled) { if (none) list.scrollToItem(target) else list.animateScrollToItem(target) }
+                else { if (none) pager.scrollToPage(target) else pager.animateScrollToPage(target) }
+            }
         }
         state.markBack = { val page = here(); state.backTo = "page ${page + 1}" to { jump(page) } }
+        state.jump = { forward ->
+            val target = here() + if (forward) 1 else -1
+            if (target !in 0 until pdf.count) false else { jump(target); true }
+        }
         quiet.library.get(book.id)?.let { quiet.library.put(it.with({ put("lastOpenedAt", System.currentTimeMillis()) })) }
         kotlinx.coroutines.delay(1800); state.barsShown = false
     }

@@ -177,7 +177,11 @@ class Backup(private val library: Library, private val settings: QuietSettings, 
         s.put("motion", settings.motion.key)
         s.put("orientation", settings.rotation.key)
         s.put("haptics", settings.haptics)
-        s.put("font", settings.bookFont.key)
+        s.put("font", settings.customFont?.let { "custom:$it" } ?: settings.bookFont.key)
+        s.put("pageTurn", settings.pageTurn.key)
+        s.put("bionic", settings.bionic)
+        s.put("ruler", settings.ruler.key)
+        s.put("rulerY", settings.rulerY / 100.0)
         s.put("fontSize", settings.bookSize)
         s.put("flow", settings.flow.key)
         s.put("lineHeight", settings.lineHeight / 10.0)
@@ -209,6 +213,11 @@ class Backup(private val library: Library, private val settings: QuietSettings, 
         if (s.has("haptics")) settings.haptics = s.optBoolean("haptics", true)
         val font = s.optString("font")
         settings.bookFont = BookFont.entries.firstOrNull { it.key == font } ?: if (font.startsWith("custom:")) BookFont.Serif else settings.bookFont
+        settings.customFont = font.removePrefix("custom:").takeIf { font.startsWith("custom:") && it.isNotBlank() }
+        app.quietreader.PageTurn.entries.firstOrNull { it.key == s.optString("pageTurn") }?.let { settings.pageTurn = it }
+        if (s.has("bionic")) settings.bionic = s.optBoolean("bionic")
+        app.quietreader.Ruler.entries.firstOrNull { it.key == s.optString("ruler") }?.let { settings.ruler = it }
+        if (s.has("rulerY")) settings.rulerY = (s.optDouble("rulerY", 0.4) * 100).toInt()
         if (s.has("fontSize")) settings.bookSize = s.optInt("fontSize", 100)
         Flow.entries.firstOrNull { it.key == s.optString("flow") }?.let { settings.flow = it }
         if (s.has("lineHeight")) settings.lineHeight = (s.optDouble("lineHeight", 1.7) * 10).toInt()
