@@ -3,6 +3,7 @@ import {
   listBooks, listCollections, newId, saveCollection, statusOf, updateBook, type BookRecord,
 } from './db'
 import { ensureDetails, originalCover, thumbnail } from './import'
+import { bookFacts, WORDS_PER_PAGE, type BookFacts } from './book-facts'
 import { generatedCover } from './library-view'
 import { button, formDialog, h, menuDialog, openDialog, icon } from '../ui/dialog'
 import { date, fileSize, percent, timeAgo } from '../ui/format'
@@ -139,25 +140,55 @@ export async function showBookDetails(record: BookRecord, actions: DetailsAction
     return [h('h3', 'details-heading', 'About this book'), p, more]
   }
 
+  // Three lists: the book, the file, and your reading. What has to be read from the file or
+  // counted (book-facts.ts) fills in a moment after the sheet opens.
+  let known: BookFacts | null = null
+  bookFacts(book).then(f => { known = f; render() }).catch(() => {})
   const facts = () => {
     const wrap = h('div')
-    wrap.append(h('h3', 'details-heading', 'Details'))
-    const list = h('dl', 'details-facts')
-    const add = (term: string, value?: string) => {
-      if (!value) return
-      list.append(h('dt', '', term), h('dd', '', value))
+    const section = (title: string, rows: [string, string | undefined][]) => {
+      const list = h('dl', 'details-facts')
+      for (const [term, value] of rows) if (value) list.append(h('dt', '', term), h('dd', '', value))
+      if (list.childElementCount) wrap.append(h('h3', 'details-heading', title), list)
     }
-    add('Series', book.series ? seriesText(book) : '')
-    add('Format', book.format)
-    add('File size', fileSize(book.size))
-    add('Language', book.language)
-    add('Publisher', book.publisher)
-    add('Published', book.published)
-    add('Subjects', book.subjects?.slice(0, 6).join(', '))
-    add('Added', date(book.addedAt))
-    if (book.lastOpenedAt) add('Last opened', date(book.lastOpenedAt))
-    add('File', book.fileName)
-    wrap.append(list)
+    const f = known
+    const n = (x: number) => x.toLocaleString()
+    const hm = (seconds: number) => { const m = Math.round(seconds / 60); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min` }
+    const length = !f ? 'Counting…'
+      : f.words ? `${n(f.words)} words · about ${n(Math.max(1, Math.round(f.words / WORDS_PER_PAGE)))} pages`
+      : f.pages ? `${n(f.pages)} pages` : undefined
+    const pace = f?.wordsPerMinute ?? 250
+    const left = f?.words ? hm(f.words * (1 - (book.progress ?? 0)) / pace * 60) : undefined
+    section('The book', [
+      ['Series', book.series ? seriesText(book) : ''],
+      ['Length', length],
+      ['Reading time', f?.words ? `${hm(f.words / pace * 60)} at ${f.wordsPerMinute ? 'your pace' : 'an average pace'}${book.progress > 0 && book.progress < 0.995 ? ` · ${left} left` : ''}` : undefined],
+      ['Chapters', f?.chapters ? String(f.chapters) : undefined],
+      ['Language', book.language],
+      ['Publisher', book.publisher],
+      ['Published', book.published],
+      ['ISBN', f?.identifier],
+      ['Subjects', book.subjects?.slice(0, 6).join(', ')],
+    ])
+    const inside = f && (f.pictures || f.fonts) ? [f.pictures ? `${f.pictures} ${f.pictures === 1 ? 'picture' : 'pictures'}` : '', f.fonts ? `${f.fonts} ${f.fonts === 1 ? 'font' : 'fonts'}` : ''].filter(Boolean).join(' · ') : undefined
+    section('The file', [
+      ['Format', book.format],
+      ['Size', fileSize(book.size)],
+      ['File name', book.fileName],
+      ['Inside', inside],
+      ['Copy protection', 'None (Quiet opens only books without DRM)'],
+      ['Added', date(book.addedAt)],
+    ])
+    if (f && (f.readSeconds || f.highlights || f.notes || f.quotes || f.bookmarks)) section('Your reading', [
+      ['Time read', f.readSeconds ? hm(f.readSeconds) : undefined],
+      ['Sittings', f.sittings ? String(f.sittings) : undefined],
+      ['Started', f.started ? new Date(f.started).toLocaleDateString() : undefined],
+      ['Last opened', book.lastOpenedAt ? date(book.lastOpenedAt) : undefined],
+      ['Highlights', f.highlights ? String(f.highlights) : undefined],
+      ['Notes', f.notes ? String(f.notes) : undefined],
+      ['Quotes', f.quotes ? String(f.quotes) : undefined],
+      ['Bookmarks', f.bookmarks ? String(f.bookmarks) : undefined],
+    ])
     return wrap
   }
 

@@ -40,4 +40,12 @@ t.suite('reader-bar', async ({ page, check, shot }) => {
   await page.waitForTimeout(400)
   check((await keys(page)).join() === 'contents,daynight,light,search,more', 'the bar can be changed (Text → Search)', (await keys(page)).join())
   check(await page.evaluate(() => JSON.parse(localStorage.getItem('quiet:settings')).readerKeys.join()) === 'contents,daynight,light,search', 'and the choice is saved')
+
+  // Book info from More: the book, the file.
+  await page.click('#readerKeys [data-key="more"]')
+  await page.waitForTimeout(400)
+  await page.click('#moreGrid [data-key="info"]')
+  await page.waitForFunction(() => /words/.test(document.querySelector('dialog[open]')?.textContent ?? ''), null, { timeout: 8000 }).catch(() => {})
+  const info = await page.locator('dialog[open]').innerText()
+  check(/5,693 words/.test(info) && /Chapters\s*8/.test(info) && /THE FILE/i.test(info), 'Book info counts the words and chapters, and describes the file', info.slice(0, 160))
 }, { context: { serviceWorkers: 'block' } })
