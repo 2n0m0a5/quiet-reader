@@ -150,6 +150,7 @@ class MainActivity : AppCompatActivity() {
     private fun letGo() { hold.removeCallbacks(grab); holdAt = null }
 
     override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
+        quiet.lastTouch = System.currentTimeMillis()
         val grip = quiet.ruler
         if (holding) {
             when (ev.actionMasked) {

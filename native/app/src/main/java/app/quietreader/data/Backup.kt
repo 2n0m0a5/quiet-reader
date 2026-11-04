@@ -196,6 +196,8 @@ class Backup(private val library: Library, private val settings: QuietSettings, 
         s.put("volumeKeys", settings.volumeKeys)
         s.put("showClock", settings.showClock)
         s.put("keepAwake", settings.keepAwake)
+        s.put("dailyGoal", settings.dailyGoal)
+        s.put("yearGoal", settings.yearGoal)
         s.put("readerKeys", org.json.JSONArray(settings.readerKeys.map { it.key }))
         all.put("quiet:settings", s.toString())
         all.put("quiet:translate-to", settings.translateTo)
@@ -233,6 +235,8 @@ class Backup(private val library: Library, private val settings: QuietSettings, 
         if (s.has("volumeKeys")) settings.volumeKeys = s.optBoolean("volumeKeys", true)
         if (s.has("showClock")) settings.showClock = s.optBoolean("showClock", true)
         if (s.has("keepAwake")) settings.keepAwake = s.optBoolean("keepAwake", true)
+        if (s.has("dailyGoal")) settings.dailyGoal = s.optInt("dailyGoal", 0)
+        if (s.has("yearGoal")) settings.yearGoal = s.optInt("yearGoal", 0)
         s.optJSONArray("readerKeys")?.let { arr ->
             val keys = (0 until arr.length()).mapNotNull { i -> app.quietreader.ReaderKey.entries.firstOrNull { it.key == arr.optString(i) } }
             if (keys.isNotEmpty()) settings.readerKeys = keys

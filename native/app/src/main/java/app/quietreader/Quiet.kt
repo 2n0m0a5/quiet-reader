@@ -9,6 +9,7 @@ import app.quietreader.data.Backup
 import app.quietreader.data.Fonts
 import app.quietreader.data.Importer
 import app.quietreader.data.Notes
+import app.quietreader.data.ReadingLog
 import app.quietreader.data.Collections
 import app.quietreader.data.Folders
 import app.quietreader.data.Safety
@@ -28,6 +29,9 @@ class Quiet(context: Context, dbName: String? = "library.db") {
     val fonts = Fonts(app, library)
     val notes = Notes(library)
     val collections = Collections(library)
+    val readingLog = ReadingLog(library)
+    /** When the screen was last touched (the reading tracker counts only active reading). */
+    @Volatile var lastTouch = 0L
     val folders = Folders(app, library, importer)
 
     /** On start: recover from the safety copy if needed, empty old trash, then follow every change. */

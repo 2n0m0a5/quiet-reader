@@ -131,7 +131,10 @@ fun pageColors(c: QuietColors) = c.readerBg to c.readerText
  * The full reader bar (tuning scale, five keys, More) comes in L3.
  */
 @Composable
-fun ReaderScreen(book: Book, startNote: app.quietreader.data.Note? = null, onInfo: () -> Unit = {}, onClose: () -> Unit) {
+fun ReaderScreen(
+    book: Book, startNote: app.quietreader.data.Note? = null, onInfo: () -> Unit = {},
+    onSessionEnd: (seconds: Double) -> Unit = {}, onGoal: () -> Unit = {}, onClose: () -> Unit,
+) {
     val quiet = LocalQuiet.current
     val settings = quiet.settings
     val c = LocalColors.current
@@ -142,6 +145,23 @@ fun ReaderScreen(book: Book, startNote: app.quietreader.data.Note? = null, onInf
     ImmersiveWhileReading(hidden = !state.barsShown)
 
     ReaderWindow(settings)
+    // Reading time (L6): counted while the book is open and you're reading.
+    val tracker = remember(book.id) { Tracker(quiet.readingLog, book.id) { quiet.lastTouch } }
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(tracker) {
+        var goalDone = settings.dailyGoal > 0 && todaySeconds(quiet) >= settings.dailyGoal * 60
+        while (true) {
+            kotlinx.coroutines.delay(Tracker.TICK)
+            val visible = lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)
+            if (tracker.tick(visible) && settings.dailyGoal > 0 && !goalDone && todaySeconds(quiet) >= settings.dailyGoal * 60) {
+                goalDone = true; onGoal()
+            }
+        }
+    }
+    LaunchedEffect(state.page) { if (state.page > 0) tracker.moved(state.page, if (book.format == BookFormat.Pdf) 1.0 else 0.68) }
+    androidx.compose.runtime.DisposableEffect(tracker) {
+        onDispose { tracker.save(); onSessionEnd(tracker.sessionSeconds) }
+    }
     androidx.compose.runtime.DisposableEffect(state) {
         quiet.pageTurner = { forward -> state.pageTurn(forward) }
         onDispose { quiet.pageTurner = null }
@@ -395,4 +415,9 @@ private fun passTap(view: android.view.View, at: androidx.compose.ui.geometry.Of
     val up = android.view.MotionEvent.obtain(t, t + 40, android.view.MotionEvent.ACTION_UP, x, y, 0)
     view.dispatchTouchEvent(down); view.dispatchTouchEvent(up)
     down.recycle(); up.recycle()
+}
+
+private fun todaySeconds(quiet: app.quietreader.Quiet): Double {
+    val today = app.quietreader.data.dayKey()
+    return quiet.readingLog.all().filter { it.day == today }.sumOf { it.seconds }
 }

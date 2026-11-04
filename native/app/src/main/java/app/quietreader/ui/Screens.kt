@@ -30,18 +30,6 @@ fun NotesScreen() {
 }
 
 @Composable
-fun StatsScreen() {
-    Screen {
-        EmptyState(
-            Icons.ChartColumn,
-            "Your reading, at a glance.",
-            "Minutes read today against your goal, the week as level lights, your streak, your pace and the books you finish.",
-        )
-        LayerTag("Stats arrive in L6")
-    }
-}
-
-@Composable
 private fun Screen(content: @Composable () -> Unit) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         Column(

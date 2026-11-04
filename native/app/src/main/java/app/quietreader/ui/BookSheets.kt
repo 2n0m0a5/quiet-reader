@@ -253,7 +253,13 @@ private fun BookPage(id: String, state: AppState, onClose: () -> Unit) {
                 "Notes" to notes.count { it.note.isNotBlank() }.toString(),
                 "Quotes" to notes.count { it.quote }.toString(),
                 "Bookmarks" to notes.count { it.isBookmark }.toString(),
-                "Hours, sittings" to "in L6 (Stats)",
+                *(LocalQuiet.current.readingLog.all().filter { it.bookId == id }.let { r ->
+                    if (r.isEmpty()) emptyArray() else arrayOf(
+                        "Time read" to app.quietreader.data.StatsMath.time(r.sumOf { it.seconds }),
+                        "Sittings" to r.sumOf { it.sittings }.toString(),
+                        "Started" to shortDate(java.time.LocalDate.parse(r.minOf { it.day }).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()),
+                    )
+                }),
             ))
             Spacer(Modifier.height(18.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

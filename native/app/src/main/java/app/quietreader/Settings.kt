@@ -113,6 +113,8 @@ class QuietSettings(private val prefs: SharedPreferences) {
     var libraryGroup by pref("libraryGroup", app.quietreader.data.Group.None, app.quietreader.data.Group.entries, { it.key })
     var libraryList by boolPref("libraryList", false)              // list instead of covers
     var coverSize by intPref("coverSize", 104, 72..200)             // dp; pinch to change
+    var dailyGoal by intPref("dailyGoal", 0, 0..600)   // minutes a day; 0 for none
+    var yearGoal by intPref("yearGoal", 0, 0..500)     // books a year; 0 for none
     var volumeKeys by boolPref("volumeKeys", true)
     var showClock by boolPref("showClock", true)
     var keepAwake by boolPref("keepAwake", true)

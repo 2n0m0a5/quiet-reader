@@ -214,7 +214,9 @@ fun QuietApp(settings: QuietSettings, state: AppState = remember { AppState() })
                         state.toast("${b.fileName.substringAfterLast('.').uppercase()} books open in a later layer (L7). It’s safe in your library.")
                         state.openBookId = null
                     }
-                } else app.quietreader.reader.ReaderScreen(b, remember(b.id) { state.openNote.also { state.openNote = null } }, onInfo = { state.details = b.id }) { state.openBookId = null }
+                } else app.quietreader.reader.ReaderScreen(b, remember(b.id) { state.openNote.also { state.openNote = null } }, onInfo = { state.details = b.id },
+                    onSessionEnd = { s -> if (s >= 60) state.toast("You read for ${app.quietreader.data.StatsMath.time(s)}.") },
+                    onGoal = { state.toast("Today’s goal is done. Well read.") }) { state.openBookId = null }
             }
         }
         // A book's page and the library's sheets, above everything (also from the reader's More).
