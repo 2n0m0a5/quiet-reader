@@ -1,6 +1,11 @@
 # Quiet 0.4.0 — plan
 
-## Progress (updated 3 November 2026)
+## Progress (updated 4 November 2026)
+- ✅ Released as 0.4.0: fixes F1–F9, curl on phones, backup and restore, Radio design and icon,
+  reader bar, book info, Settings sections, About, tour, Report a problem. Follow-up: the Stats
+  tab's needle meter and light-up week bars (it has the Radio look, not the new layout yet).
+
+## Earlier progress notes
 - ✅ F1–F9 fixed, tested, pushed (see the commits "0.4.0 F1…F9"). Test suites: safety, legibility,
   motion-settings, desktop, quote-save, curl (+ smoke, formats, gestures). All pass.
 - ⏭ Next: backup and restore (section 2). Design notes for it:

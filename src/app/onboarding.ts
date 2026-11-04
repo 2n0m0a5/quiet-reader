@@ -7,7 +7,7 @@ const WELCOME_KEY = 'quiet:welcome-seen'
 const VERSION_KEY = 'quiet:seen-version'
 
 // The last version with something to tell: What's new shows once to anyone updating from before it.
-const NEWS = '0.3.4'
+const NEWS = '0.4.0'
 
 // "0.3.0-dev.5" → [0, 3, 0], for comparing versions.
 const parts = (version: string) => version.split('-')[0].split('.').map(Number)
@@ -112,6 +112,13 @@ export function showWelcome(addBooks: () => void) {
 // What's new in this version. Also opened from Settings → About.
 // `since`: the version the reader had before; what's newer than that comes first.
 export function showWhatsNew(since = '0.3.3') {
+  const v040: [typeof BookOpen, string, string][] = [
+    [Palette, 'A new look: Radio', 'Quiet now has one design, after a 1960s radio: warm grey, keys that press down, and colour only where it means something. A new icon, too.'],
+    [BookOpen, 'Controls at your thumb', 'A bar at the bottom of the page: Contents, Day/Night, Light, Text and More. Choose your own four keys: More → Customize bar.'],
+    [FolderOpen, 'Your library is safe', 'Quiet keeps a safety copy and brings your library back if the phone loses it. Back up everything to one file: Settings → Files & storage.'],
+    [Library, 'More about each book', 'Hold a cover, or More → Book info: length, reading time at your pace, the file, and your own reading.'],
+    [Sparkles, 'A page curl like paper', 'Pages mode: the corner lifts and the page bends over. Plus a Motion setting, Settings in sections, a tour, and Report a problem in About.'],
+  ]
   const latest: [typeof BookOpen, string, string][] = [
     [Palette, 'A fourth style: Frosty Glass', 'Controls of frosted glass float over a clear page, on soft, icy light. A liquid lens moves between tabs, and glass lights up where you press. Settings → Style.'],
     [Sparkles, 'Everything moves', 'A book zooms out of its cover and back into it. Icons answer when tapped, books glide into place when sorted, swipe from the left edge to leave a book, and pages can curl.'],
@@ -140,7 +147,7 @@ export function showWhatsNew(since = '0.3.3') {
     [ChartColumn, 'Reading stats', 'Time read, a gentle streak, daily and yearly goals, and how many pages you read.'],
   ]
   const list = h('div', 'whats-new')
-  const rows = [...latest, ...older(since, '0.3.3') ? v033 : [], ...older(since, '0.3.2') ? v032 : [], ...older(since, '0.3.1') ? before : [], ...older(since, '0.3.0') ? items : []]
+  const rows = [...v040, ...older(since, '0.3.4') ? latest : [], ...older(since, '0.3.3') ? v033 : [], ...older(since, '0.3.2') ? v032 : [], ...older(since, '0.3.1') ? before : [], ...older(since, '0.3.0') ? items : []]
   for (const [symbol, title, text] of rows) {
     const row = h('div', 'whats-new-item')
     const badge = h('div', 'whats-new-icon')

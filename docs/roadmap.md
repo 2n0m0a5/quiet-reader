@@ -5,7 +5,7 @@ Sizes: **S** = hours, **M** = a day or two, **L** = several days or more.
 Status: ✅ done (with the version) · ⏭ next · 🕒 placed in a later version · ○ not chosen yet · ✕ dropped.
 
 ## A. Library and organizing
-1. ⏭ **Library backup and restore** (M): everything in one file (books, positions, notes, quotes, stats, fonts, settings), to import on another phone or the Play version. Needed before the switch to Google Play, which requires uninstalling the test app and so deletes the library. **Next, in 3.x.**
+1. ✅ 0.4.0 **Library backup and restore** (M): everything in one file (books, positions, notes, quotes, stats, fonts, settings), to import on another phone or the Play version. Needed before the switch to Google Play, which requires uninstalling the test app and so deletes the library. **Next, in 3.x.**
 2. ✅ 0.3.1, done differently: **book folders**. Instead of scanning the whole phone, you choose one or more folders and Quiet adds every book in them. The app checks the folders on start and when you come back after 10 minutes. The app explains that you should prepare a folder full of books first.
 3. ✅ 0.3.4 **Series**: a Series shelf of covers, each series in order with a "next book" button, and Group by series.
 4. ✅ 0.3.0 **Tags**
@@ -100,7 +100,7 @@ Status: ✅ done (with the version) · ⏭ next · 🕒 placed in a later versio
 63. ✅ 0.3.0 **Basic accessibility pass**
 64. ✅ 0.3.0 **Haptics** (fixed to use the vibration motor in dev.4)
 65. 🕒 v4 **App lock** (PIN or fingerprint)
-66. ⏭ **Report a problem**, option A: a button that prepares a short log the user sends themselves by email or Telegram. No servers involved, so the privacy promise holds (Sentry and Crashlytics were rejected). **Next, in 3.x.**
+66. ✅ 0.4.0 **Report a problem**, option A: a button that prepares a short log the user sends themselves by email or Telegram. No servers involved, so the privacy promise holds (Sentry and Crashlytics were rejected). **Next, in 3.x.**
 67. ✅ 0.3.0 **"What's new" screen** (updated every version)
 
 ## J. Business and Play Store
@@ -109,7 +109,8 @@ Status: ✅ done (with the version) · ⏭ next · 🕒 placed in a later versio
 70. 🕒 later **Website landing page**, right before the Play launch
 
 ## Owner's own later ideas
-- **A. AI voiceover / read aloud with excellent voices.** Only if the quality is truly natural. It would probably be a paid online service that sends text out (a privacy change), so possibly a Quiet+ feature. Placed in 🕒 v4.
+- **No AI features** (owner, 0.4.0: no "AI washing"). About says so.
+- **A. AI voiceover / read aloud with excellent voices.** (On hold: see No AI features.) Only if the quality is truly natural. It would probably be a paid online service that sends text out (a privacy change), so possibly a Quiet+ feature. Placed in 🕒 v4.
 - **B. Fully native Android app (Kotlin, no Capacitor).** Idea only: we agreed the current approach is better for now.
 - ✅ Done from the owner's small requests: Contents button moved, app-wide text size, whole-word line breaks (hyphenation off by default), Quotes.
 
@@ -118,8 +119,8 @@ Status: ✅ done (with the version) · ⏭ next · 🕒 placed in a later versio
   - **Quiet Star** (default) and **Paper**: 0.3.2
   - **Old Tashkent**: 0.3.3. It replaced Lamplight, which was rejected as "just Star with different colours".
   - **Frosty Glass**: 0.3.4
-- ⏭ The app promises **more styles**. Unused ideas from the design canvas (https://claude.ai/artifact/Grn4yeEzztYdj9LLeS5vzR): House of Wisdom (Baghdad manuscripts), Samarkand (turquoise tiles at night), Alhambra, Atlas silk (Margilan ikat). The owner liked styles 1–4 (Star, Paper, Old Tashkent, House of Wisdom).
-- ⏭ The app promises **Build your own style** (marked "Coming soon"): your own colours, type, shapes and ornament.
+- ✕ 0.4.0 replaced the styles with one design, **Radio** (the owner disliked all four). Old idea list: Unused ideas from the design canvas (https://claude.ai/artifact/Grn4yeEzztYdj9LLeS5vzR): House of Wisdom (Baghdad manuscripts), Samarkand (turquoise tiles at night), Alhambra, Atlas silk (Margilan ikat). The owner liked styles 1–4 (Star, Paper, Old Tashkent, House of Wisdom).
+- ✕ **Build your own style** (dropped with the styles in 0.4.0) (marked "Coming soon"): your own colours, type, shapes and ornament.
 - ✅ Motion direction: Apple-like and responsive.
   - 0.3.3: springs, rubber-band scrolling, the chapter pull that turns only on release, drag-to-close sheets, and each style's own motion.
   - 0.3.4: zoom open/close from covers, interactive swipe back, icon effects, gliding lists, long press, rolling numbers, page curl.
