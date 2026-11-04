@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -125,7 +127,10 @@ private fun PdfView(book: Book, pdf: PdfPages, state: ReaderState) {
             val target = (here() + if (forward) 1 else -1).coerceIn(0, pdf.count - 1)
             scope.launch {
                 val none = settings.pageTurn == app.quietreader.PageTurn.None
-                if (settings.flow == Flow.Scrolled) { if (none) list.scrollToItem(target) else list.animateScrollToItem(target) }
+                if (settings.flow == Flow.Scrolled) {
+                    val step = list.layoutInfo.viewportSize.height * 0.88f * (if (forward) 1 else -1)
+                    if (none) list.scrollBy(step) else list.animateScrollBy(step)
+                }
                 else { if (none) pager.scrollToPage(target) else pager.animateScrollToPage(target) }
             }
         }

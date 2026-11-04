@@ -1,5 +1,16 @@
 # Quiet 0.5.0 L3b — curl, footnotes, pictures, bionic, ruler, your fonts (native test build)
 
+## 0.5.0 L3b.1 (your fixes)
+- **Scroll mode reads by scrolling:** a sideways swipe no longer jumps to another chapter. At a
+  chapter's end, keep pulling up and let go to go on to the next one (at the start, pull down
+  for the previous one).
+- **Volume keys in Scroll mode** move one screen at a time, and only go on to the next chapter at
+  its end. (In Pages mode they turn pages, as before.)
+- **Page turn** now sits in **Text**, right under Reading mode (and out of More).
+- **Reading ruler:** no handle on the side. **Hold the ruler for a moment** (anywhere along it,
+  either hand) until it lights up and the phone clicks, then drag it. A quick touch or a scroll
+  that starts on it scrolls the book as usual.
+
 The second half of layer 3 (`docs/plan-native.md`). Installs over L3a, next to 0.4.2.
 With it, the native reader has everything 0.4.2's reader has, except notes (L4).
 

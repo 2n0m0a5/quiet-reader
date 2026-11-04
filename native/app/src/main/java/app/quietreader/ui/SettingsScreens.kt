@@ -512,7 +512,7 @@ private fun ReaderPage(state: AppState, settings: QuietSettings) {
                 }, perRow = 3)
             }
             Divider()
-            SettingBlock("Reading ruler", "Line marks the line you’re on; Focus dims the rest. Drag its handle to move it.") {
+            SettingBlock("Reading ruler", "Line marks the line you’re on; Focus dims the rest. To move it, hold it for a moment, then drag.") {
                 ChoiceRow(app.quietreader.Ruler.entries.map { it to it.label }, settings.ruler, { settings.ruler = it }, perRow = 3)
             }
             Divider()

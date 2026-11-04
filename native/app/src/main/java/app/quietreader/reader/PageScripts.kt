@@ -14,7 +14,7 @@ import app.quietreader.data.Fonts
 object PageScripts {
     const val BRIDGE = "QuietPage"
 
-    fun script(bionic: Boolean, fontFamily: String?): String = """
+    fun script(bionic: Boolean, fontFamily: String?, scroll: Boolean = false): String = """
 (function(){
   var Q = window.__quiet || (window.__quiet = {});
   // Pictures
@@ -72,14 +72,36 @@ object PageScripts {
     var css = $BRIDGE.font(family);
     if (css) { var st = document.createElement('style'); st.id = 'quiet-font'; st.textContent = css; document.head.appendChild(st); }
   }
+  // Scroll mode: keep pulling past a chapter's end (or start) and let go to go on.
+  Q.scroll = $scroll;
+  if (!Q.pull) {
+    Q.pull = true;
+    var startY = null, atEnd = false, atStart = false;
+    var se = function(){ return document.scrollingElement || document.documentElement; };
+    document.addEventListener('touchstart', function(e){
+      if (!Q.scroll || e.touches.length !== 1) { startY = null; return; }
+      var s = se();
+      startY = e.touches[0].clientY;
+      atEnd = s.scrollTop + window.innerHeight >= s.scrollHeight - 4;
+      atStart = s.scrollTop <= 4;
+    }, { passive: true });
+    document.addEventListener('touchend', function(e){
+      if (startY === null || !Q.scroll) return;
+      var dy = e.changedTouches[0].clientY - startY, pull = Math.min(window.innerHeight * 0.14, 110);
+      if (atEnd && dy < -pull) $BRIDGE.chapter(true);
+      else if (atStart && dy > pull) $BRIDGE.chapter(false);
+      startY = null;
+    }, { passive: true });
+  }
   return 'ok';
 })();
 """.trimIndent()
 }
 
 /** What the page script calls. Runs on a web view thread: hand the work to the reader. */
-class PageBridge(private val fonts: Fonts, private val onImage: (String) -> Unit) {
+class PageBridge(private val fonts: Fonts, private val onImage: (String) -> Unit, private val onChapter: (Boolean) -> Unit) {
     @JavascriptInterface fun openImage(url: String) = onImage(url)
+    @JavascriptInterface fun chapter(forward: Boolean) = onChapter(forward)
 
     /** The @font-face rules for a family you added, with the files inlined. */
     @JavascriptInterface fun font(family: String): String = fonts.all().filter { it.family == family }.joinToString("\n") { f ->
@@ -87,4 +109,13 @@ class PageBridge(private val fonts: Fonts, private val onImage: (String) -> Unit
         "@font-face{font-family:'${family.replace("'", "")}';src:url(data:${f.mime};base64,$data);" +
             "font-weight:${f.weight};font-style:${if (f.italic) "italic" else "normal"};}"
     }
+}
+
+/** One screen down or up in scroll mode; returns "edge" at the chapter's end or start. */
+fun scrollStep(forward: Boolean, smooth: Boolean): String {
+    val atEdge = if (forward) "top >= max - 4" else "top <= 4"
+    val sign = if (forward) "" else "-"
+    val behavior = if (smooth) "smooth" else "auto"
+    return "(function(){var s=document.scrollingElement||document.documentElement,top=s.scrollTop,max=s.scrollHeight-window.innerHeight;" +
+        "if($atEdge)return 'edge';s.scrollTo({top:top+${sign}window.innerHeight*0.88,behavior:'$behavior'});return 'ok';})();"
 }

@@ -35,6 +35,7 @@ import java.util.Locale
 class MainActivity : AppCompatActivity() {
     private val quiet by lazy { (application as QuietApplication).quiet }
     private val state = AppState()
+    private val haptics by lazy { Haptics(this) { quiet.settings.haptics } }
 
     private val pickBooks = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         if (uris.isNotEmpty()) importBooks(uris, openIfOne = false)
@@ -61,7 +62,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(null)
         val recovered = quiet.start()
         if (recovered > 0) state.toast("Quiet rebuilt your library from its safety copy: $recovered books.")
-        val haptics = Haptics(this) { quiet.settings.haptics }
         state.pickBooks = { pickBooks.launch(arrayOf("application/epub+zip", "application/pdf", "text/plain", "application/octet-stream")) }
         state.saveBackup = { saveBackup.launch("Quiet backup ${SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())}.quietbackup") }
         state.pickBackup = { pickBackup.launch(arrayOf("*/*")) }
@@ -91,6 +91,55 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    // ---------- The reading ruler: hold, then drag ----------
+    private val hold = android.os.Handler(android.os.Looper.getMainLooper())
+    private var holdAt: android.graphics.PointF? = null
+    private var holding = false
+    private var lastY = 0f
+    private val grab = Runnable {
+        val at = holdAt ?: return@Runnable
+        holding = true
+        lastY = at.y
+        quiet.ruler.grabbed = true
+        haptics.confirm()
+        // The book stops what it was doing with this touch (no scroll, no selection).
+        val t = android.os.SystemClock.uptimeMillis()
+        val cancel = android.view.MotionEvent.obtain(t, t, android.view.MotionEvent.ACTION_CANCEL, at.x, at.y, 0)
+        super.dispatchTouchEvent(cancel)
+        cancel.recycle()
+    }
+    private fun letGo() { hold.removeCallbacks(grab); holdAt = null }
+
+    override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
+        val grip = quiet.ruler
+        if (holding) {
+            when (ev.actionMasked) {
+                android.view.MotionEvent.ACTION_MOVE -> { grip.onMove(ev.y - lastY); lastY = ev.y }
+                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                    holding = false; grip.grabbed = false; grip.onDrop(); letGo()
+                }
+            }
+            return true
+        }
+        when (ev.actionMasked) {
+            android.view.MotionEvent.ACTION_DOWN -> {
+                letGo()
+                val band = grip.band
+                if (band != null && ev.y in band) {
+                    holdAt = android.graphics.PointF(ev.x, ev.y)
+                    hold.postDelayed(grab, 350)
+                }
+            }
+            android.view.MotionEvent.ACTION_MOVE -> holdAt?.let { at ->
+                val slop = android.view.ViewConfiguration.get(this).scaledTouchSlop
+                if (kotlin.math.hypot(ev.x - at.x, ev.y - at.y) > slop) letGo() // a scroll: the book's
+            }
+            android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL,
+            android.view.MotionEvent.ACTION_POINTER_DOWN -> letGo()
+        }
+        return super.dispatchTouchEvent(ev)
     }
 
     /** Volume keys turn pages while a book is open (Settings → Reader). Down = next page. */

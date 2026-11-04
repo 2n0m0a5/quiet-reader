@@ -288,12 +288,6 @@ fun MoreSheet(pdf: Boolean, open: (String?) -> Unit) {
     Sheet({ open(null) }) {
         SheetColumn("More") {
             Labelled("Theme") { ChoiceRow(ThemeMode.entries.map { it to it.label }, settings.theme, { settings.theme = it }) }
-            Labelled("Page turn") {
-                ChoiceRow(app.quietreader.PageTurn.entries.map { it to it.label }, settings.pageTurn, {
-                    settings.pageTurn = it
-                    if (it == app.quietreader.PageTurn.Curl) settings.flow = app.quietreader.Flow.Paginated
-                }, perRow = 3)
-            }
             Labelled("Reading ruler") { ChoiceRow(app.quietreader.Ruler.entries.map { it to it.label }, settings.ruler, { settings.ruler = it }, perRow = 3) }
             if (!pdf) {
                 Row(verticalAlignment = Alignment.CenterVertically) {

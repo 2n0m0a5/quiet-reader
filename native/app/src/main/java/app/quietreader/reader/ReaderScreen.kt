@@ -315,6 +315,19 @@ private fun TextSheet(pdf: Boolean, onClose: () -> Unit) {
             Spacer(Modifier.height(8.dp))
             ChoiceRow(Flow.entries.map { it to it.label }, settings.flow, { settings.flow = it }, perRow = 2)
             Spacer(Modifier.height(16.dp))
+            Text("Page turn", style = Type.label.copy(color = c.text))
+            Spacer(Modifier.height(8.dp))
+            ChoiceRow(app.quietreader.PageTurn.entries.map { it to it.label }, settings.pageTurn, {
+                settings.pageTurn = it
+                if (it == app.quietreader.PageTurn.Curl) settings.flow = Flow.Paginated
+            }, perRow = 3)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                if (settings.flow == Flow.Scrolled) "In Scroll mode you read by scrolling; page turns are for Pages. Curl switches to Pages."
+                else "Curl bends the page like paper under your finger.",
+                style = Type.hint.copy(color = c.muted),
+            )
+            Spacer(Modifier.height(16.dp))
             Text("Theme", style = Type.label.copy(color = c.text))
             Spacer(Modifier.height(8.dp))
             ChoiceRow(ThemeMode.entries.map { it to it.label }, settings.theme, { settings.theme = it })

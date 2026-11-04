@@ -39,6 +39,8 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.fromHtml
 import androidx.compose.ui.unit.IntOffset
@@ -53,42 +55,40 @@ import kotlin.math.roundToInt
 
 /**
  * The reading ruler: Line marks the line you're on with a soft band; Focus dims the page above
- * and below it. Drag the small key on the right to move it.
+ * and below it. To move it, hold a finger on it for a moment (anywhere along it, either hand),
+ * then drag. A quick touch or a scroll that starts on it goes to the book as usual
+ * (MainActivity.dispatchTouchEvent decides, before the book sees the touch).
  */
 @Composable
 fun RulerLayer() {
-    val settings = LocalQuiet.current.settings
+    val quiet = LocalQuiet.current
+    val settings = quiet.settings
     if (settings.ruler == Ruler.Off) return
     val c = LocalColors.current
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        val heightPx = constraints.maxHeight.toFloat()
-        val band = (30f * settings.bookSize / 100f * settings.lineHeight / 17f).dp
-        var y by remember { mutableFloatStateOf(settings.rulerY / 100f) }
-        Canvas(Modifier.fillMaxSize()) {
-            val center = size.height * y
-            val half = band.toPx() / 2
-            if (settings.ruler == Ruler.Focus) {
-                val dim = c.readerBg.copy(alpha = 0.72f)
-                drawRect(dim, size = androidx.compose.ui.geometry.Size(size.width, center - half))
-                drawRect(dim, topLeft = Offset(0f, center + half), size = androidx.compose.ui.geometry.Size(size.width, size.height - center - half))
-            } else {
-                drawRect(c.accent.copy(alpha = 0.10f), topLeft = Offset(0f, center - half), size = androidx.compose.ui.geometry.Size(size.width, half * 2))
-                drawLine(c.accent.copy(alpha = 0.5f), Offset(0f, center + half), Offset(size.width, center + half), 1.5.dp.toPx())
-            }
+    val grip = quiet.ruler
+    var y by remember { mutableFloatStateOf(settings.rulerY / 100f) }
+    var top by remember { mutableFloatStateOf(0f) }
+    var height by remember { mutableFloatStateOf(1f) }
+    val band = (30f * settings.bookSize / 100f * settings.lineHeight / 17f).dp
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val margin = with(density) { 10.dp.toPx() }
+    val half = with(density) { band.toPx() } / 2
+    // Where the band is, for the window's touch handling.
+    grip.band = (top + height * y - half - margin)..(top + height * y + half + margin)
+    grip.onMove = { dy -> y = (y + dy / height).coerceIn(0.05f, 0.95f) }
+    grip.onDrop = { settings.rulerY = (y * 100).roundToInt() }
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { grip.band = null; grip.grabbed = false } }
+    Canvas(Modifier.fillMaxSize().onGloballyPositioned { top = it.positionInWindow().y; height = it.size.height.toFloat().coerceAtLeast(1f) }) {
+        val center = size.height * y
+        if (settings.ruler == Ruler.Focus) {
+            val dim = c.readerBg.copy(alpha = 0.72f)
+            drawRect(dim, size = androidx.compose.ui.geometry.Size(size.width, center - half))
+            drawRect(dim, topLeft = Offset(0f, center + half), size = androidx.compose.ui.geometry.Size(size.width, size.height - center - half))
+        } else {
+            drawRect(c.accent.copy(alpha = if (grip.grabbed) 0.2f else 0.10f), topLeft = Offset(0f, center - half), size = androidx.compose.ui.geometry.Size(size.width, half * 2))
         }
-        // The handle: the only part that takes touches.
-        Box(
-            Modifier.align(Alignment.TopEnd).offset { IntOffset(0, (heightPx * y).roundToInt() - 22.dp.roundToPx()) }
-                .padding(end = 4.dp).size(26.dp, 44.dp)
-                .background(c.panel.copy(alpha = 0.9f), RoundedCornerShape(6.dp))
-                .pointerInput(Unit) {
-                    detectVerticalDragGestures(onDragEnd = { settings.rulerY = (y * 100).roundToInt() }) { change, dy ->
-                        change.consume()
-                        y = (y + dy / heightPx).coerceIn(0.05f, 0.95f)
-                    }
-                },
-            contentAlignment = Alignment.Center,
-        ) { Text("≡", style = Type.body.copy(color = c.accent)) }
+        drawLine(c.accent.copy(alpha = if (grip.grabbed) 0.9f else 0.5f), Offset(0f, center + half), Offset(size.width, center + half), (if (grip.grabbed) 2.5f else 1.5f).dp.toPx())
+        if (grip.grabbed) drawLine(c.accent.copy(alpha = 0.9f), Offset(0f, center - half), Offset(size.width, center - half), 2.5f.dp.toPx())
     }
 }
 

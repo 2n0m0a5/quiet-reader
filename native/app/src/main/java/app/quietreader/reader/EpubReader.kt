@@ -113,7 +113,11 @@ private fun EpubView(book: Book, publication: Publication, state: ReaderState) {
         state.goToProgress = { p -> scope.launch { publication.locateProgression(p)?.let { nav.go(it) } } }
         state.turn = { forward ->
             val animated = settings.pageTurn != PageTurn.None
-            if (forward) nav.goForward(animated) else nav.goBackward(animated)
+            if (settings.flow == Flow.Scrolled) scope.launch {
+                // Scroll mode: one screen at a time; at the chapter's edge, on to the next one.
+                val r = nav.evaluateJavascript(scrollStep(forward, animated))
+                if (r?.contains("edge") == true) chapterStep(nav, publication, forward)
+            } else if (forward) nav.goForward(animated) else nav.goBackward(animated)
         }
         state.jump = { forward -> if (forward) nav.goForward(false) else nav.goBackward(false) }
         state.markBack = {
@@ -125,9 +129,9 @@ private fun EpubView(book: Book, publication: Publication, state: ReaderState) {
 
     // Pictures, bionic reading and your font, in each page (PageScripts.kt).
     suspend fun runPageScript() {
-        navigator?.evaluateJavascript(PageScripts.script(settings.bionic, settings.customFont))
+        navigator?.evaluateJavascript(PageScripts.script(settings.bionic, settings.customFont, settings.flow == Flow.Scrolled))
     }
-    LaunchedEffect(navigator, settings.bionic, settings.customFont) { runPageScript() }
+    LaunchedEffect(navigator, settings.bionic, settings.customFont, settings.flow) { runPageScript() }
     LaunchedEffect(navigator) {
         var href: Any? = null
         navigator?.currentLocator?.collect { l -> if (l.href != href) { href = l.href; kotlinx.coroutines.delay(300); runPageScript() } }
@@ -161,9 +165,13 @@ private fun EpubView(book: Book, publication: Publication, state: ReaderState) {
                         },
                         configuration = EpubNavigatorFragment.Configuration {
                             registerJavascriptInterface(PageScripts.BRIDGE) {
-                                PageBridge(quiet.fonts) { url -> scope.launch { state.image = loadImage(publication, url) } }
+                                PageBridge(quiet.fonts,
+                                    onImage = { url -> scope.launch { state.image = loadImage(publication, url) } },
+                                    onChapter = { forward -> scope.launch { navigator?.let { chapterStep(it, publication, forward) } } })
                             }
                             servedAssets = listOf("fonts/.*")
+                            // Scroll mode reads by scrolling: a sideways swipe doesn't change chapters.
+                            disablePageTurnsWhileScrolling = true
                             addFontFamilyDeclaration(CRIMSON) {
                                 addFontFace { addSource("fonts/crimson_pro.ttf"); setFontWeight(200..900) }
                                 addFontFace { addSource("fonts/crimson_pro_italic.ttf"); setFontStyle(FontStyle.ITALIC); setFontWeight(200..900) }
@@ -297,3 +305,12 @@ private suspend fun loadImage(publication: Publication, url: String): androidx.c
         val bytes = resource.read().getOrNull() ?: return@withContext null
         android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
     }
+
+/** Scroll mode: the next chapter from its start, or the previous one from its end. */
+private fun chapterStep(nav: EpubNavigatorFragment, publication: Publication, forward: Boolean) {
+    val here = nav.currentLocator.value.href.removeFragment()
+    val i = publication.readingOrder.indexOfFirst { it.url().removeFragment() == here }
+    val link = publication.readingOrder.getOrNull(i + if (forward) 1 else -1) ?: return
+    val start = publication.locatorFromLink(link) ?: return
+    nav.go(if (forward) start else start.copyWithLocations(progression = 0.999), animated = false)
+}
