@@ -1,4 +1,5 @@
 import { clearLibrary, listBooks } from './library/db'
+import { lastBackup, pickBackupFile, readBackup, restoreBackup, saveBackup } from './library/backup'
 import { phoneWantsLessMotion } from './ui/motion'
 import { limits, type DesignStyle, type Settings } from './settings'
 import { confirmDialog, h, icon } from './ui/dialog'
@@ -325,6 +326,58 @@ export class SettingsScreen {
     text.append(h('div', 'settings-label', 'Your library'), usage)
     info.append(text)
 
+    // Backup and restore (library/backup.ts).
+    const last = lastBackup()
+    const backupRow = h('div', 'settings-row')
+    const backupText = h('div')
+    const backupHint = h('div', 'settings-hint', last
+      ? `Everything in one file you keep: books, places, notes, quotes, reading time, fonts and settings. Last backup: ${new Date(last).toLocaleDateString()}.`
+      : 'Everything in one file you keep: books, places, notes, quotes, reading time, fonts and settings. No backup yet.')
+    backupText.append(h('div', 'settings-label', 'Back up your library'), backupHint)
+    const backupButton = h('button', 'btn small', 'Back up')
+    backupButton.addEventListener('click', async () => {
+      backupButton.setAttribute('disabled', '')
+      try {
+        const { saved, books } = await saveBackup(__APP_VERSION__, step => toast(step, 60_000))
+        toast(saved ? `Backup saved: ${books} ${books === 1 ? 'book' : 'books'} and everything with them.` : 'Backup cancelled.', 5000)
+        if (saved) this.render()
+      } catch (err) {
+        console.error('Backup failed:', err)
+        toast('Couldn’t make the backup. Is there enough free space?', 6000)
+      } finally {
+        backupButton.removeAttribute('disabled')
+      }
+    })
+    backupRow.append(backupText, backupButton)
+
+    const restoreRow = h('div', 'settings-row')
+    const restoreText = h('div')
+    restoreText.append(h('div', 'settings-label', 'Restore from a backup'),
+      h('div', 'settings-hint', 'Adds what the backup has and your library doesn’t. Nothing is deleted.'))
+    const restoreButton = h('button', 'btn small', 'Restore')
+    restoreButton.addEventListener('click', async () => {
+      const file = await pickBackupFile()
+      if (!file) return
+      let summary
+      try { summary = await readBackup(file) } catch (err) { return toast((err as Error).message || 'Couldn’t read that file.', 6000) }
+      const ok = await confirmDialog({
+        title: 'Restore this backup?',
+        message: `From ${new Date(summary.createdAt).toLocaleDateString()}: ${summary.books} ${summary.books === 1 ? 'book' : 'books'} and ${summary.notes} highlights. Books and notes you don’t have yet are added; nothing is deleted.`,
+        confirm: 'Restore',
+      })
+      if (!ok) return
+      try {
+        const r = await restoreBackup(summary, step => toast(step, 60_000))
+        toast(`Restored: ${r.added} new ${r.added === 1 ? 'book' : 'books'}, ${r.updated} reading ${r.updated === 1 ? 'place' : 'places'} updated, ${r.notes} notes.`, 7000)
+        if (r.settings) setTimeout(() => location.reload(), 1500)
+        else { this.#actions.libraryCleared(); this.render() }
+      } catch (err) {
+        console.error('Restore failed:', err)
+        toast('Couldn’t restore the backup.', 6000)
+      }
+    })
+    restoreRow.append(restoreText, restoreButton)
+
     const clear = h('div', 'settings-row')
     const clearText = h('div')
     clearText.append(h('div', 'settings-label', 'Delete everything'),
@@ -343,7 +396,7 @@ export class SettingsScreen {
       this.render()
     })
     clear.append(clearText, button)
-    return this.#section('Storage', 'Books are stored on this device only. Nothing is uploaded.', [info, clear])
+    return this.#section('Storage', 'Books are stored on this device only. Nothing is uploaded.', [info, backupRow, restoreRow, clear])
   }
 
   #about() {

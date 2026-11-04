@@ -476,6 +476,45 @@ public class QuietNativePlugin extends Plugin {
         call.resolve();
     }
 
+    // ---------- Saving a file where the reader chooses (library backup) ----------
+
+    // Opens Android's "save as" picker: { name, mime } → { uri } or { cancelled: true }.
+    @PluginMethod
+    public void createDocument(PluginCall call) {
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType(call.getString("mime", "application/octet-stream"));
+        intent.putExtra(Intent.EXTRA_TITLE, call.getString("name", "Quiet backup"));
+        startActivityForResult(call, intent, "documentCreated");
+    }
+
+    @ActivityCallback
+    private void documentCreated(PluginCall call, ActivityResult result) {
+        if (call == null) return;
+        Intent data = result.getData();
+        JSObject out = new JSObject();
+        if (result.getResultCode() != Activity.RESULT_OK || data == null || data.getData() == null) out.put("cancelled", true);
+        else out.put("uri", data.getData().toString());
+        call.resolve(out);
+    }
+
+    // { uri, data (base64), append }: writes one chunk to a document made by createDocument.
+    @PluginMethod
+    public void writeDocument(PluginCall call) {
+        String value = call.getString("uri");
+        String data = call.getString("data", "");
+        boolean append = Boolean.TRUE.equals(call.getBoolean("append", false));
+        new Thread(() -> {
+            try (OutputStream out = getContext().getContentResolver().openOutputStream(Uri.parse(value), append ? "wa" : "wt")) {
+                if (out == null) throw new Exception("Can't open the file");
+                out.write(Base64.decode(data, Base64.DEFAULT));
+                call.resolve();
+            } catch (Exception e) {
+                call.reject("Couldn't write the file: " + e.getMessage());
+            }
+        }).start();
+    }
+
     // ---------- Pictures of quotes ----------
 
     // Shares a PNG (given as base64) through Android's share sheet.

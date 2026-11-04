@@ -51,6 +51,8 @@ interface QuietNativePlugin {
   safetyInfo(options: { name: string }): Promise<{ exists: boolean; path: string; size: number }>
   safetyList(options: { dir: string }): Promise<{ names: string[] }>
   safetyDelete(options: { name: string }): Promise<void>
+  createDocument(options: { name: string; mime: string }): Promise<{ uri?: string; cancelled?: boolean }>
+  writeDocument(options: { uri: string; data: string; append: boolean }): Promise<void>
 }
 
 export interface FolderFile { uri: string; name: string; size: number; modified: number }
@@ -237,6 +239,20 @@ export async function saveImage(blob: Blob, name: string) {
   if (isNativeApp) return QuietNative.saveImage({ data: await base64(blob), name })
   return downloadBlob(blob, name)
 }
+// A big file (a library backup) saved where the reader chooses: Android's "save as" picker, or a
+// download on the website. False if the reader cancelled.
+export async function saveFile(blob: Blob, name: string, mime: string, progress?: (fraction: number) => void): Promise<boolean> {
+  if (!isNativeApp) { downloadBlob(blob, name); return true }
+  const { uri } = await QuietNative.createDocument({ name, mime })
+  if (!uri) return false
+  for (let start = 0; start < blob.size || start === 0; start += CHUNK) {
+    await QuietNative.writeDocument({ uri, data: await base64(blob.slice(start, start + CHUNK)), append: start > 0 })
+    progress?.(Math.min(1, (start + CHUNK) / Math.max(1, blob.size)))
+    if (!blob.size) break
+  }
+  return true
+}
+
 function downloadBlob(blob: Blob, name: string) {
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob)
