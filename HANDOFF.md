@@ -14,9 +14,11 @@ maybe the App Store) later. Core message: "a reader should be very simple. Perio
 ## 2. Current status
 - **Native app (started 4 Nov):** the owner chose a fully native Android app (Kotlin + Jetpack
   Compose) built in layers L0–L8 until it replaces 0.4.2. Plan and decisions: `docs/plan-native.md`.
-  Code in `native/`, build with `bash scripts/build-native.sh [test]`. **L0 (the skeleton) is done
-  and sent** as `Quiet-0.5.0-L0.apk` (app ID `app.quietreader.n`, installs next to 0.4.2).
-  Next: L1 + L2 together. 0.4.x gets bug fixes only. The owner has some 0.4.2 issues to report.
+  Code in `native/`, build with `bash scripts/build-native.sh [test]`. **L0** sent; after it the
+  owner asked for a text-size slider and working vibration (both done). **L1 + L2** (read EPUB/PDF/
+  TXT; backup/restore in the web format both ways, Recently deleted, safety copy) are built and sent
+  as `Quiet-0.5.0-L2.apk` (app ID `app.quietreader.n`, installs next to 0.4.2). Next: the owner's
+  L2 phone results, then L3. 0.4.x gets bug fixes only. The owner has some 0.4.2 issues to report.
 - **Android 0.4.2 (versionCode 420)** and **iPhone 1.0 (build 1)**, all committed and pushed to
   `main` (last commit `cb20689`). The working tree is clean.
 - **Sent to the owner:** `Quiet-0.4.0.apk`, `Quiet-0.4.1.apk`, `Quiet-0.4.2.apk`,
@@ -219,9 +221,11 @@ maybe the App Store) later. Core message: "a reader should be very simple. Perio
 - Test on the Redmi and on an iPhone or Appetize, and report back.
 
 ## 7. Next steps
-0. **Native:** get the owner's L0 phone results, then build L1 (read a book) + L2 (your data is
-   safe) together, per `docs/plan-native.md`. Readium Kotlin Toolkit (BSD-3, 3.x on Maven Central)
-   is the agreed book engine. Ask for the 0.4.2 issues the owner mentioned.
+0. **Native:** get the owner's L2 phone results (`docs/release-notes-0.5.0-L2.md`), fix them,
+   then L3 (the full reader bar) per `docs/plan-native.md`. Ask for the 0.4.2 issues they mentioned.
+   An emulator can run here in software mode (`emulator -accel off`, system image android-34
+   x86_64, AVD "quiet"); it's slow but good for crash checks. `scripts/check-native-backup.cjs`
+   restores a native backup in the web app.
 1. Ask for the phone and iPhone results; fix what they report (curl feel: the 0.2 threshold and
    the corner-under-finger mapping are in `#onSwipeDrag`).
 2. Open questions for the owner:
