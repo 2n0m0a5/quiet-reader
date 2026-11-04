@@ -290,6 +290,24 @@ function setSettingsOpen(open: boolean, focus: 'top' | 'more' | 'light' | 'text'
   })
 }
 
+// ---------- Sample books (iPhone) ----------
+// On its very first start with an empty library, the iPhone app adds three sample books (two
+// EPUBs and a PDF, in public/samples), so there's something to read straight away, also in a
+// simulator (Appetize) that has no books on it.
+async function addSampleBooks() {
+  try {
+    if (localStorage.getItem('quiet:samples-added') || (await listBooks()).length) return
+    localStorage.setItem('quiet:samples-added', '1')
+    for (const name of ['lamp-and-clock.epub', 'quiet-river-1.epub', 'sample-pdf.pdf']) {
+      const blob = await (await fetch(`samples/${name}`)).blob()
+      await importBook(new File([blob], name, { type: blob.type }))
+    }
+    if (ui.app.dataset.view === 'library') library.refresh()
+  } catch (err) {
+    console.warn('Could not add the sample books:', err)
+  }
+}
+
 // ---------- The reader bar (reader-keys.ts) ----------
 const keyActions: KeyActions = {
   contents: () => $('tocToggle').click(),
@@ -1031,6 +1049,7 @@ render()
 // and only then start following changes, so an empty library never overwrites a good copy.
 recoverLibrary().catch(err => { console.error('Could not restore the library:', err); return 0 }).then(restored => {
   startSafetyCopy()
+  if (isIOS) addSampleBooks()
   route()
   if (restored) toast(`Your library had gone missing. Quiet put back ${restored} ${restored === 1 ? 'book' : 'books'} from its safety copy, with your notes and reading time.`, 9000)
   listBooks().then(books => greet(books.length > 0, () => { if (!tourDone()) startTour({ library: () => {}, settings: () => {} }) }))
