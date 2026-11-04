@@ -223,9 +223,10 @@ maybe the App Store) later. Core message: "a reader should be very simple. Perio
 ## 7. Next steps
 0. **Native:** get the owner's L2 phone results (`docs/release-notes-0.5.0-L2.md`), fix them,
    then L3 (the full reader bar) per `docs/plan-native.md`. Ask for the 0.4.2 issues they mentioned.
-   An emulator can run here in software mode (`emulator -accel off`, system image android-34
-   x86_64, AVD "quiet"); it's slow but good for crash checks. `scripts/check-native-backup.cjs`
-   restores a native backup in the web app.
+   No emulator here: tried `emulator -accel off` (android-34 x86_64); it boots after ~40 min, then
+   Android's system server keeps restarting, so apps can't run. The JVM tests (Robolectric) and the
+   owner's phone are the checks. `scripts/check-native-backup.cjs` restores a native backup in
+   the web app.
 1. Ask for the phone and iPhone results; fix what they report (curl feel: the 0.2 threshold and
    the corner-under-finger mapping are in `#onSwipeDrag`).
 2. Open questions for the owner:
