@@ -230,6 +230,14 @@ maybe the App Store) later. Core message: "a reader should be very simple. Perio
 - **libarchive:** the worker and wasm must sit together in `public/vendor/libarchive/`.
 
 ## 6. Owner's to-dos (they must do these; Claude can't)
+- **REMIND THE OWNER (asked on 5 November 2026: "remember everything, remind me later"):** the security
+  and speed plan is waiting on them. Page: https://claude.ai/artifact/3XYFCvtj7qs2Xc14Tk39th; summary:
+  `docs/plan-security-efficiency.md`. Most urgent: the repo is **public** and holds the signing key
+  (`android/app/quiet-test.keystore`) with its password in `native/app/build.gradle.kts`. Their 5 decisions:
+  (1) keep the repo public or make it private; (2) a new release key they keep in a password manager
+  (+ a GitHub secret); (3) rewrite git history to erase the old key, or not; (4) encrypted backups
+  readable only by the native app, OK?; (5) app lock in L8.7 or later. Then build L8.5 → L8.6 → L8.7,
+  each with an evidence report, a Diagnostics page and GitHub Actions checks.
 - Publish **GitHub Releases** for v0.1.0 to v0.4.2, each with its APK and `docs/release-notes-*.md`,
   and an iOS release `ios-v1.0` with the .ipa and `release-notes-ios-1.0.md`.
 - Turn on GitHub Pages (Source: GitHub Actions) in showcase repos `quiet-reader-version-2` to `-5`.
@@ -237,6 +245,8 @@ maybe the App Store) later. Core message: "a reader should be very simple. Perio
 - Test on the Redmi and on an iPhone or Appetize, and report back.
 
 ## 7. Next steps
+- **First, remind the owner of the security and speed plan** (section 6) and ask for their 5 decisions.
+  Native is at 0.5.0 L8.4 (versionCode 520, commit `633b000`); phone results for L8.4 not reported yet.
 0. **Native:** get the owner's L2 phone results (`docs/release-notes-0.5.0-L2.md`), fix them,
    then L3 (the full reader bar) per `docs/plan-native.md`. Ask for the 0.4.2 issues they mentioned.
    No emulator here: tried `emulator -accel off` (android-34 x86_64); it boots after ~40 min, then

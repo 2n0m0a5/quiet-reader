@@ -101,6 +101,17 @@ It's gathered from every "remember this" and every topic the owner was keen on, 
   app ID differs while building (`app.quietreader.n`). Versions `0.5.0 L0`, `L1`… and plain
   `0.5.0` at the switch. Plan: `docs/plan-native.md`.
 
+## Security and speed (5 November): remind the owner
+- After 0.5.0 L8.4 ("the best version for now") the owner asked to think about security and,
+  most of all, efficiency, then for a plan they can check: what will be done, and evidence for each
+  fix. Plan: https://claude.ai/artifact/3XYFCvtj7qs2Xc14Tk39th and `docs/plan-security-efficiency.md`.
+- They said: **"for now just remember everything. I'm gonna need you to remind me later."** So at the
+  start of the next session, remind them: the plan, the public repo with the signing key in it, and
+  the 5 decisions (repo public/private, new key custody, history rewrite, encrypted backups
+  native-only, app lock timing).
+- How they want to verify: before/after tests, GitHub Actions checks, a Diagnostics page in the app,
+  a test book, an evidence report per release.
+
 ## No AI ("no AI washing")
 - The owner doesn't want AI features in the reader (like greenwashing: "AI washing"). About says "No AI features". AI voiceover (idea A) is on hold.
 
