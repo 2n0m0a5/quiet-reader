@@ -9,7 +9,7 @@ plugins {
 
 // The layer being built. The switch (end of L8) drops it and moves to app.quietreader.
 val quietVersion = "0.5.0"
-val quietLayer = "L8.2"
+val quietLayer = "L8.3"
 
 android {
     namespace = "app.quietreader"
@@ -19,7 +19,7 @@ android {
         applicationId = "app.quietreader.n"
         minSdk = 26
         targetSdk = 36
-        versionCode = 518
+        versionCode = 519
         versionName = "$quietVersion $quietLayer"
         buildConfigField("String", "QUIET_VERSION", "\"$quietVersion\"")
         buildConfigField("String", "QUIET_LAYER", "\"$quietLayer\"")
@@ -89,6 +89,8 @@ dependencies {
     implementation("org.tukaani:xz:1.10")
     implementation("com.github.junrar:junrar:7.5.5")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.4")
+    // Frosted glass behind the Now reading bar (Apache-2.0).
+    implementation("dev.chrisbanes.haze:haze:1.6.10")
 
     // Readium (BSD-3): opens EPUB and draws its pages. See docs/plan-native.md.
     val readium = "3.1.2"

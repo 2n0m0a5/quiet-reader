@@ -71,7 +71,7 @@ class HapticsTest {
     @Test fun textSizeDialClicksAtEachStep() {
         compose.onNodeWithContentDescription("Text size").performSemanticsAction(SemanticsActions.SetProgress) { it(120f) }
         compose.runOnIdle { assertEquals(120, settings.textScale) }
-        compose.onNodeWithContentDescription("Text size").performTouchInput { swipeRight() }
+        compose.onNodeWithContentDescription("Text size").performScrollTo().performTouchInput { swipeRight() }
         compose.runOnIdle { assertEquals(150, settings.textScale) }
         assertTrue("slider should click as it moves", clicks.count { it == "tick" } >= 3)
     }

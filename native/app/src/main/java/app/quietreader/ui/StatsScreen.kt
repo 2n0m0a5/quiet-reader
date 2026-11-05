@@ -67,7 +67,7 @@ fun StatsScreen() {
     val scroll = rememberScrollState()
     val state = app.quietreader.ui.LocalAppState.current
     LaunchedEffect(state?.reselect) { if ((state?.reselect ?: 0) > 0 && state?.tab == Tab.Stats) scroll.animateScrollTo(0) }
-    Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(20.dp)) {
+    Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(20.dp).padding(bottom = LocalNowRoom.current)) {
         Section("Today") {
             Meter(s.today, settings.dailyGoal)
             Row(verticalAlignment = Alignment.Bottom) {

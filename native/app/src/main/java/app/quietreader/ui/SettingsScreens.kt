@@ -113,7 +113,7 @@ private fun SettingsPageContent(page: SettingsPage, state: AppState, settings: Q
 private fun Page(content: @Composable ColumnScope.() -> Unit) {
     val c = LocalColors.current
     Column(
-        Modifier.fillMaxSize().background(c.bg).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 20.dp),
+        Modifier.fillMaxSize().background(c.bg).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 20.dp).padding(bottom = LocalNowRoom.current),
         content = content,
     )
 }
@@ -233,6 +233,40 @@ private fun InterfacePage(state: AppState, settings: QuietSettings) {
             if (settings.theme == ThemeMode.Custom) {
                 Divider()
                 CustomColours(settings)
+            }
+        }
+        Spacer(Modifier.height(28.dp))
+        SectionTitle("Now reading", "The book you're in, floating above the tabs. Tap to read, swipe sideways for your other books, swipe down to tuck it away, hold for more.")
+        Card {
+            ToggleRow("Show the Now reading bar", "Your last unfinished book, one tap away.", settings.nowBar) { settings.nowBar = it }
+            if (settings.nowBar) {
+                Divider()
+                SettingBlock("Where") {
+                    ChoiceRow(listOf(true to "Every tab", false to "Library only"), settings.nowBarEverywhere, { settings.nowBarEverywhere = it })
+                }
+                Divider()
+                Column(Modifier.padding(16.dp)) {
+                    val c = LocalColors.current
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Opacity", style = Type.label.copy(color = c.text, fontWeight = FontWeight.Normal), modifier = Modifier.weight(1f))
+                        Text("${settings.nowBarOpacity}%", style = Type.mono.copy(color = c.text))
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Dial(
+                        value = settings.nowBarOpacity.toFloat(),
+                        onChange = { settings.nowBarOpacity = it.roundToInt() },
+                        range = 40f..100f,
+                        step = 5f,
+                        label = "Opacity",
+                        valueText = "${settings.nowBarOpacity} percent",
+                        marks = listOf(100f),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text("Frosted glass: lower lets the page behind glow through, blurred. The bar below shows it as you slide.", style = Type.hint.copy(color = c.muted))
+                }
+                Divider()
+                ToggleRow("Hide while scrolling", "It slides away as you scroll down a list and comes back as you scroll up.", settings.nowBarAutoHide) { settings.nowBarAutoHide = it }
             }
         }
         Spacer(Modifier.height(28.dp))
@@ -456,6 +490,7 @@ private fun AboutPage(state: AppState) {
                     Triple("junrar", "CBR comics, UnRAR License", "https://github.com/junrar/junrar"),
                     Triple("Archivo, DM Mono, Crimson Pro", "fonts, SIL Open Font License", "https://fonts.google.com"),
                     Triple("Lucide", "icons, ISC License", "https://lucide.dev"),
+                    Triple("Haze", "the frosted glass, Apache License 2.0", "https://github.com/chrisbanes/haze"),
                 ).forEach { (name, what, url) ->
                     Text(
                         buildAnnotatedString {

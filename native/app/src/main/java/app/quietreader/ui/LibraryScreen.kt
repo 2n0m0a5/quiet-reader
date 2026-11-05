@@ -39,6 +39,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.flow.drop
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.graphics.graphicsLayer
@@ -90,17 +92,38 @@ fun LibraryScreen(state: AppState) {
 
     if (shelf.isEmpty()) { EmptyLibrary(state); return }
 
-    val filtered = shelf.filter { b ->
-        when (state.filter) {
+    fun filteredFor(f: Filter) = shelf.filter { b ->
+        when (f) {
             Filter.Reading -> b.status() == Status.Reading
             Filter.Want -> b.status() == Status.Want
             Filter.Done -> b.status() == Status.Finished
             else -> true
         } && (state.collection == null || state.collection in b.collectionIds) && Shelf.matches(b, state.query)
     }
+    // The shelves lie side by side: swipe left or right to move between All, Reading, Want, Done
+    // and Series. The page follows your finger, the filter's key slides along with it, and it
+    // clicks as you pass from one shelf to the next.
+    val reduced = LocalReducedMotion.current
+    val haptics = LocalHaptics.current
+    val pager = androidx.compose.foundation.pager.rememberPagerState(initialPage = state.filter.ordinal) { Filter.entries.size }
+    val dragged by pager.interactionSource.collectIsDraggedAsState()
+    LaunchedEffect(pager) {
+        androidx.compose.runtime.snapshotFlow { pager.settledPage }.collect { p -> if (state.filter.ordinal != p) state.filter = Filter.entries[p] }
+    }
+    LaunchedEffect(pager, dragged) {
+        if (dragged) androidx.compose.runtime.snapshotFlow { pager.currentPage }.drop(1).collect { haptics?.tick() }
+    }
+    LaunchedEffect(state.filter) {
+        val to = state.filter.ordinal
+        if (pager.settledPage != to && !pager.isScrollInProgress) {
+            if (reduced) pager.scrollToPage(to)
+            else pager.animateScrollToPage(to, animationSpec = androidx.compose.animation.core.spring(dampingRatio = 1f, stiffness = 400f))
+        }
+    }
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp)) {
-            ChoiceRow(Filter.entries.map { it to it.label }, state.filter, { state.filter = it }, perRow = 5)
+            ChoiceRow(Filter.entries.map { it to it.label }, state.filter, { state.filter = it }, perRow = 5,
+                follow = if (pager.isScrollInProgress) pager.currentPage + pager.currentPageOffsetFraction else null)
             if (collections.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -119,9 +142,10 @@ fun LibraryScreen(state: AppState) {
                 }
             }
         }
-        Box(Modifier.weight(1f)) {
-            if (state.filter == Filter.Series) SeriesShelves(state, filtered)
-            else Books(state, filtered, collections)
+        androidx.compose.foundation.pager.HorizontalPager(pager, Modifier.weight(1f), beyondViewportPageCount = 1, key = { it }) { page ->
+            val f = Filter.entries[page]
+            if (f == Filter.Series) SeriesShelves(state, filteredFor(f))
+            else Books(state, filteredFor(f), collections)
         }
         // The selection bar slides up from the tab bar when you start selecting, and back down.
         val reducedBar = LocalReducedMotion.current
@@ -179,7 +203,7 @@ private fun Books(state: AppState, books: List<Book>, collections: Map<String, S
             size = (size * f).coerceIn(72f, 200f)
             settings.coverSize = size.roundToInt()
         },
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp + LocalNowRoom.current),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalArrangement = Arrangement.spacedBy(if (settings.libraryList) 4.dp else 18.dp),
     ) {
@@ -319,7 +343,7 @@ private fun StatusText(book: Book) {
 private fun SeriesShelves(state: AppState, books: List<Book>) {
     val c = LocalColors.current
     val series = Shelf.series(books)
-    androidx.compose.foundation.lazy.LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
+    androidx.compose.foundation.lazy.LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp + LocalNowRoom.current)) {
         if (series.isEmpty()) item {
             Text("No series yet. Series come from the book itself, or from Edit on a book’s page (hold a book).",
                 style = Type.body.copy(color = c.muted), modifier = Modifier.padding(vertical = 24.dp))

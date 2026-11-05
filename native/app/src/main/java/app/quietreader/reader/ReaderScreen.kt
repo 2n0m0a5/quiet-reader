@@ -417,7 +417,7 @@ private fun passTap(view: android.view.View, at: androidx.compose.ui.geometry.Of
     down.recycle(); up.recycle()
 }
 
-private fun todaySeconds(quiet: app.quietreader.Quiet): Double {
+internal fun todaySeconds(quiet: app.quietreader.Quiet): Double {
     val today = app.quietreader.data.dayKey()
     return quiet.readingLog.all().filter { it.day == today }.sumOf { it.seconds }
 }

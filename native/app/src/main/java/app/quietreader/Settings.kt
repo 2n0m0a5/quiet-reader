@@ -129,6 +129,11 @@ class QuietSettings(private val prefs: SharedPreferences) {
     var seenVersion: String
         get() = prefs.getString("seenVersion", "") ?: ""
         set(value) { prefs.edit().putString("seenVersion", value).apply() }
+    // The Now reading bar (this phone only)
+    var nowBar by boolPref("nowBar", true)
+    var nowBarEverywhere by boolPref("nowBarEverywhere", true)   // false: on the Library tab only
+    var nowBarOpacity by intPref("nowBarOpacity", 96, 40..100)   // %
+    var nowBarAutoHide by boolPref("nowBarAutoHide", true)       // slides away while you scroll down
     var volumeKeys by boolPref("volumeKeys", true)
     var showClock by boolPref("showClock", true)
     var keepAwake by boolPref("keepAwake", true)

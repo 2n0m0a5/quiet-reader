@@ -80,7 +80,7 @@ fun NotesTab(state: AppState) {
     Box(Modifier.fillMaxSize()) {
     val list = androidx.compose.foundation.lazy.rememberLazyListState()
     LaunchedEffect(state.reselect) { if (state.reselect > 0 && state.tab == Tab.Notes) list.animateScrollToItem(0) }
-    LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = if (selecting) 130.dp else 24.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = if (selecting) 130.dp else 24.dp + LocalNowRoom.current)) {
         item {
             fun n(count: Int, one: String) = "$count ${if (count == 1) one else one + "s"}"
             Text("${n(all.count { !it.isBookmark && !it.quote }, "highlight")} · ${n(all.count { it.quote }, "quote")} · ${n(all.count { it.isBookmark }, "bookmark")}",

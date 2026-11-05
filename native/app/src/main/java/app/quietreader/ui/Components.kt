@@ -179,7 +179,7 @@ fun IconKey(icon: ImageVector, label: String, onClick: () -> Unit, modifier: Mod
  * rows of [perRow] (the web app shows five themes as 3 + 2).
  */
 @Composable
-fun <T> ChoiceRow(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit, modifier: Modifier = Modifier, perRow: Int = 4) {
+fun <T> ChoiceRow(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit, modifier: Modifier = Modifier, perRow: Int = 4, follow: Float? = null) {
     val c = LocalColors.current
     val haptics = LocalHaptics.current
     val reduced = LocalReducedMotion.current
@@ -196,6 +196,8 @@ fun <T> ChoiceRow(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> 
             val target = row.indexOfFirst { it.first == selected }
             val x = remember { androidx.compose.animation.core.Animatable(target.coerceAtLeast(0).toFloat()) }
             val shown = remember { androidx.compose.animation.core.Animatable(if (target >= 0) 1f else 0f) }
+            // While a swipe drives the key, remember where it is, so it settles from there.
+            LaunchedEffect(follow) { if (follow != null && target >= 0) x.snapTo(follow.coerceIn(0f, (cells - 1).toFloat())) }
             LaunchedEffect(target) {
                 if (target >= 0) {
                     if (shown.value < 0.05f || reduced) x.snapTo(target.toFloat())
@@ -205,10 +207,11 @@ fun <T> ChoiceRow(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> 
             }
             Row(
                 Modifier.fillMaxWidth().drawBehind {
-                    val a = shown.value
+                    // [follow]: a position between keys (a swipe in progress) that the key tracks exactly.
+                    val a = if (follow != null) 1f else shown.value
                     if (a <= 0f) return@drawBehind
                     val w = size.width / cells
-                    val left = w * x.value
+                    val left = w * (follow?.coerceIn(0f, (cells - 1).toFloat()) ?: x.value)
                     val r = androidx.compose.ui.geometry.CornerRadius(6.dp.toPx())
                     drawRoundRect(c.keyEdge.copy(alpha = a), topLeft = Offset(left, 1.dp.toPx()), size = androidx.compose.ui.geometry.Size(w, size.height), cornerRadius = r)
                     drawRoundRect(c.panel.copy(alpha = a), topLeft = Offset(left, 0f), size = androidx.compose.ui.geometry.Size(w, size.height), cornerRadius = r)

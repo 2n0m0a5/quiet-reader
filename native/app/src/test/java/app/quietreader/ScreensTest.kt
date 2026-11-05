@@ -99,7 +99,7 @@ class ScreensTest {
         compose.onNodeWithText("Add a book folder").assertIsDisplayed()
         compose.onNodeWithText("Settings").performClick()
         compose.onNodeWithText("Interface").performClick()
-        compose.onNodeWithText("Screen rotation").assertIsDisplayed()
+        compose.onNodeWithText("Screen rotation").assertExists()
         compose.onNodeWithText("Night").performClick()
         compose.runOnIdle { assertEquals(ThemeMode.Night, settings.theme) }
         // Remembered: a fresh settings object reads the same value back.

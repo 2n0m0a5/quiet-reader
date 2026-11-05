@@ -65,7 +65,8 @@ class Tip(val key: String, val title: String, val text: String, val tab: Tab? = 
 /** The app's tour (7 tips). */
 val appTour = listOf(
     Tip("add", "Add books", "EPUB, MOBI, AZW3, FB2, PDF, Word, comics… Or use “Open with Quiet” from Telegram or your files.", Tab.Library),
-    Tip("shelf", "Your books", "Tap a cover to read. Hold one to select several: status, collections, tags, remove.", Tab.Library),
+    Tip("shelf", "Your books", "Tap a cover to read. Hold one to select several. Swipe left or right for Reading, Want, Done and Series.", Tab.Library),
+    Tip("now", "Now reading", "Your book, one tap away. Swipe it sideways for your other books, down to tuck it away; hold it for more.", Tab.Library),
     Tip("menu", "Library options", "Sort, group, collections, duplicates, book folders and Recently deleted.", Tab.Library),
     Tip("tab-notes", "Notes", "Highlights, notes, quotes and bookmarks from every book, in one place.", Tab.Library),
     Tip("tab-stats", "Stats", "Your reading time today and this week, your streak and your goals.", Tab.Library),
@@ -138,6 +139,12 @@ class Release(val version: String, val items: List<String>, val era: String? = n
 
 /** Quiet's whole story, newest first: from one HTML file to the native Android app. */
 val whatsNew = listOf(
+    Release("0.5.0 L8.3", listOf(
+        "Swipe left or right in the library for All, Reading, Want, Done and Series; the key follows your finger",
+        "Now reading: your book floats above the tabs, one tap away. Swipe it sideways for your other books, down to tuck it away, hold for more",
+        "The bar is frosted glass; choose where it shows and how solid it is in Settings → Interface",
+        "It slides away while you scroll down and comes back as you scroll up",
+    ), era = "The native Android app"),
     Release("0.5.0 L8.2", listOf(
         "Books grow out of their cover when you open them, and shrink back into it when you close them",
         "The back swipe drags pages and books away with your finger; change your mind and they spring back",
@@ -145,7 +152,7 @@ val whatsNew = listOf(
         "Scroll mode: the page stretches at a chapter’s end; pull, feel the click, let go for the next chapter",
         "Tabs glide, choices slide, covers sink under your finger, lists reflow, numbers count up",
         "Tap the tab you’re on to glide back to the top",
-    ), era = "The native Android app"),
+    )),
     Release("0.5.0 L8.1", listOf(
         "The curl folds the book’s page only, in Quiet’s page colour (no white box from the book)",
         "Every tap vibrates the same way, on phones where it was faint or missing",

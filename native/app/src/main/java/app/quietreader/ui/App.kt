@@ -49,6 +49,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import dev.chrisbanes.haze.hazeSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.luminance
@@ -104,7 +106,13 @@ class AppState(tab: Tab = Tab.Library, page: SettingsPage = SettingsPage.Home) {
     /** The book being read, if any. */
     var openBookId by mutableStateOf<String?>(null)
     var openNote: app.quietreader.data.Note? = null
-    fun open(id: String, note: app.quietreader.data.Note? = null) { openNote = note; openBookId = id }
+    /** [from]: which remembered place the book grows out of (a cover's id, or "now" for the Now reading bar). */
+    fun open(id: String, note: app.quietreader.data.Note? = null, from: String? = null) { openNote = note; openFrom = from; openBookId = id }
+    var openFrom: String? = null
+    /** The Now reading bar: tucked away by a swipe down (until a book is opened), or out of the way while you scroll. */
+    var nowTucked by mutableStateOf(false)
+    var nowScrolledAway by mutableStateOf(false)
+    var nowMenu by mutableStateOf<String?>(null)
     /** Where each book's cover was last seen on screen (window pixels): a book opens out of it. */
     val coverBounds = HashMap<String, androidx.compose.ui.geometry.Rect>()
     /** Counts taps on the tab you're already on: its screen glides back to the top. */
@@ -193,8 +201,15 @@ fun QuietApp(settings: QuietSettings, state: AppState = remember { AppState() })
     Box(Modifier.fillMaxSize().background(c.bg)) {
         Column(Modifier.fillMaxSize()) {
             TopBar(state, settings)
-            Box(Modifier.weight(1f).fillMaxWidth()) {
+            val barShown = nowBarShown(state)
+            val barScroll = remember { nowBarScroll(state) { settings.nowBarAutoHide } }
+            LaunchedEffect(state.tab) { state.nowScrolledAway = false }
+            // What's behind the bar is blurred into frosted glass (the screen is the glass's source).
+            val glass = dev.chrisbanes.haze.rememberHazeState()
+            Box(Modifier.weight(1f).fillMaxWidth().nestedScroll(barScroll)) {
+              CompositionLocalProvider(LocalNowRoom provides if (barShown) NowBarRoom else 0.dp, LocalGlass provides glass) {
                 AnimatedContent(
+                    modifier = Modifier.hazeSource(glass),
                     targetState = state.tab,
                     transitionSpec = { sideways(forward = targetState.ordinal > initialState.ordinal, reduced) },
                     label = "tab",
@@ -205,6 +220,11 @@ fun QuietApp(settings: QuietSettings, state: AppState = remember { AppState() })
                         Tab.Stats -> CompositionLocalProvider(LocalAppState provides state) { StatsScreen() }
                         Tab.Settings -> SettingsScreen(state, settings)
                     }
+                }
+              }
+                // The book you're reading, one tap away, floating above the tabs.
+                CompositionLocalProvider(LocalGlass provides glass) {
+                    NowReadingBar(state, Modifier.align(Alignment.BottomCenter).padding(horizontal = 10.dp, vertical = 8.dp))
                 }
             }
             TabBar(state)
@@ -251,7 +271,9 @@ fun QuietApp(settings: QuietSettings, state: AppState = remember { AppState() })
             ) { state.confirmRestore = null; restore() }
         }
         // Messages sit above the tab bar (and above a book's bottom bar).
-        ToastHost(state, Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.navigationBars).padding(bottom = 76.dp))
+        val barUp = nowBarShown(state) && !(settings.nowBarAutoHide && state.nowScrolledAway)
+        val toastLift by androidx.compose.animation.core.animateDpAsState(if (barUp) 76.dp + NowBarRoom else 76.dp, glide(), label = "toast-lift")
+        ToastHost(state, Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.navigationBars).padding(bottom = toastLift))
     }
 }
 
@@ -443,16 +465,18 @@ private fun BookStage(state: AppState, book: app.quietreader.data.Book?, reduced
     val grow = androidx.compose.animation.core.spring<Float>(dampingRatio = 0.92f, stiffness = 260f)
     LaunchedEffect(book?.id) {
         if (book != null) {
-            from = state.coverBounds[book.id]
+            from = state.coverBounds[state.openFrom ?: book.id] ?: state.coverBounds[book.id]
             shown = book
             if (reduced) open.snapTo(1f) else { open.snapTo(0f); open.animateTo(1f, grow) }
         } else if (shown != null) {
             val id = shown!!.id
             if (!swipe.finishedBySwipe && !reduced) {
-                from = state.coverBounds[id] // where its cover is now (the library may have moved)
+                from = state.coverBounds[state.openFrom ?: id] ?: state.coverBounds[id] // where its cover is now (the library may have moved)
                 open.animateTo(0f, androidx.compose.animation.core.spring(dampingRatio = 1f, stiffness = 380f))
             }
             shown = null
+            state.openFrom = null
+            state.nowTucked = false // the Now reading bar comes back after reading
             swipe.reset()
         }
     }
