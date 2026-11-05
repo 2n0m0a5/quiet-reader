@@ -14,7 +14,7 @@ import app.quietreader.data.Fonts
 object PageScripts {
     const val BRIDGE = "QuietPage"
 
-    fun script(bionic: Boolean, fontFamily: String?, scroll: Boolean = false): String = """
+    fun script(bionic: Boolean, fontFamily: String?, scroll: Boolean = false, accent: String = "#D9622B"): String = """
 (function(){
   var Q = window.__quiet || (window.__quiet = {});
   // One sheet of paper: Quiet's page colour shows through a book's own white page (some books
@@ -86,7 +86,7 @@ object PageScripts {
   Q.scroll = $scroll;
   if (!Q.pull) {
     Q.pull = true;
-    var startY = null, atEnd = false, atStart = false, armed = false, dir = 0, can = { next: false, prev: false }, tip = null;
+    var startY = null, atEnd = false, atStart = false, armed = false, dir = 0, can = { next: false, prev: false }, titles = { next: '', prev: '' }, tip = null;
     var se = function(){ return document.scrollingElement || document.documentElement; };
     var limit = function(){ return Math.min(window.innerHeight * 0.14, 110); };
     var band = function(d){ var h = window.innerHeight; return (1 - 1 / (Math.abs(d) * 0.55 / h + 1)) * h * (d < 0 ? -1 : 1); };
@@ -95,15 +95,40 @@ object PageScripts {
       b.style.transition = glide ? 'transform .5s cubic-bezier(.2,.9,.25,1)' : 'none';
       b.style.transform = y ? 'translateY(' + y + 'px)' : '';
     };
+    // The sign in the gap the page leaves: a ring that fills as you pull, an arrow, and where you're
+    // going ("Next: Chapter 10"). At the point of no return the ring turns orange and the arrow pops.
     var label = function(){
       if (!tip) {
+        var ink = getComputedStyle(document.body || document.documentElement).color;
         tip = document.createElement('div');
         tip.id = 'quiet-pull';
-        tip.setAttribute('style', 'position:fixed;left:0;right:0;text-align:center;font:500 13px/1.3 system-ui,sans-serif;letter-spacing:.02em;pointer-events:none;opacity:0;z-index:2147483647;transition:opacity .15s');
-        tip.style.color = getComputedStyle(document.body || document.documentElement).color;
+        tip.setAttribute('style', 'position:fixed;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;opacity:0;z-index:2147483647;color:' + ink + ';font:500 13px/1.3 system-ui,sans-serif;letter-spacing:.02em;transition:opacity .12s');
+        tip.innerHTML = '<svg width="34" height="34" viewBox="0 0 34 34" style="overflow:visible">' +
+          '<circle cx="17" cy="17" r="15" fill="none" stroke="currentColor" stroke-opacity=".18" stroke-width="2"/>' +
+          '<circle id="quiet-ring" cx="17" cy="17" r="15" fill="none" stroke="$accent" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="94.25" stroke-dashoffset="94.25" transform="rotate(-90 17 17)"/>' +
+          '<g id="quiet-arrow" style="transform-origin:17px 17px;transition:transform .32s cubic-bezier(.3,1.7,.5,1)"><path d="M17 24V10M11 16l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g></svg>' +
+          '<div id="quiet-pull-text"></div><div id="quiet-pull-title" style="font:italic 400 13px/1.3 Georgia,serif;opacity:.7;max-width:80vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>';
         document.documentElement.appendChild(tip);
       }
       return tip;
+    };
+    var show = function(y, past, title){
+      var t = label(), h = Math.abs(y), lim = limit();
+      document.getElementById('quiet-pull-text').textContent = (past ? 'Release for the ' : 'Pull for the ') + (dir > 0 ? 'next chapter' : 'previous chapter');
+      document.getElementById('quiet-pull-title').textContent = title || '';
+      // Sit in the middle of the gap the page leaves.
+      var gap = Math.max(12, (h - t.offsetHeight) / 2);
+      t.style.top = dir < 0 ? gap + 'px' : 'auto';
+      t.style.bottom = dir > 0 ? gap + 'px' : 'auto';
+      t.style.flexDirection = dir > 0 ? 'column' : 'column-reverse';
+      t.style.opacity = Math.min(1, h / (lim * 0.5));
+      var ring = document.getElementById('quiet-ring');
+      ring.setAttribute('stroke-dashoffset', String(94.25 * (1 - Math.min(1, h / (lim * 0.62)))));
+      ring.setAttribute('fill', past ? '$accent' : 'none');
+      ring.setAttribute('fill-opacity', past ? '.16' : '0');
+      var arrow = document.getElementById('quiet-arrow');
+      arrow.style.transform = (dir < 0 ? 'rotate(180deg) ' : '') + (past ? 'scale(1.25)' : 'scale(1)');
+      arrow.style.color = past ? '$accent' : '';
     };
     var hide = function(){ if (tip) tip.style.opacity = 0; };
     document.addEventListener('touchstart', function(e){
@@ -113,7 +138,10 @@ object PageScripts {
       atEnd = s.scrollTop + window.innerHeight >= s.scrollHeight - 4;
       atStart = s.scrollTop <= 4;
       armed = false; dir = 0;
-      if (atEnd || atStart) { can.next = !!$BRIDGE.can(true); can.prev = !!$BRIDGE.can(false); }
+      if (atEnd || atStart) {
+        can.next = !!$BRIDGE.can(true); can.prev = !!$BRIDGE.can(false);
+        titles.next = can.next ? String($BRIDGE.title(true) || '') : ''; titles.prev = can.prev ? String($BRIDGE.title(false) || '') : '';
+      }
     }, { passive: true });
     document.addEventListener('touchmove', function(e){
       if (startY === null || !Q.scroll || e.touches.length !== 1) return;
@@ -124,11 +152,8 @@ object PageScripts {
       setY(y, false);
       var has = dir > 0 ? can.next : can.prev;
       if (!has) return;
-      var past = Math.abs(dy) > limit(), t = label();
-      t.textContent = (past ? 'Release for the ' : 'Pull for the ') + (dir > 0 ? 'next chapter' : 'previous chapter');
-      t.style.top = dir < 0 ? '18px' : 'auto';
-      t.style.bottom = dir > 0 ? '24px' : 'auto';
-      t.style.opacity = Math.min(1, Math.abs(y) / (limit() * 0.6)) * (past ? 1 : 0.55);
+      var past = Math.abs(dy) > limit();
+      show(y, past, dir > 0 ? titles.next : titles.prev);
       if (past !== armed) { armed = past; if (past) $BRIDGE.tick(); }
     }, { passive: true });
     var end = function(go){
@@ -154,6 +179,7 @@ object PageScripts {
 class PageBridge(
     private val fonts: Fonts, private val onImage: (String) -> Unit, private val onChapter: (Boolean) -> Unit,
     private val canGo: (Boolean) -> Boolean = { true }, private val onTick: () -> Unit = {},
+    private val titleOf: (Boolean) -> String = { "" },
 ) {
     @JavascriptInterface fun openImage(url: String) = onImage(url)
     @JavascriptInterface fun chapter(forward: Boolean) = onChapter(forward)
@@ -161,6 +187,8 @@ class PageBridge(
     @JavascriptInterface fun can(forward: Boolean): Boolean = runCatching { canGo(forward) }.getOrDefault(false)
     /** The click as a pull passes the point of no return. */
     @JavascriptInterface fun tick() = onTick()
+    /** The name of the chapter after (or before) this one, for the pull's sign. */
+    @JavascriptInterface fun title(forward: Boolean): String = runCatching { titleOf(forward) }.getOrDefault("")
 
     /** The @font-face rules for a family you added, with the files inlined. */
     @JavascriptInterface fun font(family: String): String = fonts.all().filter { it.family == family }.joinToString("\n") { f ->

@@ -90,7 +90,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
+        // Android's splash hands over at once to Quiet's own opening (ui/Intro.kt), which starts
+        // with the same knob in the same place.
+        installSplashScreen().setOnExitAnimationListener { it.remove() }
         // The book view is a fragment made with Readium's factory; Android can't rebuild it on its
         // own after the app was closed in the background, so start clean (the book reopens from the library).
         super.onCreate(null)
@@ -106,6 +108,7 @@ class MainActivity : AppCompatActivity() {
         state.scanFolders = { scanFolders(always = true) }
         handle(intent)
         followLibraryForSafetyCopy()
+        if (savedInstanceState == null && state.openBookId == null) { state.introProgress = 0f; state.intro = true }
         // First time: the tour. After an update: What's new, once.
         val version = "${BuildConfig.QUIET_VERSION} ${BuildConfig.QUIET_LAYER}"
         if (!quiet.settings.tourDone) state.startTour()

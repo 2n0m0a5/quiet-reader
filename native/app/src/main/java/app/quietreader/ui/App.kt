@@ -49,6 +49,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import dev.chrisbanes.haze.hazeSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.graphicsLayer
@@ -115,6 +117,9 @@ class AppState(tab: Tab = Tab.Library, page: SettingsPage = SettingsPage.Home) {
     var nowMenu by mutableStateOf<String?>(null)
     /** Where each book's cover was last seen on screen (window pixels): a book opens out of it. */
     val coverBounds = HashMap<String, androidx.compose.ui.geometry.Rect>()
+    /** Opening the app: the knob intro runs over it (set by MainActivity on a fresh start). */
+    var intro by mutableStateOf(false)
+    var introProgress by androidx.compose.runtime.mutableFloatStateOf(1f) // 1: done
     /** Counts taps on the tab you're already on: its screen glides back to the top. */
     var reselect by mutableIntStateOf(0)
 
@@ -199,7 +204,15 @@ fun QuietApp(settings: QuietSettings, state: AppState = remember { AppState() })
     }
 
     Box(Modifier.fillMaxSize().background(c.bg)) {
-        Column(Modifier.fillMaxSize()) {
+        // The app rises in behind the intro's knob.
+        Column(Modifier.fillMaxSize().graphicsLayer {
+            if (state.intro) {
+                val p = state.introProgress
+                val s = 0.96f + 0.04f * p
+                scaleX = s; scaleY = s; alpha = p.coerceIn(0f, 1f)
+                translationY = (1f - p) * 24.dp.toPx()
+            }
+        }) {
             TopBar(state, settings)
             val barShown = nowBarShown(state)
             val barScroll = remember { nowBarScroll(state) { settings.nowBarAutoHide } }
@@ -270,6 +283,8 @@ fun QuietApp(settings: QuietSettings, state: AppState = remember { AppState() })
                 onDismiss = { state.confirmRestore = null },
             ) { state.confirmRestore = null; restore() }
         }
+        // Opening the app: the knob intro, over everything.
+        if (state.intro) Intro(state) { state.intro = false; state.introProgress = 1f }
         // Messages sit above the tab bar (and above a book's bottom bar).
         val barUp = nowBarShown(state) && !(settings.nowBarAutoHide && state.nowScrolledAway)
         val toastLift by androidx.compose.animation.core.animateDpAsState(if (barUp) 76.dp + NowBarRoom else 76.dp, glide(), label = "toast-lift")
@@ -313,9 +328,12 @@ private fun TopBar(state: AppState, settings: QuietSettings) {
                     .semantics { contentDescription = "Quiet" },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                KnobMark(Modifier.size(22.dp))
+                // While the intro flies the knob here, this one waits unseen (the intro lands on it).
+                val brandAlpha = if (state.intro) 0f else 1f
+                KnobMark(Modifier.size(22.dp).onGloballyPositioned { state.coverBounds["brand-knob"] = it.boundsInWindow() }.graphicsLayer { alpha = brandAlpha })
                 Spacer(Modifier.width(8.dp))
-                Text("quiet", style = Type.brand.copy(color = c.text))
+                Text("quiet", style = Type.brand.copy(color = c.text),
+                    modifier = Modifier.onGloballyPositioned { state.coverBounds["brand-word"] = it.boundsInWindow() }.graphicsLayer { alpha = brandAlpha })
             }
         } else {
             Text(state.tab.label, style = Type.screenTitle.copy(color = c.text),
@@ -445,7 +463,7 @@ internal fun pageTransition(reduced: Boolean, deeper: Boolean): androidx.compose
         .apply { targetContentZIndex = 1f }
     else (slideInHorizontally(move) { -it * 3 / 10 } + fadeIn(tween(300), initialAlpha = 0.6f))
         .togetherWith(slideOutHorizontally(move) { it })
-        .apply { targetContentZIndex = -1f }
+        .apply { targetContentZIndex = 0f }
 }
 
 /**

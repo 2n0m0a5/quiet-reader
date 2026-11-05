@@ -5,6 +5,7 @@ import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ActivityScenario
@@ -52,6 +53,14 @@ class MotionTest {
         }
     }
 
+    @Test fun openingTheApp() {
+        app()
+        compose.mainClock.autoAdvance = false
+        ActivityScenario.launch(MainActivity::class.java).use {
+            for (i in 1..8) frame("intro-$i", 110)
+        }
+    }
+
     @Test fun settingsPushAndChoiceSlide() {
         app()
         ActivityScenario.launch(MainActivity::class.java).use {
@@ -64,6 +73,9 @@ class MotionTest {
             compose.mainClock.advanceTimeBy(1500)
             compose.onNodeWithText("Night").performClick()
             frame("choice-a", 50); frame("choice-b", 100); frame("choice-c", 200)
+            compose.mainClock.advanceTimeBy(1500)
+            compose.onNodeWithContentDescription("Back").performClick()
+            for (i in 1..12) frame("pop-$i", 40)
         }
     }
 }

@@ -139,12 +139,18 @@ class Release(val version: String, val items: List<String>, val era: String? = n
 
 /** Quiet's whole story, newest first: from one HTML file to the native Android app. */
 val whatsNew = listOf(
+    Release("0.5.0 L8.4", listOf(
+        "Opening Quiet: the knob turns on, its dot lights, and it flies into the top bar as the library rises in",
+        "Pulling to the next chapter: a ring fills as you pull, the arrow pops at the point of no return, and the sign names the chapter",
+        "Chapter changes no longer jump or flicker",
+        "Leaving a Settings page (or a book) with the back swipe no longer flashes the old page",
+    ), era = "The native Android app"),
     Release("0.5.0 L8.3", listOf(
         "Swipe left or right in the library for All, Reading, Want, Done and Series; the key follows your finger",
         "Now reading: your book floats above the tabs, one tap away. Swipe it sideways for your other books, down to tuck it away, hold for more",
         "The bar is frosted glass; choose where it shows and how solid it is in Settings → Interface",
         "It slides away while you scroll down and comes back as you scroll up",
-    ), era = "The native Android app"),
+    )),
     Release("0.5.0 L8.2", listOf(
         "Books grow out of their cover when you open them, and shrink back into it when you close them",
         "The back swipe drags pages and books away with your finger; change your mind and they spring back",

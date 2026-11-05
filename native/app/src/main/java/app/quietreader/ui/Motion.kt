@@ -109,13 +109,14 @@ fun rememberBackSwipe(enabled: Boolean, onBack: () -> Unit): BackSwipe {
         val anim = androidx.compose.animation.core.Animatable(0f)
         try {
             events.collect { e -> swipe.progress = e.progress; anim.snapTo(e.progress) }
-            // Let go: finish the move from where the finger left it, then go back.
+            // Let go: finish the move from where the finger left it, then go back. The screen
+            // that left stays out of sight (progress 1) until the screen behind has taken its
+            // place; the owner calls reset() then. Snapping it back first flashed the old screen.
             if (swipe.progress > 0f && !reduced) {
                 anim.animateTo(1f, spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = 900f)) { swipe.progress = value }
                 swipe.finishedBySwipe = true
-            }
+            } else swipe.progress = 0f
             latest.value()
-            swipe.progress = 0f
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             // Changed your mind: spring back into place.
             kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {

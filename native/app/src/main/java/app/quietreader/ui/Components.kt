@@ -379,13 +379,21 @@ fun SwitchRow(
 
 /** The knob mark: a volume knob turned all the way down, with the orange zero dot. */
 @Composable
-fun KnobMark(modifier: Modifier = Modifier) {
-    val c = LocalColors.current
+fun KnobMark(modifier: Modifier = Modifier, turn: Float = 0f, glow: Float = 0f, colors: QuietColors = LocalColors.current) {
+    val c = colors
     Canvas(modifier) {
         val u = size.minDimension / 64f
+        // The orange dot can light up (the radio is on): a soft halo around it.
+        if (glow > 0f) drawCircle(
+            androidx.compose.ui.graphics.Brush.radialGradient(listOf(c.accent.copy(alpha = 0.45f * glow), c.accent.copy(alpha = 0f)), Offset(11 * u, 53 * u), 14 * u),
+            14 * u, Offset(11 * u, 53 * u),
+        )
         drawCircle(c.panel, 25 * u, Offset(32 * u, 32 * u))
         drawCircle(c.keyEdge, 25 * u, Offset(32 * u, 32 * u), style = Stroke(3 * u))
-        drawLine(c.text, Offset(32 * u, 32 * u), Offset(19 * u, 45 * u), 6 * u, StrokeCap.Round)
+        // The pointer: turned all the way down (toward the dot), or [turn] degrees clockwise from there.
+        val a = Math.toRadians(135.0 - turn)
+        val r = 18.4f * u
+        drawLine(c.text, Offset(32 * u, 32 * u), Offset(32 * u + (kotlin.math.cos(a) * r).toFloat(), 32 * u + (kotlin.math.sin(a) * r).toFloat()), 6 * u, StrokeCap.Round)
         drawCircle(c.accent, 4 * u, Offset(11 * u, 53 * u))
     }
 }

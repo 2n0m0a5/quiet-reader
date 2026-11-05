@@ -87,14 +87,14 @@ class L8Test {
     @Test fun whatsNewAndReport() {
         ErrorLog.keep("Import failed", RuntimeException("boom"))
         val report = buildReport(quiet, ApplicationProvider.getApplicationContext())
-        assertTrue(report, report.contains("Quiet 0.5.0 L8.3"))
+        assertTrue(report, report.contains("Quiet 0.5.0 L8.4"))
         assertTrue(report, report.contains("boom"))
         val state = AppState(Tab.Settings, SettingsPage.About)
         show(state)
         compose.onNodeWithText("The tour").assertExists()
         shot("day-about-l8")
         compose.onNodeWithText("What’s new").performClick()
-        compose.onNodeWithText("Swipe left or right in the library", substring = true).assertExists()
+        compose.onNodeWithText("Opening Quiet: the knob turns on", substring = true).assertExists()
         shot("day-whats-new")
         compose.runOnIdle { state.guide = "report" }
         compose.onNodeWithText("Quiet has no servers", substring = true).assertExists()

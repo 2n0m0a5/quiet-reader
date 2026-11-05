@@ -215,9 +215,13 @@ private fun EpubView(book: Book, publication: Publication, state: ReaderState) {
         state.bookmarkHere = quiet.notes.forBook(book.id).any { it.isBookmark && sameSpot(it, nav.currentLocator.value) }
     }
 
+    val accentHex = String.format("#%06X", colors.accent.toArgb() and 0xFFFFFF)
+    var chapterLoaded by remember { mutableStateOf<kotlinx.coroutines.CompletableDeferred<Unit>?>(null) }
     // Pictures, bionic reading and your font, in each page (PageScripts.kt).
     suspend fun runPageScript() {
-        navigator?.evaluateJavascript(PageScripts.script(settings.bionic, settings.customFont, settings.flow == Flow.Scrolled))
+        navigator?.evaluateJavascript(PageScripts.script(settings.bionic, settings.customFont, settings.flow == Flow.Scrolled, accentHex))
+        // Quiet's rubber band is the only stretch: Android's own overscroll fought it.
+        navigator?.view?.let { calmOverscroll(it) }
     }
     LaunchedEffect(navigator, settings.bionic, settings.customFont, settings.flow) { runPageScript() }
     // Pulling into the next chapter (scroll mode): this chapter glides up and away, the next one
@@ -225,16 +229,23 @@ private fun EpubView(book: Book, publication: Publication, state: ReaderState) {
     val shift = remember { androidx.compose.animation.core.Animatable(0f) } // fraction of the height
     val reducedNow = app.quietreader.ui.LocalReducedMotion.current
     suspend fun glideToChapter(nav: EpubNavigatorFragment, publication: Publication, forward: Boolean) {
+        if (shift.isRunning) return
         val sign = if (forward) -1f else 1f
         val before = nav.currentLocator.value.href
-        if (!reducedNow) shift.animateTo(0.22f * sign, androidx.compose.animation.core.tween(200, easing = androidx.compose.animation.core.FastOutLinearInEasing))
+        val loaded = kotlinx.coroutines.CompletableDeferred<Unit>().also { chapterLoaded = it }
+        // Out: this chapter lifts away and fades out completely, so the swap can't be seen.
+        if (!reducedNow) shift.animateTo(0.2f * sign, androidx.compose.animation.core.tween(190, easing = androidx.compose.animation.core.FastOutLinearInEasing))
         chapterStep(nav, publication, forward)
-        // Wait (briefly) for the new chapter to be there before bringing it in.
-        kotlinx.coroutines.withTimeoutOrNull(900) { nav.currentLocator.first { it.href != before } }
-        kotlinx.coroutines.delay(60)
+        // Wait until the new chapter is really there and laid out (going back, Readium also
+        // scrolls it to its end after loading) before bringing it in.
+        kotlinx.coroutines.withTimeoutOrNull(1500) { nav.currentLocator.first { it.href != before } }
+        kotlinx.coroutines.withTimeoutOrNull(800) { loaded.await() }
+        kotlinx.coroutines.delay(if (forward) 90 else 240)
+        chapterLoaded = null
         if (reducedNow) { shift.snapTo(0f); return }
-        shift.snapTo(-0.18f * sign)
-        shift.animateTo(0f, androidx.compose.animation.core.spring(dampingRatio = 1f, stiffness = 300f))
+        // In: the new chapter rises from the side you pulled toward.
+        shift.snapTo(-0.14f * sign)
+        shift.animateTo(0f, androidx.compose.animation.core.spring(dampingRatio = 1f, stiffness = 320f))
     }
     LaunchedEffect(navigator) {
         var href: Any? = null
@@ -243,7 +254,7 @@ private fun EpubView(book: Book, publication: Publication, state: ReaderState) {
 
     AndroidView(
         // The chapter glide: the page moves and fades as a whole while the chapter changes underneath.
-        modifier = Modifier.fillMaxSize().graphicsLayer { translationY = shift.value * size.height; alpha = 1f - kotlin.math.abs(shift.value) * 2.2f },
+        modifier = Modifier.fillMaxSize().graphicsLayer { translationY = shift.value * size.height; alpha = (1f - kotlin.math.abs(shift.value) / 0.14f).coerceIn(0f, 1f) },
         factory = { context ->
             FragmentContainerView(context).apply {
                 id = View.generateViewId()
@@ -266,7 +277,7 @@ private fun EpubView(book: Book, publication: Publication, state: ReaderState) {
                             }
                         },
                         paginationListener = object : EpubNavigatorFragment.PaginationListener {
-                            override fun onPageLoaded() { scope.launch { runPageScript() } }
+                            override fun onPageLoaded() { chapterLoaded?.complete(Unit); scope.launch { runPageScript() } }
                         },
                         configuration = EpubNavigatorFragment.Configuration {
                             registerJavascriptInterface(PageScripts.BRIDGE) {
@@ -274,7 +285,8 @@ private fun EpubView(book: Book, publication: Publication, state: ReaderState) {
                                     onImage = { url -> scope.launch { state.image = loadImage(publication, url) } },
                                     onChapter = { forward -> scope.launch { navigator?.let { glideToChapter(it, publication, forward) } } },
                                     canGo = { forward -> navigator?.let { hasChapter(it, publication, forward) } ?: false },
-                                    onTick = { scope.launch { haptics?.tick() } })
+                                    onTick = { scope.launch { haptics?.tick() } },
+                                    titleOf = { forward -> navigator?.let { neighbourTitle(it, publication, state, forward) } ?: "" })
                             }
                             servedAssets = listOf("fonts/.*")
                             decorationTemplates = quietTemplates()
@@ -458,4 +470,22 @@ private fun sameSpot(note: app.quietreader.data.Note, here: Locator): Boolean {
     if (at != null && p != null && at.locations.position != null) return at.locations.position == p
     val t = here.locations.totalProgression ?: return false
     return kotlin.math.abs(note.progress - t) < 0.0015
+}
+
+/** Turns off Android's own overscroll stretch in the book's web views (Quiet draws its own). */
+private fun calmOverscroll(view: View) {
+    if (view is android.webkit.WebView) view.overScrollMode = View.OVER_SCROLL_NEVER
+    if (view is android.view.ViewGroup) for (i in 0 until view.childCount) calmOverscroll(view.getChildAt(i))
+}
+
+/** "Next: Chapter 10 · …": the title of the chapter after (or before) this one, from the contents. */
+private fun neighbourTitle(nav: EpubNavigatorFragment, publication: Publication, state: ReaderState, forward: Boolean): String {
+    val here = nav.currentLocator.value.href.removeFragment()
+    val order = publication.readingOrder
+    val i = order.indexOfFirst { it.url().removeFragment() == here }
+    val link = order.getOrNull(i + if (forward) 1 else -1) ?: return ""
+    val href = link.url().removeFragment().toString()
+    val name = state.contents.firstOrNull { (it.key as? Link)?.url()?.removeFragment()?.toString() == href }?.title
+        ?: link.title.orEmpty()
+    return if (name.isBlank()) "" else (if (forward) "Next: " else "Back to: ") + name
 }

@@ -73,7 +73,11 @@ fun SettingsScreen(state: AppState, settings: QuietSettings) {
     // Back (the swipe from the edge, or the back key): the page follows your finger off to the
     // right, with the page you came from waiting underneath.
     val swipe = rememberBackSwipe(enabled = state.tab == Tab.Settings && state.page != SettingsPage.Home) { state.page = parent }
-    LaunchedEffect(state.page) { swipe.reset() }
+    LaunchedEffect(state.page) {
+        // After a swipe, wait until the page behind has really taken over before letting go of it.
+        if (swipe.finishedBySwipe) { androidx.compose.runtime.withFrameNanos { }; androidx.compose.runtime.withFrameNanos { } }
+        swipe.reset()
+    }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val w = constraints.maxWidth.toFloat()
         if (swipe.active) {

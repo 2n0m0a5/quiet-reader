@@ -31,7 +31,8 @@ maybe the App Store) later. Core message: "a reader should be very simple. Perio
   predictive back swipe (`rememberBackSwipe` in `ui/Motion.kt`) for the book and Settings pages, iOS push, rubber-band chapter pull
   (`reader/PageScripts.kt`, checked in Chromium), tab glide, sliding ChoiceRow, list reflow; TalkBack additions and reader tips removed.
   `MotionTest` saves mid-motion frames. **L8.3**: swipeable shelves (HorizontalPager, `ChoiceRow(follow=)`), the Now reading
-  bar (`ui/NowReading.kt`, Haze frosted glass, settings in Interface; `NowReadingTest`). Next: phone results; the switch only when the owner asks. Calibre is installable here (`apt-get install calibre`) to make MOBI/AZW3 test files. Gotcha: if `processDebugResources` fails, `compileDebugKotlin` prints no `e:` lines, so check the exit code.
+  bar (`ui/NowReading.kt`, Haze frosted glass, settings in Interface; `NowReadingTest`). **L8.4**: knob opening (`ui/Intro.kt`), pull
+  sign with ring/arrow/chapter title, chapter glide waits for layout, no snap-back after back swipe. Next: phone results; the switch only when the owner asks. Calibre is installable here (`apt-get install calibre`) to make MOBI/AZW3 test files. Gotcha: if `processDebugResources` fails, `compileDebugKotlin` prints no `e:` lines, so check the exit code.
   `scripts/check-page-script.cjs` runs the in-page script in Chromium (after the JVM tests). 0.4.x gets bug fixes only. The owner has some 0.4.2 issues to report.
 - **Android 0.4.2 (versionCode 420)** and **iPhone 1.0 (build 1)**, all committed and pushed to
   `main` (last commit `cb20689`). The working tree is clean.
