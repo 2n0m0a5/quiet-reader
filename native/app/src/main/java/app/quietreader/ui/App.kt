@@ -408,7 +408,7 @@ private fun ToastHost(state: AppState, modifier: Modifier = Modifier) {
             action?.let { (label, run) ->
                 Spacer(Modifier.width(10.dp))
                 Text(label, style = Type.rowTitle.copy(color = if (c.isDark) c.accent else c.accentSoft),
-                    modifier = Modifier.clickable { run(); state.hideToast() }.padding(horizontal = 10.dp, vertical = 8.dp))
+                    modifier = Modifier.click { run(); state.hideToast() }.padding(horizontal = 10.dp, vertical = 8.dp))
             }
         }
     }

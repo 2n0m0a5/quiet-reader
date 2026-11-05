@@ -146,15 +146,70 @@ fun CoachMarks(tips: List<Tip>, targets: Map<String, Rect>, index: Int, onNext: 
 
 // ---------- What's new ----------
 
+/** One version in What's new; [era] starts a new part of Quiet's story. */
+class Release(val version: String, val items: List<String>, val era: String? = null)
+
+/** Quiet's whole story, newest first: from one HTML file to the native Android app. */
 val whatsNew = listOf(
-    "0.5.0 L8" to listOf("A short tour (replay it from About)", "What’s new (this)", "Report a problem: you read the report, then send it yourself",
-        "Custom colours for the page", "Screen readers (TalkBack) read every control", "Motion and text size settings finished"),
-    "0.5.0 L7" to listOf("Every format: MOBI, AZW3, FB2, Word, ODT, RTF, Markdown, HTML, Palm, comics", "PDF zoom"),
-    "0.5.0 L6" to listOf("Stats: today’s meter, the week, streak, goals, and five detailed stats", "“You read for 25 min” when you close a book"),
-    "0.5.0 L5" to listOf("Filters, collections, series, sort and group", "Hold a cover to select several", "A page for each book", "Book folders"),
-    "0.5.0 L4" to listOf("Highlights, notes, quotes and bookmarks", "Translate, search in a book", "The Notes tab"),
-    "0.5.0 L3" to listOf("The reader bar: tuning scale and keys", "Curl, footnotes, pictures, bionic reading, the ruler, your fonts"),
-    "0.5.0 L1–L2" to listOf("Read EPUB, PDF and TXT", "Back up and restore, Recently deleted"),
+    Release("0.5.0 L8.1", listOf(
+        "The curl folds the book’s page only, in Quiet’s page colour (no white box from the book)",
+        "Every tap vibrates the same way, on phones where it was faint or missing",
+        "Switches no longer stick out of their card",
+        "What’s new tells the whole story",
+    ), era = "The native Android app"),
+    Release("0.5.0 L8", listOf(
+        "A short tour on the real buttons (replay it from About)",
+        "Tips the first time you open a book",
+        "What’s new: all of Quiet’s story, from the first HTML file",
+        "Report a problem: you read the report, then send it yourself",
+        "Custom page and text colours",
+        "TalkBack reads every control; Motion and text size finished",
+    )),
+    Release("0.5.0 L7", listOf("Every format: MOBI, AZW3, FB2, Word, ODT, RTF, Markdown, HTML, Palm, comics", "PDF zoom: pinch and double-tap")),
+    Release("0.5.0 L6", listOf("Stats: today’s needle meter, the week’s lights, streak, goals, and five detailed stats", "“You read for 25 min” when you close a book")),
+    Release("0.5.0 L5", listOf("Filters, collections, tags, series, sort and group", "Hold a cover to select several, with Undo", "A page for each book", "Book folders")),
+    Release("0.5.0 L4", listOf("Highlights, underline, strikethrough, notes, quotes with owners, bookmarks", "Translate, search in a book", "The Notes tab")),
+    Release("0.5.0 L3", listOf("The reader bar: tuning scale, your four keys, More", "Light, warmth, look and layout, volume keys, clock", "Page curl, footnotes, pictures, bionic reading, the ruler, your fonts")),
+    Release("0.5.0 L1–L2", listOf("Read EPUB, PDF and TXT, in scroll or pages", "Back up and restore (the same file as 0.4.2), safety copy, Recently deleted")),
+    Release("0.5.0 L0", listOf("Quiet rebuilt as a real Android app (Kotlin), no web page inside", "The Radio look, keys that press down, real vibration")),
+
+    Release("iPhone 1.0", listOf("Quiet 0.4.2 on the iPhone: the reader, curl, notes, stats, backups", "Installed with Sideloadly or AltStore"), era = "iPhone"),
+
+    Release("0.4.2", listOf("The page curl follows your finger, like paper; let go early and it settles back"), era = "0.4 · Radio"),
+    Release("0.4.1", listOf("Stats like a radio: a needle meter for today, level lights for the week, three readouts")),
+    Release("0.4.0", listOf(
+        "One design: Radio, after a 1960s radio, with the knob icon",
+        "The reader bar at your thumb, and your own four keys",
+        "Library backup and restore in one file; a safety copy that brings a lost library back",
+        "Book info, Settings in sections, the tour, Report a problem, the Motion setting",
+    )),
+
+    Release("0.3.4", listOf(
+        "A fourth style: Frosty Glass",
+        "Books zoom out of their covers; swipe from the edge to go back",
+        "Page curl; Word, ODT, RTF, Markdown, Palm, HTMLZ; CBR, CB7, CBT comics",
+        "Your own fonts; series",
+    ), era = "0.3 · Styles, notes and stats"),
+    Release("0.3.3", listOf("Five reading stats: your year, when you read, your pace, finished books, book by book", "Motion like iOS: lists stretch, pull for the next chapter, sheets drag down", "Each style moves its own way")),
+    Release("0.3.2", listOf("Two design styles: Quiet Star and Paper (and Old Tashkent)", "A tab bar: Library, Notes, Reading, Settings")),
+    Release("0.3.1", listOf("Book folders: new books show up by themselves", "Quotes have owners", "A second translation service when Google is busy")),
+    Release("0.3.0", listOf(
+        "Themes (Black and Custom), text weight, paragraph spacing, indent, hyphenation",
+        "Warm light, the reading ruler, bionic reading, clock and battery, footnotes, picture zoom",
+        "Tags, ratings, reviews, Want to read, edit details and covers, shelf view, select several, Recently deleted, duplicates",
+        "Underline, strikethrough, quotes, the Notes screen, translate, reading stats, goals and streak",
+    )),
+
+    Release("0.2.0", listOf(
+        "The second Android app: library with covers, search, sort, grid or list, statuses and collections",
+        "Scroll or pages; fonts, size, spacing, margins, alignment, three themes",
+        "Bookmarks, highlights in four colours with notes, search in a book, look up and translate, time left",
+        "Open with Quiet, volume keys turn pages, the screen stays on",
+    ), era = "The beginning"),
+    Release("0.1.0", listOf("Quiet as an Android app (an APK), built by GitHub on every change")),
+    Release("Web app, offline", listOf("Installable from the browser (Add to Home Screen), works without internet, made for phones")),
+    Release("Web app", listOf("Quiet on the web, with a library, published on GitHub Pages")),
+    Release("The first Quiet", listOf("One HTML file that opens an EPUB: a quiet reader with nothing extra")),
 )
 
 @Composable
@@ -164,11 +219,21 @@ fun WhatsNewSheet(onClose: () -> Unit) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp).verticalScroll(rememberScrollState())) {
             Text("What’s new", style = Type.section.copy(color = c.text), modifier = Modifier.asHeading())
             Text("Quiet ${BuildConfig.QUIET_VERSION} · ${BuildConfig.QUIET_LAYER} · native", style = Type.mono.copy(color = c.muted, fontSize = 12.sp))
-            whatsNew.forEachIndexed { i, (version, items) ->
-                Spacer(Modifier.height(16.dp))
-                Text(version, style = Type.rowTitle.copy(color = if (i == 0) c.accentStrong else c.text))
+            whatsNew.forEachIndexed { i, r ->
+                r.era?.let { era ->
+                    Spacer(Modifier.height(if (i == 0) 14.dp else 26.dp))
+                    Text(era.uppercase(), style = Type.overline.copy(color = c.muted), modifier = Modifier.asHeading())
+                    Spacer(Modifier.height(2.dp))
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
+                }
+                Spacer(Modifier.height(12.dp))
+                Text(r.version, style = Type.rowTitle.copy(color = if (i == 0) c.accentStrong else c.text))
                 Spacer(Modifier.height(4.dp))
-                items.forEach { Text("• $it", style = Type.body.copy(color = if (i == 0) c.text else c.muted)) }
+                r.items.forEach { line ->
+                    val style = Type.body.copy(color = if (i == 0) c.text else c.muted)
+                    // A hanging bullet: wrapped lines start under the words, not under the dot.
+                    Row { Text("•", style = style, modifier = Modifier.width(14.dp)); Text(line, style = style, modifier = Modifier.weight(1f)) }
+                }
             }
             Spacer(Modifier.height(18.dp))
             TextKey("Close", onClose, Modifier.fillMaxWidth(), kind = KeyKind.Primary)

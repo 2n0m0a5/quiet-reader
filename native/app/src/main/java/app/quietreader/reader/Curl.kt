@@ -30,6 +30,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalContext
@@ -127,14 +129,13 @@ internal fun DrawScope.drawCurl(page: ImageBitmap, p: Offset, forward: Boolean, 
     }
 }
 
-/** A picture of the window as it is now (the page as you see it). */
-internal suspend fun capture(activity: Activity): ImageBitmap? {
-    val view = activity.window.decorView
-    if (view.width == 0 || view.height == 0) return null
-    val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+/** A picture of the page as you see it: just the reading area ([area], in window pixels). */
+internal suspend fun capture(activity: Activity, area: android.graphics.Rect): ImageBitmap? {
+    if (area.width() <= 0 || area.height() <= 0) return null
+    val bitmap = Bitmap.createBitmap(area.width(), area.height(), Bitmap.Config.ARGB_8888)
     val done = CompletableDeferred<Boolean>()
     runCatching {
-        PixelCopy.request(activity.window, bitmap, { result -> done.complete(result == PixelCopy.SUCCESS) }, Handler(Looper.getMainLooper()))
+        PixelCopy.request(activity.window, area, bitmap, { result -> done.complete(result == PixelCopy.SUCCESS) }, Handler(Looper.getMainLooper()))
     }.onFailure { return null }
     return if (done.await()) bitmap.asImageBitmap() else null
 }
@@ -154,6 +155,8 @@ fun CurlLayer(state: ReaderState, passTap: (Offset) -> Unit) {
     val px = remember { Animatable(0f) }
     val py = remember { Animatable(0f) }
     var busy by remember { mutableStateOf(false) }
+    // Where the page is on the screen: the curl copies and folds exactly this, nothing around it.
+    var area by remember { mutableStateOf(android.graphics.Rect()) }
 
     // The point the corner is pulled to, for a finger at x (forward: under the finger; back: mirrored).
     fun target(x: Float, w: Float) = if (forward) x else x * 2 - w
@@ -175,7 +178,7 @@ fun CurlLayer(state: ReaderState, passTap: (Offset) -> Unit) {
         if (busy) return
         busy = true
         forward = goForward
-        val shot = capture(activity) ?: run { busy = false; state.turn(goForward); return }
+        val shot = capture(activity, area) ?: run { busy = false; state.turn(goForward); return }
         if (!state.jump(goForward)) { busy = false; return }
         picture = shot
         if (goForward) { px.snapTo(w); py.snapTo(h * 0.96f); px.animateTo(-w, tween(520)) }
@@ -183,10 +186,12 @@ fun CurlLayer(state: ReaderState, passTap: (Offset) -> Unit) {
         picture = null
         busy = false
     }
-    state.curlTurn = { goForward -> scope.launch { sweep(goForward, activity.window.decorView.width.toFloat(), activity.window.decorView.height.toFloat()) } }
+    state.curlTurn = { goForward -> scope.launch { sweep(goForward, area.width().toFloat(), area.height().toFloat()) } }
 
     Canvas(
-        Modifier.fillMaxSize().pointerInput(Unit) {
+        Modifier.fillMaxSize()
+            .onGloballyPositioned { val b = it.boundsInWindow(); area = android.graphics.Rect(b.left.toInt(), b.top.toInt(), b.right.toInt(), b.bottom.toInt()) }
+            .pointerInput(Unit) {
             val w = size.width.toFloat(); val h = size.height.toFloat()
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false)
@@ -205,7 +210,7 @@ fun CurlLayer(state: ReaderState, passTap: (Offset) -> Unit) {
                         busy = true
                         forward = change.position.x < start.x
                         scope.launch {
-                            val shot = capture(activity)
+                            val shot = capture(activity, area)
                             if (shot == null || !state.jump(forward)) { busy = false; dragging = false; return@launch }
                             picture = shot
                             px.snapTo(target(last.x, w)); py.snapTo(last.y.coerceIn(h * 0.3f, h))

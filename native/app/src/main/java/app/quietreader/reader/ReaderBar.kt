@@ -1,5 +1,6 @@
 package app.quietreader.reader
 
+import app.quietreader.ui.click
 import app.quietreader.ui.asHeading
 import android.app.Activity
 import android.content.Context
@@ -311,14 +312,14 @@ fun MoreSheet(pdf: Boolean, open: (String?) -> Unit) {
             Labelled("Theme") { ChoiceRow(ThemeMode.entries.map { it to it.label }, settings.theme, { settings.theme = it }) }
             Labelled("Reading ruler") { ChoiceRow(app.quietreader.Ruler.entries.map { it to it.label }, settings.ruler, { settings.ruler = it }, perRow = 3) }
             if (!pdf) {
-                SwitchRow(settings.bionic, { settings.bionic = it }) {
-                    Text("Bionic reading", style = Type.label.copy(color = c.text), modifier = Modifier.weight(1f).padding(vertical = 10.dp))
+                SwitchRow(settings.bionic, { settings.bionic = it }, padding = PaddingValues(vertical = 10.dp)) {
+                    Text("Bionic reading", style = Type.label.copy(color = c.text), modifier = Modifier.weight(1f))
                 }
                 Spacer(Modifier.height(16.dp))
             }
             Column(Modifier.fillMaxWidth().background(c.panel, KeyShape).border(1.dp, c.line, KeyShape)) {
                 @Composable fun row(label: String, icon: ImageVector, layer: String? = null, go: () -> Unit) {
-                    Row(Modifier.fillMaxWidth().clickable(enabled = layer == null) { go() }.padding(14.dp).alpha(if (layer == null) 1f else 0.55f),
+                    Row(Modifier.fillMaxWidth().click(enabled = layer == null) { go() }.padding(14.dp).alpha(if (layer == null) 1f else 0.55f),
                         verticalAlignment = Alignment.CenterVertically) {
                         Icon(icon, null, Modifier.size(18.dp), tint = c.text)
                         Spacer(Modifier.width(12.dp))
@@ -391,8 +392,8 @@ fun LayoutSheet(pdf: Boolean, onClose: () -> Unit) {
             Labelled("First-line indent", if (settings.indent < 0) "book’s" else "%.1f em".format(settings.indent / 10.0)) {
                 Dial((settings.indent + 1).toFloat(), { settings.indent = it.roundToInt() - 1 }, 0f..31f, 1f, "First-line indent", "", marks = listOf(0f))
             }
-            SwitchRow(settings.hyphenate, { settings.hyphenate = it }) {
-                Column(Modifier.weight(1f).padding(vertical = 6.dp)) {
+            SwitchRow(settings.hyphenate, { settings.hyphenate = it }, padding = PaddingValues(vertical = 6.dp)) {
+                Column(Modifier.weight(1f)) {
                     Text("Hyphenation", style = Type.label.copy(color = c.text))
                     Text("Off: whole words move to the next line.", style = Type.hint.copy(color = c.muted))
                 }

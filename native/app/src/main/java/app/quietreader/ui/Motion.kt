@@ -48,11 +48,20 @@ open class Haptics(context: Context, private val enabled: () -> Boolean) {
     protected open fun perform(confirm: Boolean) {
         val v = vibrator ?: return
         if (!v.hasVibrator()) return
-        runCatching {
-            if (Build.VERSION.SDK_INT >= 29)
-                v.vibrate(VibrationEffect.createPredefined(if (confirm) VibrationEffect.EFFECT_HEAVY_CLICK else VibrationEffect.EFFECT_CLICK))
-            else v.vibrate(VibrationEffect.createOneShot(if (confirm) 20 else 10, VibrationEffect.DEFAULT_AMPLITUDE))
-        }
+        runCatching { v.vibrate(effect(v, confirm)) }
+    }
+
+    /**
+     * Android's own click when the phone says it has one; otherwise a short pulse of our own.
+     * Many phones (Xiaomi among them) answer "unknown" for the click, and then play it so
+     * faintly, or not at all, that taps seem to vibrate only sometimes.
+     */
+    private fun effect(v: Vibrator, confirm: Boolean): VibrationEffect {
+        val click = if (confirm) VibrationEffect.EFFECT_HEAVY_CLICK else VibrationEffect.EFFECT_CLICK
+        val supported = Build.VERSION.SDK_INT >= 30 && v.areAllEffectsSupported(click) == Vibrator.VIBRATION_EFFECT_SUPPORT_YES
+        if (supported) return VibrationEffect.createPredefined(click)
+        val amplitude = if (!v.hasAmplitudeControl()) VibrationEffect.DEFAULT_AMPLITUDE else if (confirm) 255 else 180
+        return VibrationEffect.createOneShot(if (confirm) 28L else 14L, amplitude)
     }
 }
 

@@ -115,7 +115,7 @@ private fun LibraryMenu(state: AppState, close: () -> Unit) {
             Spacer(Modifier.height(16.dp))
             Column(Modifier.fillMaxWidth().background(c.panel, KeyShape).border(1.dp, c.line, KeyShape)) {
                 @Composable fun row(label: String, go: () -> Unit) {
-                    Row(Modifier.fillMaxWidth().clickable { go() }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().click { go() }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(label, style = Type.body.copy(color = c.text), modifier = Modifier.weight(1f))
                         Icon(Icons.ChevronRight, null, Modifier.size(16.dp), tint = c.muted)
                     }

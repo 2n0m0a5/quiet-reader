@@ -17,6 +17,14 @@ object PageScripts {
     fun script(bionic: Boolean, fontFamily: String?, scroll: Boolean = false): String = """
 (function(){
   var Q = window.__quiet || (window.__quiet = {});
+  // One sheet of paper: Quiet's page colour shows through a book's own white page (some books
+  // paint the body white with margins, a white card on the page, and white under Night text).
+  if (!Q.paper) {
+    Q.paper = true;
+    var st = document.createElement('style');
+    st.textContent = 'body, body > div, body > section, body > article { background-color: transparent !important; background-image: none !important; }';
+    (document.head || document.documentElement).appendChild(st);
+  }
   // Pictures
   if (!Q.images) {
     Q.images = true;

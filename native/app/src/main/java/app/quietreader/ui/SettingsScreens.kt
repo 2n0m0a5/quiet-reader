@@ -231,7 +231,7 @@ private fun InterfacePage(state: AppState, settings: QuietSettings) {
             }
             Divider()
             val c = LocalColors.current
-            SwitchRow(settings.haptics, { on -> setVibration(on) }, Modifier.padding(16.dp)) {
+            SwitchRow(settings.haptics, { on -> setVibration(on) }, tick = false) {
                 Column(Modifier.weight(1f)) {
                     Text("Vibration", style = Type.label.copy(color = c.text, fontWeight = FontWeight.Normal))
                     Spacer(Modifier.height(2.dp))
@@ -438,7 +438,7 @@ private fun AboutPage(state: AppState) {
                             append(" — $what")
                         },
                         style = Type.body.copy(color = c.muted),
-                        modifier = Modifier.clickable { runCatching { uri.openUri(url) } }.padding(vertical = 3.dp),
+                        modifier = Modifier.click(role = null) { runCatching { uri.openUri(url) } }.padding(vertical = 3.dp),
                     )
                 }
                 Spacer(Modifier.height(16.dp))
@@ -692,7 +692,7 @@ private fun ReaderPage(state: AppState, settings: QuietSettings) {
 private fun ToggleRow(title: String, hint: String, on: Boolean, set: (Boolean) -> Unit) {
     val c = LocalColors.current
     SwitchRow(on, set) {
-        Column(Modifier.weight(1f).padding(16.dp)) {
+        Column(Modifier.weight(1f)) {
             Text(title, style = Type.label.copy(color = c.text, fontWeight = FontWeight.Normal))
             Spacer(Modifier.height(2.dp))
             Text(hint, style = Type.hint.copy(color = c.muted))

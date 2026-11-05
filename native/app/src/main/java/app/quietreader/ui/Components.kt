@@ -55,6 +55,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -71,6 +72,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
+
+/** A tap target with Quiet's light click (every tap in the app vibrates the same way). */
+fun Modifier.click(enabled: Boolean = true, role: Role? = Role.Button, onClick: () -> Unit): Modifier = composed {
+    val haptics = LocalHaptics.current
+    clickable(enabled = enabled, role = role) { haptics?.tick(); onClick() }
+}
 
 /** A title TalkBack can jump between (swipe by headings). */
 fun Modifier.asHeading(): Modifier = semantics { heading() }
@@ -313,6 +320,7 @@ fun Dial(
 @Composable
 fun Switch(checked: Boolean, onChange: (Boolean) -> Unit, label: String, modifier: Modifier = Modifier, standalone: Boolean = true) {
     val c = LocalColors.current
+    val haptics = LocalHaptics.current
     val x by animateDpAsState(if (checked) 18.dp else 0.dp, glide(Springs.QUICK), label = "switch")
     val track by animateColorAsState(if (checked) c.accent else c.panelDeep, glide(), label = "track")
     Box(
@@ -320,7 +328,7 @@ fun Switch(checked: Boolean, onChange: (Boolean) -> Unit, label: String, modifie
             .size(width = 42.dp, height = 24.dp)
             .background(track, RoundedCornerShape(12.dp))
             .border(1.dp, if (checked) c.accent else c.keyEdge, RoundedCornerShape(12.dp))
-            .then(if (standalone) Modifier.semantics { contentDescription = label }.toggleable(checked, role = Role.Switch, onValueChange = onChange) else Modifier)
+            .then(if (standalone) Modifier.semantics { contentDescription = label }.toggleable(checked, role = Role.Switch) { on -> haptics?.tick(); onChange(on) } else Modifier)
             .padding(2.dp),
     ) {
         Box(Modifier.offset(x = x).size(20.dp).background(c.panel, RoundedCornerShape(10.dp)).border(1.dp, c.keyEdge, RoundedCornerShape(10.dp)))
@@ -332,9 +340,14 @@ fun Switch(checked: Boolean, onChange: (Boolean) -> Unit, label: String, modifie
  * "title, hint, on/off, switch".
  */
 @Composable
-fun SwitchRow(checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
+fun SwitchRow(
+    checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier,
+    padding: PaddingValues = PaddingValues(16.dp), tick: Boolean = true, content: @Composable RowScope.() -> Unit,
+) {
+    val haptics = LocalHaptics.current
     Row(
-        modifier.fillMaxWidth().toggleable(checked, role = Role.Switch) { onChange(it) },
+        // The padding is inside, so the whole row (edges too) is the tap area and the switch keeps its margin.
+        modifier.fillMaxWidth().toggleable(checked, role = Role.Switch) { on -> if (tick) haptics?.tick(); onChange(on) }.padding(padding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         content()

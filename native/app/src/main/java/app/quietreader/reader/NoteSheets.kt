@@ -1,5 +1,6 @@
 package app.quietreader.reader
 
+import app.quietreader.ui.click
 import app.quietreader.ui.asHeading
 import android.content.ContentValues
 import android.content.Context
@@ -16,6 +17,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -142,7 +144,7 @@ fun NoteEditor(start: Note, book: Book?, focusNote: Boolean = false, onDeleted: 
                     Box(
                         Modifier.size(34.dp).background(hex(col.value), RoundedCornerShape(17.dp))
                             .border(if (on) 3.dp else 1.dp, if (on) c.text else c.line, RoundedCornerShape(17.dp))
-                            .clickable { quiet.settings.lastColor = col.value; save(note.with { put("color", col.value) }) },
+                            .click { quiet.settings.lastColor = col.value; save(note.with { put("color", col.value) }) },
                     )
                 }
             }
@@ -152,8 +154,8 @@ fun NoteEditor(start: Note, book: Book?, focusNote: Boolean = false, onDeleted: 
             Spacer(Modifier.height(14.dp))
             Field(text, { text = it }, "Your note…", Modifier.focusRequester(focus))
             Spacer(Modifier.height(12.dp))
-            SwitchRow(note.quote, { on -> save(note.with { put("quote", on) }) }) {
-                Column(Modifier.weight(1f).padding(vertical = 6.dp)) {
+            SwitchRow(note.quote, { on -> save(note.with { put("quote", on) }) }, padding = PaddingValues(vertical = 6.dp)) {
+                Column(Modifier.weight(1f)) {
                     Text("Save to Quotes", style = Type.label.copy(color = c.text))
                     Text("Quotes are kept apart from highlights, with who says them.", style = Type.hint.copy(color = c.muted))
                 }
@@ -256,7 +258,8 @@ fun BookNotesSheet(state: ReaderState, book: Book, onClose: () -> Unit) {
             )
             LazyColumn(Modifier.fillMaxWidth().heightIn(max = 520.dp)) {
                 items(shown, key = { it.id }) { n ->
-                    NoteRow(n, null) { onClose(); state.markBack(); state.goToNote(n) }
+                    val haptics = app.quietreader.ui.LocalHaptics.current
+                    NoteRow(n, null) { haptics?.tick(); onClose(); state.markBack(); state.goToNote(n) }
                     Divider()
                 }
             }
@@ -330,7 +333,7 @@ fun SearchSheet(state: ReaderState, onClose: () -> Unit) {
             if (hits.isNotEmpty()) Text("${hits.size}${if (hits.size >= 300) "+" else ""} found", style = Type.mono.copy(color = c.muted, fontSize = 12.sp))
             LazyColumn(Modifier.fillMaxWidth().heightIn(max = 480.dp)) {
                 items(hits) { h ->
-                    Column(Modifier.fillMaxWidth().clickable { onClose(); state.markBack(); state.showHit(h) }.padding(vertical = 10.dp)) {
+                    Column(Modifier.fillMaxWidth().click { onClose(); state.markBack(); state.showHit(h) }.padding(vertical = 10.dp)) {
                         if (h.label.isNotBlank()) Text(h.label, style = Type.hint.copy(color = c.muted), maxLines = 1)
                         Text(buildAnnotatedString {
                             append("…" + h.before.takeLast(60))
