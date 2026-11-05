@@ -49,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
@@ -57,7 +58,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -105,6 +105,10 @@ class AppState(tab: Tab = Tab.Library, page: SettingsPage = SettingsPage.Home) {
     var openBookId by mutableStateOf<String?>(null)
     var openNote: app.quietreader.data.Note? = null
     fun open(id: String, note: app.quietreader.data.Note? = null) { openNote = note; openBookId = id }
+    /** Where each book's cover was last seen on screen (window pixels): a book opens out of it. */
+    val coverBounds = HashMap<String, androidx.compose.ui.geometry.Rect>()
+    /** Counts taps on the tab you're already on: its screen glides back to the top. */
+    var reselect by mutableIntStateOf(0)
 
     // Things only the activity can do (system pickers), set by MainActivity.
     var pickBooks: () -> Unit = {}
@@ -179,9 +183,6 @@ fun QuietApp(settings: QuietSettings, state: AppState = remember { AppState() })
     val reduced = LocalReducedMotion.current
 
     // Back: a Settings page goes back to Settings, a tab goes back to Library.
-    BackHandler(enabled = state.tab == Tab.Settings && state.page != SettingsPage.Home) {
-        state.page = if (state.page == SettingsPage.Trash) SettingsPage.Files else SettingsPage.Home
-    }
     BackHandler(enabled = state.tab == Tab.Library && (state.selecting || state.searching)) {
         state.selecting = false; state.selected = emptySet(); state.searching = false; state.query = ""
     }
@@ -195,33 +196,23 @@ fun QuietApp(settings: QuietSettings, state: AppState = remember { AppState() })
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 AnimatedContent(
                     targetState = state.tab,
-                    transitionSpec = {
-                        if (reduced) fadeIn(snap()) togetherWith fadeOut(snap())
-                        else fadeIn(tween(180, delayMillis = 40)) togetherWith fadeOut(tween(120))
-                    },
+                    transitionSpec = { sideways(forward = targetState.ordinal > initialState.ordinal, reduced) },
                     label = "tab",
                 ) { tab ->
                     when (tab) {
                         Tab.Library -> LibraryScreen(state)
                         Tab.Notes -> NotesTab(state)
-                        Tab.Stats -> StatsScreen()
+                        Tab.Stats -> CompositionLocalProvider(LocalAppState provides state) { StatsScreen() }
                         Tab.Settings -> SettingsScreen(state, settings)
                     }
                 }
             }
             TabBar(state)
         }
-        // A book opens over everything, and closes back to where you were.
+        // A book opens out of its cover over everything, and closes back into it.
         val quiet = LocalQuiet.current
         val book = remember(state.openBookId) { state.openBookId?.let { quiet.library.get(it) } }
-        AnimatedVisibility(
-            visible = book != null,
-            enter = if (reduced) fadeIn(snap()) else fadeIn(tween(220)) + androidx.compose.animation.scaleIn(tween(260), initialScale = 0.96f),
-            exit = if (reduced) fadeOut(snap()) else fadeOut(tween(180)) + androidx.compose.animation.scaleOut(tween(200), targetScale = 0.98f),
-        ) {
-            var shown by remember { mutableStateOf(book) }
-            if (book != null) shown = book
-            shown?.let { b ->
+        BookStage(state, book, reduced) { b ->
                 if (b.format == app.quietreader.data.BookFormat.Other) {
                     LaunchedEffect(b.id) {
                         state.toast("Quiet can’t open ${b.fileName.substringAfterLast('.').uppercase()} files. It’s safe in your library.")
@@ -230,7 +221,6 @@ fun QuietApp(settings: QuietSettings, state: AppState = remember { AppState() })
                 } else app.quietreader.reader.ReaderScreen(b, remember(b.id) { state.openNote.also { state.openNote = null } }, onInfo = { state.details = b.id },
                     onSessionEnd = { s -> if (s >= 60) state.toast("You read for ${app.quietreader.data.StatsMath.time(s)}.") },
                     onGoal = { state.toast("Today’s goal is done. Well read.") }) { state.openBookId = null }
-            }
         }
         // A book's page and the library's sheets, above everything (also from the reader's More).
         LibrarySheets(state)
@@ -307,7 +297,7 @@ private fun TopBar(state: AppState, settings: QuietSettings) {
             }
         } else {
             Text(state.tab.label, style = Type.screenTitle.copy(color = c.text),
-                modifier = Modifier.asHeading().background(c.bg, RoundedCornerShape(6.dp)).padding(end = 8.dp))
+                modifier = Modifier.background(c.bg, RoundedCornerShape(6.dp)).padding(end = 8.dp))
         }
         Spacer(Modifier.weight(1f))
         if (state.tab == Tab.Library) {
@@ -318,9 +308,7 @@ private fun TopBar(state: AppState, settings: QuietSettings) {
             Spacer(Modifier.width(8.dp))
         }
         val dark = c.isDark
-        IconKey(if (dark) Icons.Sun else Icons.Moon, if (dark) "Switch to Day" else "Switch to Night", modifier = Modifier.tourTarget(state.targets, "theme"), onClick = {
-            settings.theme = if (dark) ThemeMode.Day else ThemeMode.Night
-        }, size = 42.dp)
+        ThemeKey(dark, Modifier.tourTarget(state.targets, "theme")) { settings.theme = if (dark) ThemeMode.Day else ThemeMode.Night }
     }
 }
 
@@ -351,6 +339,14 @@ private fun TabBar(state: AppState) {
                 tabs.forEach { tab ->
                     val on = tab == state.tab
                     val ink by animateColorAsState(if (on) c.text else c.muted, glide(), label = "tab-ink")
+                    // The chosen tab's icon dips and springs back, like a key answering your finger.
+                    val bounce = remember { androidx.compose.animation.core.Animatable(1f) }
+                    val reducedTab = LocalReducedMotion.current
+                    var settled by remember { mutableStateOf(false) } // not on the first frame
+                    LaunchedEffect(on) {
+                        if (on && settled && !reducedTab) { bounce.animateTo(0.8f, tween(70)); bounce.animateTo(1f, pop()) }
+                        settled = true
+                    }
                     Column(
                         Modifier
                             .weight(1f)
@@ -360,6 +356,8 @@ private fun TabBar(state: AppState) {
                             .clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Tab) {
                                 if (tab == state.tab) {
                                     if (tab == Tab.Settings) state.page = SettingsPage.Home
+                                    haptics?.tick()
+                                    state.reselect++
                                     return@clickable
                                 }
                                 haptics?.tick()
@@ -369,7 +367,7 @@ private fun TabBar(state: AppState) {
                         verticalArrangement = Arrangement.Center,
                     ) {
                         Spacer(Modifier.height(4.dp))
-                        Icon(tab.icon, null, Modifier.size(20.dp), tint = ink)
+                        Icon(tab.icon, null, Modifier.size(20.dp).graphicsLayer { scaleX = bounce.value; scaleY = bounce.value }, tint = ink)
                         Spacer(Modifier.height(4.dp))
                         Text(tab.label, style = Type.tab.copy(color = ink, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal), maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Clip)
                     }
@@ -396,12 +394,12 @@ private fun ToastHost(state: AppState, modifier: Modifier = Modifier) {
     AnimatedVisibility(
         visible = state.toast != null,
         modifier = modifier.padding(16.dp),
-        enter = if (reduced) fadeIn(snap()) else fadeIn(tween(200)) + slideInVertically(tween(200)) { it / 3 },
-        exit = if (reduced) fadeOut(snap()) else fadeOut(tween(200)) + slideOutVertically(tween(200)) { it / 3 },
+        // Messages spring up from the bottom and settle (a slight overshoot, like iOS banners).
+        enter = if (reduced) fadeIn(snap()) else fadeIn(tween(160)) + slideInVertically(androidx.compose.animation.core.spring(dampingRatio = 0.78f, stiffness = 420f)) { it } +
+            androidx.compose.animation.scaleIn(androidx.compose.animation.core.spring(dampingRatio = 0.78f, stiffness = 420f), initialScale = 0.9f),
+        exit = if (reduced) fadeOut(snap()) else fadeOut(tween(160)) + slideOutVertically(tween(200)) { it / 2 } + androidx.compose.animation.scaleOut(tween(200), targetScale = 0.95f),
     ) {
-        // TalkBack reads each message as it appears.
-        Row(Modifier.semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite }
-            .background(c.text, KeyShape).padding(start = 16.dp, end = if (action != null) 6.dp else 16.dp, top = 4.dp, bottom = 4.dp),
+        Row(Modifier.background(c.text, KeyShape).padding(start = 16.dp, end = if (action != null) 6.dp else 16.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically) {
             Text(shown.orEmpty(), style = Type.body.copy(color = c.panel, fontSize = Type.key.fontSize),
                 modifier = Modifier.padding(vertical = 6.dp).weight(1f, fill = false))
@@ -415,9 +413,106 @@ private fun ToastHost(state: AppState, modifier: Modifier = Modifier) {
 }
 
 /** Slides a Settings page in from the right, and back out to the right. */
-internal fun pageTransition(reduced: Boolean, deeper: Boolean) =
-    if (reduced) fadeIn(snap()) togetherWith fadeOut(snap())
-    else if (deeper) (slideInHorizontally(androidx.compose.animation.core.spring(stiffness = Springs.MOVE)) { it } + fadeIn(tween(120)))
-        .togetherWith(slideOutHorizontally(androidx.compose.animation.core.spring(stiffness = Springs.MOVE)) { -it / 4 } + fadeOut(tween(160)))
-    else (slideInHorizontally(androidx.compose.animation.core.spring(stiffness = Springs.MOVE)) { -it / 4 } + fadeIn(tween(160)))
-        .togetherWith(slideOutHorizontally(androidx.compose.animation.core.spring(stiffness = Springs.MOVE)) { it } + fadeOut(tween(120)))
+internal fun pageTransition(reduced: Boolean, deeper: Boolean): androidx.compose.animation.ContentTransform {
+    if (reduced) return fadeIn(snap()) togetherWith fadeOut(snap())
+    // iOS's push: the new page slides in whole over the old one, which drifts a third of the way
+    // left and dims; going back is the same in reverse, the leaving page on top.
+    val move = androidx.compose.animation.core.spring<androidx.compose.ui.unit.IntOffset>(dampingRatio = 1f, stiffness = 420f)
+    return if (deeper) (slideInHorizontally(move) { it })
+        .togetherWith(slideOutHorizontally(move) { -it * 3 / 10 } + fadeOut(tween(300), targetAlpha = 0.6f))
+        .apply { targetContentZIndex = 1f }
+    else (slideInHorizontally(move) { -it * 3 / 10 } + fadeIn(tween(300), initialAlpha = 0.6f))
+        .togetherWith(slideOutHorizontally(move) { it })
+        .apply { targetContentZIndex = -1f }
+}
+
+/**
+ * The open book, staged like iOS Books: it grows out of the cover you tapped into the full page
+ * (the cover fades into the first page as it grows), and shrinks back into that cover when you
+ * close it. The back swipe drags the page off to the right with your finger, the library waiting
+ * underneath; let go early and it springs back. Without a cover on screen (opened from Notes) it
+ * rises from slightly smaller, fading in.
+ */
+@Composable
+private fun BookStage(state: AppState, book: app.quietreader.data.Book?, reduced: Boolean, content: @Composable (app.quietreader.data.Book) -> Unit) {
+    val c = LocalColors.current
+    val open = remember { androidx.compose.animation.core.Animatable(0f) } // 0: at the cover, 1: the full page
+    var shown by remember { mutableStateOf<app.quietreader.data.Book?>(null) }
+    var from by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    val swipe = rememberBackSwipe(enabled = book != null) { state.openBookId = null }
+    val grow = androidx.compose.animation.core.spring<Float>(dampingRatio = 0.92f, stiffness = 260f)
+    LaunchedEffect(book?.id) {
+        if (book != null) {
+            from = state.coverBounds[book.id]
+            shown = book
+            if (reduced) open.snapTo(1f) else { open.snapTo(0f); open.animateTo(1f, grow) }
+        } else if (shown != null) {
+            val id = shown!!.id
+            if (!swipe.finishedBySwipe && !reduced) {
+                from = state.coverBounds[id] // where its cover is now (the library may have moved)
+                open.animateTo(0f, androidx.compose.animation.core.spring(dampingRatio = 1f, stiffness = 380f))
+            }
+            shown = null
+            swipe.reset()
+        }
+    }
+    val b = shown ?: return
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val w = constraints.maxWidth.toFloat()
+        val h = constraints.maxHeight.toFloat()
+        val r = from
+        val p = open.value
+        // While the page is dragged away, the library underneath is dimmed less and less.
+        if (swipe.active || p < 1f) {
+            val dim = if (swipe.active) 1f - swipe.progress else p
+            Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.18f * dim)))
+        }
+        Box(
+            Modifier.fillMaxSize().graphicsLayer {
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0f)
+                if (r != null && r.width > 0f) {
+                    scaleX = r.width / w + (1f - r.width / w) * p
+                    scaleY = r.height / h + (1f - r.height / h) * p
+                    translationX = r.left * (1f - p)
+                    translationY = r.top * (1f - p)
+                } else {
+                    val s = 0.92f + 0.08f * p
+                    scaleX = s; scaleY = s
+                    translationX = w * (1f - s) / 2f; translationY = h * (1f - s) / 2f
+                    alpha = p.coerceIn(0f, 1f)
+                }
+                translationX += swipe.progress * w
+                shadowElevation = if (swipe.active) 20.dp.toPx() else 0f
+                clip = p < 1f
+                shape = RoundedCornerShape(((1f - p) * 24f).coerceAtLeast(0f).dp)
+            },
+        ) {
+            content(b)
+            // The cover, fading into the page during the first part of the growth.
+            val coverAlpha = if (r == null) 0f else (1f - p * 2.2f).coerceIn(0f, 1f)
+            if (coverAlpha > 0f) Cover(b, Modifier.fillMaxSize().graphicsLayer { alpha = coverAlpha }, fill = true)
+        }
+    }
+}
+
+/** The Day/Night key: the moon and sun swap with a turn, as if the knob were rotated. */
+@Composable
+private fun ThemeKey(dark: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val reduced = LocalReducedMotion.current
+    val turn = remember { androidx.compose.animation.core.Animatable(0f) }
+    var settled by remember { mutableStateOf(false) }
+    LaunchedEffect(dark) {
+        if (settled && !reduced) { turn.snapTo(-110f); turn.animateTo(0f, pop()) }
+        settled = true
+    }
+    Key(onClick, modifier, padding = androidx.compose.foundation.layout.PaddingValues(0.dp), contentDescription = if (dark) "Switch to Day" else "Switch to Night") {
+        Box(Modifier.size(42.dp), contentAlignment = Alignment.Center) {
+            androidx.compose.animation.Crossfade(dark, animationSpec = tween(if (reduced) 0 else 180), label = "theme-icon") { d ->
+                Icon(if (d) Icons.Sun else Icons.Moon, null, Modifier.size(18.dp).graphicsLayer { rotationZ = turn.value; val s = 1f + turn.value / 600f; scaleX = s; scaleY = s })
+            }
+        }
+    }
+}
+
+/** The app's state, for screens that only need a little of it (Stats glides to the top). */
+val LocalAppState = androidx.compose.runtime.staticCompositionLocalOf<AppState?> { null }

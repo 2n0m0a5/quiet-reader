@@ -45,8 +45,6 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.IntOffset
@@ -64,7 +62,7 @@ import kotlin.math.roundToInt
 /** A tip that points at [key] (a control marked with [tourTarget]); [anywhere] tips need no control. */
 class Tip(val key: String, val title: String, val text: String, val tab: Tab? = null, val anywhere: Boolean = false)
 
-/** The app's tour (7 tips). The reader has its own tips the first time a book opens. */
+/** The app's tour (7 tips). */
 val appTour = listOf(
     Tip("add", "Add books", "EPUB, MOBI, AZW3, FB2, PDF, Word, comics… Or use “Open with Quiet” from Telegram or your files.", Tab.Library),
     Tip("shelf", "Your books", "Tap a cover to read. Hold one to select several: status, collections, tags, remove.", Tab.Library),
@@ -73,17 +71,6 @@ val appTour = listOf(
     Tip("tab-stats", "Stats", "Your reading time today and this week, your streak and your goals.", Tab.Library),
     Tip("theme", "Day and Night", "One tap, any time. More themes in Settings → Interface.", Tab.Library),
     Tip("tab-settings", "Keep a backup", "Settings → Files & storage → Back up library: one file with everything. Keep it somewhere safe.", Tab.Library),
-)
-
-/** The reader's tips, the first time a book opens. */
-val readerTips = listOf(
-    Tip("page", "Turning pages", "Tap the left or right edge, or swipe. Tap the middle to hide or show these bars.", anywhere = true),
-    Tip("scale", "Your place", "The orange needle is where you are; each mark is a chapter. Tap or drag to jump. “Back to…” takes you back."),
-    Tip("key-contents", "Contents", "Chapters, and the one you’re in."),
-    Tip("key-text", "Text", "Size, font, spacing, and Scroll or Pages."),
-    Tip("key-light", "Light", "Brightness and warm light, just for reading."),
-    Tip("hold", "Highlights and notes", "Hold a word, then drag to choose more: highlight, note, quote, copy, translate.", anywhere = true),
-    Tip("more", "More", "Notes, search, go to page, bookmarks, and Customize bar to choose your four keys."),
 )
 
 /** Marks a control the tour can point at. */
@@ -128,11 +115,11 @@ fun CoachMarks(tips: List<Tip>, targets: Map<String, Rect>, index: Int, onNext: 
         Column(
             place.fillMaxWidth().padding(horizontal = 20.dp)
                 .background(c.bg, CardShape).border(1.dp, c.keyEdge, CardShape).padding(16.dp)
-                .semantics { liveRegion = LiveRegionMode.Polite },
+ ,
         ) {
             Text("${index + 1} / ${tips.size}", style = Type.mono.copy(color = c.muted, fontSize = 11.sp))
             Spacer(Modifier.height(4.dp))
-            Text(tip.title, style = Type.section.copy(color = c.text, fontSize = 17.sp), modifier = Modifier.asHeading())
+            Text(tip.title, style = Type.section.copy(color = c.text, fontSize = 17.sp))
             Spacer(Modifier.height(4.dp))
             Text(tip.text, style = Type.body.copy(color = c.text))
             Spacer(Modifier.height(12.dp))
@@ -151,19 +138,26 @@ class Release(val version: String, val items: List<String>, val era: String? = n
 
 /** Quiet's whole story, newest first: from one HTML file to the native Android app. */
 val whatsNew = listOf(
+    Release("0.5.0 L8.2", listOf(
+        "Books grow out of their cover when you open them, and shrink back into it when you close them",
+        "The back swipe drags pages and books away with your finger; change your mind and they spring back",
+        "Settings pages slide in over each other, like iPhone",
+        "Scroll mode: the page stretches at a chapter’s end; pull, feel the click, let go for the next chapter",
+        "Tabs glide, choices slide, covers sink under your finger, lists reflow, numbers count up",
+        "Tap the tab you’re on to glide back to the top",
+    ), era = "The native Android app"),
     Release("0.5.0 L8.1", listOf(
         "The curl folds the book’s page only, in Quiet’s page colour (no white box from the book)",
         "Every tap vibrates the same way, on phones where it was faint or missing",
         "Switches no longer stick out of their card",
         "What’s new tells the whole story",
-    ), era = "The native Android app"),
+    )),
     Release("0.5.0 L8", listOf(
         "A short tour on the real buttons (replay it from About)",
-        "Tips the first time you open a book",
         "What’s new: all of Quiet’s story, from the first HTML file",
         "Report a problem: you read the report, then send it yourself",
         "Custom page and text colours",
-        "TalkBack reads every control; Motion and text size finished",
+        "Motion and text size finished",
     )),
     Release("0.5.0 L7", listOf("Every format: MOBI, AZW3, FB2, Word, ODT, RTF, Markdown, HTML, Palm, comics", "PDF zoom: pinch and double-tap")),
     Release("0.5.0 L6", listOf("Stats: today’s needle meter, the week’s lights, streak, goals, and five detailed stats", "“You read for 25 min” when you close a book")),
@@ -217,12 +211,12 @@ fun WhatsNewSheet(onClose: () -> Unit) {
     val c = LocalColors.current
     Sheet(onClose) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp).verticalScroll(rememberScrollState())) {
-            Text("What’s new", style = Type.section.copy(color = c.text), modifier = Modifier.asHeading())
+            Text("What’s new", style = Type.section.copy(color = c.text))
             Text("Quiet ${BuildConfig.QUIET_VERSION} · ${BuildConfig.QUIET_LAYER} · native", style = Type.mono.copy(color = c.muted, fontSize = 12.sp))
             whatsNew.forEachIndexed { i, r ->
                 r.era?.let { era ->
                     Spacer(Modifier.height(if (i == 0) 14.dp else 26.dp))
-                    Text(era.uppercase(), style = Type.overline.copy(color = c.muted), modifier = Modifier.asHeading())
+                    Text(era.uppercase(), style = Type.overline.copy(color = c.muted))
                     Spacer(Modifier.height(2.dp))
                     Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
                 }
@@ -276,7 +270,7 @@ fun ReportSheet(onClose: () -> Unit) {
     fun open(uri: String) = runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uri))) }
     Sheet(onClose) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp).verticalScroll(rememberScrollState())) {
-            Text("Report a problem", style = Type.section.copy(color = c.text), modifier = Modifier.asHeading())
+            Text("Report a problem", style = Type.section.copy(color = c.text))
             Spacer(Modifier.height(4.dp))
             Text("Quiet has no servers: read the report, then send it yourself, to whoever helps you with Quiet. It holds no books or notes.",
                 style = Type.hint.copy(color = c.muted))

@@ -27,7 +27,10 @@ maybe the App Store) later. Core message: "a reader should be very simple. Perio
   Recently deleted and Notes. **L7** (every format) built and sent. **L8** (tour, reader tips, What's new, Report a problem, About,
   custom theme, Motion, large text, TalkBack) built and sent, *without* the switch (the owner wants the Capacitor app kept
   for now). **L8.1** fixed the owner's L8 findings (curl area and white book pages, taps that
-  didn't vibrate, switch margin, full-history What's new; reader tips proven by `FlowTest`). Next: phone results; the switch only when the owner asks. Calibre is installable here (`apt-get install calibre`) to make MOBI/AZW3 test files. Gotcha: if `processDebugResources` fails, `compileDebugKotlin` prints no `e:` lines, so check the exit code.
+  didn't vibrate, switch margin, full-history What's new; reader tips proven by `FlowTest`). **L8.2** (motion, owner's request): book opens from its cover (`BookStage` in `ui/App.kt`),
+  predictive back swipe (`rememberBackSwipe` in `ui/Motion.kt`) for the book and Settings pages, iOS push, rubber-band chapter pull
+  (`reader/PageScripts.kt`, checked in Chromium), tab glide, sliding ChoiceRow, list reflow; TalkBack additions and reader tips removed.
+  `MotionTest` saves mid-motion frames. Next: phone results; the switch only when the owner asks. Calibre is installable here (`apt-get install calibre`) to make MOBI/AZW3 test files. Gotcha: if `processDebugResources` fails, `compileDebugKotlin` prints no `e:` lines, so check the exit code.
   `scripts/check-page-script.cjs` runs the in-page script in Chromium (after the JVM tests). 0.4.x gets bug fixes only. The owner has some 0.4.2 issues to report.
 - **Android 0.4.2 (versionCode 420)** and **iPhone 1.0 (build 1)**, all committed and pushed to
   `main` (last commit `cb20689`). The working tree is clean.

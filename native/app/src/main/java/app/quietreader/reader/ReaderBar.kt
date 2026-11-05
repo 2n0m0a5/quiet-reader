@@ -1,7 +1,6 @@
 package app.quietreader.reader
 
 import app.quietreader.ui.click
-import app.quietreader.ui.asHeading
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -75,10 +74,6 @@ import app.quietreader.ReaderKey
 import app.quietreader.ThemeMode
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.semantics.progressBarRangeInfo
-import androidx.compose.ui.semantics.setProgress
-import app.quietreader.ui.tourTarget
 import app.quietreader.ui.ChoiceRow
 import app.quietreader.ui.Dial
 import app.quietreader.ui.Divider
@@ -130,8 +125,8 @@ fun BottomBar(state: ReaderState, modifier: Modifier, onKey: (ReaderKey?) -> Uni
     AnimatedVisibility(
         visible = state.barsShown,
         modifier = modifier,
-        enter = if (reduced) fadeIn(snap()) else fadeIn(tween(180)) + slideInVertically(tween(220)) { it },
-        exit = if (reduced) fadeOut(snap()) else fadeOut(tween(160)) + slideOutVertically(tween(200)) { it },
+        enter = if (reduced) fadeIn(snap()) else fadeIn(tween(180)) + slideInVertically(androidx.compose.animation.core.spring(dampingRatio = 1f, stiffness = 520f)) { it },
+        exit = if (reduced) fadeOut(snap()) else fadeOut(tween(160)) + slideOutVertically(androidx.compose.animation.core.spring(dampingRatio = 1f, stiffness = 520f)) { it },
     ) {
         Column(
             Modifier.fillMaxWidth().background(c.panelDeep).hairline(c.line, top = true)
@@ -142,7 +137,7 @@ fun BottomBar(state: ReaderState, modifier: Modifier, onKey: (ReaderKey?) -> Uni
                     TextKey("‹ Back to $label", { back(); state.backTo = null })
                 }
             }
-            TuningScale(state, Modifier.tourTarget(state.targets, "scale"))
+            TuningScale(state)
             Row(Modifier.fillMaxWidth().padding(top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(state.pageLabel.ifBlank { "${(state.progress * 100).roundToInt()}%" }, style = Type.mono.copy(color = c.text, fontSize = 12.sp))
                 Spacer(Modifier.weight(1f))
@@ -152,9 +147,9 @@ fun BottomBar(state: ReaderState, modifier: Modifier, onKey: (ReaderKey?) -> Uni
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 settings.readerKeys.forEach { key ->
                     val icon = if (key == ReaderKey.Bookmark && state.bookmarkHere) Icons.BookmarkFilled else key.icon(c.isDark)
-                    BarKey(icon, key.title(c.isDark), Modifier.weight(1f).tourTarget(state.targets, "key-" + key.key)) { onKey(key) }
+                    BarKey(icon, key.title(c.isDark), Modifier.weight(1f)) { onKey(key) }
                 }
-                BarKey(Icons.More, "More", Modifier.weight(1f).tourTarget(state.targets, "more")) { onKey(null) }
+                BarKey(Icons.More, "More", Modifier.weight(1f)) { onKey(null) }
             }
         }
     }
@@ -180,13 +175,6 @@ private fun TuningScale(state: ReaderState, modifier: Modifier = Modifier) {
     val shown = if (drag >= 0f) drag.toDouble() else state.progress
     Canvas(
         modifier.fillMaxWidth().height(30.dp)
-            // TalkBack reads it as a slider: swipe up or down to move through the book.
-            .semantics {
-                contentDescription = "Your place in the book"
-                stateDescription = "${(state.progress * 100).roundToInt()}%" + state.chapter.ifBlank { null }?.let { ", $it" }.orEmpty()
-                progressBarRangeInfo = androidx.compose.ui.semantics.ProgressBarRangeInfo(state.progress.toFloat(), 0f..1f, steps = 19)
-                setProgress { v -> state.markBack(); state.goToProgress(v.toDouble().coerceIn(0.0, 1.0)); true }
-            }
             .pointerInput(Unit) {
                 detectTapGestures { o -> state.markBack(); state.goToProgress((o.x / size.width).toDouble().coerceIn(0.0, 1.0)); haptics?.tick() }
             }
@@ -284,7 +272,7 @@ fun Clock(modifier: Modifier) {
 private fun SheetColumn(title: String, content: @Composable () -> Unit) {
     val c = LocalColors.current
     Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp).verticalScroll(rememberScrollState())) {
-        Text(title, style = Type.section.copy(color = c.text), modifier = Modifier.asHeading())
+        Text(title, style = Type.section.copy(color = c.text))
         Spacer(Modifier.height(14.dp))
         content()
     }

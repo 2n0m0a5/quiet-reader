@@ -39,6 +39,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
@@ -116,7 +123,13 @@ fun LibraryScreen(state: AppState) {
             if (state.filter == Filter.Series) SeriesShelves(state, filtered)
             else Books(state, filtered, collections)
         }
-        if (state.selected.isNotEmpty() || state.selecting) SelectionBar(state, shelf)
+        // The selection bar slides up from the tab bar when you start selecting, and back down.
+        val reducedBar = LocalReducedMotion.current
+        androidx.compose.animation.AnimatedVisibility(
+            visible = state.selected.isNotEmpty() || state.selecting,
+            enter = if (reducedBar) androidx.compose.animation.fadeIn(androidx.compose.animation.core.snap()) else androidx.compose.animation.expandVertically(androidx.compose.animation.core.spring(dampingRatio = 1f, stiffness = 500f), expandFrom = Alignment.Top) + androidx.compose.animation.fadeIn(),
+            exit = if (reducedBar) androidx.compose.animation.fadeOut(androidx.compose.animation.core.snap()) else androidx.compose.animation.shrinkVertically(androidx.compose.animation.core.spring(dampingRatio = 1f, stiffness = 500f), shrinkTowards = Alignment.Top) + androidx.compose.animation.fadeOut(),
+        ) { SelectionBar(state, shelf) }
     }
 }
 
@@ -156,7 +169,11 @@ private fun Books(state: AppState, books: List<Book>, collections: Map<String, S
     val groups = Shelf.group(sorted, settings.libraryGroup, collections)
     var size by remember { mutableStateOf(settings.coverSize.toFloat()) }
     val first = groups.firstOrNull { it.second.isNotEmpty() }?.second?.first()?.id
+    // Tap the Library tab again: glide back to the top (as on iPhone).
+    val grid = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+    LaunchedEffect(state.reselect) { if (state.reselect > 0 && state.tab == Tab.Library) grid.animateScrollToItem(0) }
     LazyVerticalGrid(
+        state = grid,
         columns = if (settings.libraryList) GridCells.Fixed(1) else GridCells.Adaptive(minSize = size.dp),
         modifier = Modifier.fillMaxSize().pinchToResize { f ->
             size = (size * f).coerceIn(72f, 200f)
@@ -182,19 +199,27 @@ private fun Books(state: AppState, books: List<Book>, collections: Map<String, S
         }
         groups.forEach { (name, list) ->
             if (name.isNotEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
-                Text(name, style = Type.section.copy(color = c.text, fontSize = 16.sp), modifier = Modifier.asHeading().padding(top = 8.dp))
+                Text(name, style = Type.section.copy(color = c.text, fontSize = 16.sp), modifier = Modifier.padding(top = 8.dp))
             }
             items(list, key = { name + it.id }) { book ->
+                // Books glide to their new places when you sort, filter, group or remove them.
+                val place = if (LocalReducedMotion.current) Modifier else Modifier.animateItem(
+                    fadeInSpec = androidx.compose.animation.core.tween(220),
+                    placementSpec = androidx.compose.animation.core.spring(dampingRatio = 0.9f, stiffness = 380f, visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold),
+                    fadeOutSpec = androidx.compose.animation.core.tween(160),
+                )
                 // The tour points at the first book.
                 val mark = if (book.id == first) Modifier.tourTarget(state.targets, "shelf") else Modifier
-                if (settings.libraryList) BookRow(book, state, mark) else BookTile(book, state, mark)
+                if (settings.libraryList) BookRow(book, state, place.then(mark)) else BookTile(book, state, place.then(mark))
             }
         }
     }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
-private fun Modifier.bookClicks(book: Book, state: AppState, haptics: Haptics?) = combinedClickable(
+private fun Modifier.bookClicks(book: Book, state: AppState, haptics: Haptics?, interaction: MutableInteractionSource) = combinedClickable(
+    interactionSource = interaction,
+    indication = null,
     onClick = {
         haptics?.tick()
         if (state.selecting) state.toggleSelected(book.id) else state.open(book.id)
@@ -212,9 +237,10 @@ private fun BookTile(book: Book, state: AppState, modifier: Modifier = Modifier)
     val c = LocalColors.current
     val haptics = LocalHaptics.current
     val chosen = book.id in state.selected
-    Column(modifier.bookClicks(book, state, haptics).semantics { if (state.selecting) selected = chosen }) {
+    val interaction = remember { MutableInteractionSource() }
+    Column(modifier.pressIn(interaction).bookClicks(book, state, haptics, interaction)) {
         Box {
-            Cover(book, Modifier.fillMaxWidth())
+            Cover(book, Modifier.fillMaxWidth().coverPlace(state, book.id))
             if (state.selecting) SelectMark(chosen, Modifier.align(Alignment.TopEnd).padding(6.dp))
         }
         Spacer(Modifier.height(8.dp))
@@ -232,9 +258,10 @@ private fun BookTile(book: Book, state: AppState, modifier: Modifier = Modifier)
 private fun BookRow(book: Book, state: AppState, modifier: Modifier = Modifier) {
     val c = LocalColors.current
     val haptics = LocalHaptics.current
-    Row(modifier.fillMaxWidth().bookClicks(book, state, haptics).semantics { if (state.selecting) selected = book.id in state.selected }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+    val interaction = remember { MutableInteractionSource() }
+    Row(modifier.fillMaxWidth().pressIn(interaction, 0.98f).bookClicks(book, state, haptics, interaction).padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         if (state.selecting) { SelectMark(book.id in state.selected, Modifier); Spacer(Modifier.width(10.dp)) }
-        Cover(book, Modifier.width(44.dp))
+        Cover(book, Modifier.width(44.dp).coverPlace(state, book.id))
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(book.title, style = Type.rowTitle.copy(color = c.text), maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -253,7 +280,12 @@ fun fmt(d: Double) = if (d % 1.0 == 0.0) d.toInt().toString() else d.toString()
 @Composable
 private fun SelectMark(on: Boolean, modifier: Modifier) {
     val c = LocalColors.current
-    Box(modifier.size(24.dp).background(if (on) c.accent else c.panel, RoundedCornerShape(12.dp)).border(1.5.dp, if (on) c.accent else c.keyEdge, RoundedCornerShape(12.dp)),
+    // The mark pops in when a book is chosen, like a tick being set.
+    val reduced = LocalReducedMotion.current
+    val bump = remember { androidx.compose.animation.core.Animatable(1f) }
+    var seen by remember { mutableStateOf(false) }
+    LaunchedEffect(on) { if (on && seen && !reduced) { bump.snapTo(0.6f); bump.animateTo(1f, pop()) }; seen = true }
+    Box(modifier.graphicsLayer { scaleX = bump.value; scaleY = bump.value }.size(24.dp).background(if (on) c.accent else c.panel, RoundedCornerShape(12.dp)).border(1.5.dp, if (on) c.accent else c.keyEdge, RoundedCornerShape(12.dp)),
         contentAlignment = Alignment.Center) {
         if (on) Icon(Icons.Check, null, Modifier.size(14.dp), tint = c.onAccent)
     }
@@ -297,7 +329,7 @@ private fun SeriesShelves(state: AppState, books: List<Book>) {
                 Column(Modifier.fillMaxWidth().padding(bottom = 18.dp).background(c.panel, CardShape).border(1.dp, c.line, CardShape).padding(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text(s.name, style = Type.section.copy(color = c.text, fontSize = 16.sp), modifier = Modifier.asHeading())
+                            Text(s.name, style = Type.section.copy(color = c.text, fontSize = 16.sp))
                             Text("${s.done} of ${s.books.size} read", style = Type.mono.copy(color = c.muted, fontSize = 12.sp))
                         }
                         s.next?.let { next -> TextKey("Next: #${next.seriesIndex?.let(::fmt) ?: (s.books.indexOf(next) + 1)}", { state.open(next.id) }, kind = KeyKind.Primary) }
@@ -305,8 +337,9 @@ private fun SeriesShelves(state: AppState, books: List<Book>) {
                     Spacer(Modifier.height(10.dp))
                     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         s.books.forEach { b ->
-                            Column(Modifier.width(76.dp).bookClicks(b, state, null)) {
-                                Cover(b, Modifier.fillMaxWidth())
+                            val interaction = remember { MutableInteractionSource() }
+                            Column(Modifier.width(76.dp).pressIn(interaction).bookClicks(b, state, LocalHaptics.current, interaction)) {
+                                Cover(b, Modifier.fillMaxWidth().coverPlace(state, b.id))
                                 Spacer(Modifier.height(4.dp))
                                 ProgressLine(b)
                                 Text("#${b.seriesIndex?.let(::fmt) ?: "–"}", style = Type.mono.copy(color = c.muted, fontSize = 11.sp))
@@ -362,7 +395,7 @@ private fun EmptyLibrary(state: AppState) {
 
 /** A book's cover, or (without one) a plain one with its title, like a cloth binding. */
 @Composable
-fun Cover(book: Book, modifier: Modifier = Modifier) {
+fun Cover(book: Book, modifier: Modifier = Modifier, fill: Boolean = false) {
     val quiet = LocalQuiet.current
     val c = LocalColors.current
     val version by quiet.library.recordsVersion.collectAsState()
@@ -372,10 +405,10 @@ fun Cover(book: Book, modifier: Modifier = Modifier) {
         }
     }
     val shape = RoundedCornerShape(3.dp)
-    Box(modifier.aspectRatio(2f / 3f).clip(shape).background(c.panel).border(1.dp, c.line, shape)) {
+    Box((if (fill) modifier else modifier.aspectRatio(2f / 3f)).clip(shape).background(c.panel).border(1.dp, c.line, shape)) {
         val img = image
         if (img != null) {
-            Image(img, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            Image(img, null, Modifier.fillMaxSize(), contentScale = if (fill) ContentScale.FillBounds else ContentScale.Crop)
         } else {
             Column(Modifier.fillMaxSize().padding(10.dp), verticalArrangement = Arrangement.SpaceBetween) {
                 Text(book.title, style = Type.reading.copy(color = c.text, fontSize = 15.sp, lineHeight = 18.sp), maxLines = 5, overflow = TextOverflow.Ellipsis)
@@ -387,4 +420,28 @@ fun Cover(book: Book, modifier: Modifier = Modifier) {
             }
         }
     }
+}
+
+/**
+ * Remembers where a book's cover is on the screen, so the book can open out of it and close back
+ * into it. A cover that scrolls away (or a library that's left) forgets its place, so a book never
+ * flies to a cover you can't see; it fades instead.
+ */
+@Composable
+private fun Modifier.coverPlace(state: AppState, id: String): Modifier {
+    androidx.compose.runtime.DisposableEffect(id) { onDispose { state.coverBounds.remove(id) } }
+    return onGloballyPositioned { state.coverBounds[id] = it.boundsInWindow() }
+}
+
+/** Sinks a little under your finger (iOS's press), and springs back when you let go. */
+@Composable
+fun Modifier.pressIn(interaction: MutableInteractionSource, to: Float = 0.95f): Modifier {
+    val pressed by interaction.collectIsPressedAsState()
+    val reduced = LocalReducedMotion.current
+    val scale by androidx.compose.animation.core.animateFloatAsState(
+        if (pressed && !reduced) to else 1f,
+        androidx.compose.animation.core.spring(dampingRatio = if (pressed) 1f else 0.6f, stiffness = if (pressed) 1400f else 500f),
+        label = "press",
+    )
+    return graphicsLayer { scaleX = scale; scaleY = scale }
 }

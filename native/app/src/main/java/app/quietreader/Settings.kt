@@ -126,7 +126,6 @@ class QuietSettings(private val prefs: SharedPreferences) {
     private val customTextState = mutableStateOf(prefs.getString("customText", null) ?: "#2b2a26")
     // The guide (this phone only)
     var tourDone by boolPref("tourDone", false)
-    var readerTipsDone by boolPref("readerTipsDone", false)
     var seenVersion: String
         get() = prefs.getString("seenVersion", "") ?: ""
         set(value) { prefs.edit().putString("seenVersion", value).apply() }

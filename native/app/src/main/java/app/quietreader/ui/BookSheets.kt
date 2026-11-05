@@ -63,7 +63,7 @@ import kotlin.math.roundToInt
 private fun SheetBody(title: String, content: @Composable ColumnScope.() -> Unit) {
     val c = LocalColors.current
     Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp).verticalScroll(rememberScrollState())) {
-        Text(title, style = Type.section.copy(color = c.text), modifier = Modifier.asHeading())
+        Text(title, style = Type.section.copy(color = c.text))
         Spacer(Modifier.height(14.dp))
         content()
     }
@@ -171,7 +171,7 @@ private fun BookPage(id: String, state: AppState, onClose: () -> Unit) {
                 Cover(book, Modifier.width(92.dp))
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(book.title, style = Type.pageTitle.copy(color = c.text, fontSize = 19.sp), maxLines = 4, overflow = TextOverflow.Ellipsis, modifier = Modifier.asHeading())
+                    Text(book.title, style = Type.pageTitle.copy(color = c.text, fontSize = 19.sp), maxLines = 4, overflow = TextOverflow.Ellipsis)
                     if (book.author.isNotBlank()) Text(book.author, style = Type.body.copy(color = c.muted))
                     if (book.series.isNotBlank()) Text("${book.series}${book.seriesIndex?.let { " #" + fmt(it) } ?: ""}", style = Type.hint.copy(color = c.accentStrong))
                     Spacer(Modifier.height(10.dp))
@@ -284,7 +284,7 @@ private fun Facts(title: String, rows: List<Pair<String, String>>) {
     val c = LocalColors.current
     if (rows.isEmpty()) return
     Spacer(Modifier.height(20.dp))
-    Text(title.uppercase(), style = Type.overline.copy(color = c.muted), modifier = Modifier.asHeading())
+    Text(title.uppercase(), style = Type.overline.copy(color = c.muted))
     Spacer(Modifier.height(6.dp))
     rows.forEachIndexed { i, (k, v) ->
         if (i > 0) Divider()

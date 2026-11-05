@@ -31,6 +31,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.EnterTransition
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -41,8 +47,6 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -65,11 +69,34 @@ import kotlin.math.roundToInt
 @Composable
 fun SettingsScreen(state: AppState, settings: QuietSettings) {
     val reduced = LocalReducedMotion.current
-    AnimatedContent(
-        targetState = state.page,
-        transitionSpec = { pageTransition(reduced, deeper = targetState.ordinal > initialState.ordinal) },
-        label = "settings-page",
-    ) { page ->
+    val parent = if (state.page == SettingsPage.Trash) SettingsPage.Files else SettingsPage.Home
+    // Back (the swipe from the edge, or the back key): the page follows your finger off to the
+    // right, with the page you came from waiting underneath.
+    val swipe = rememberBackSwipe(enabled = state.tab == Tab.Settings && state.page != SettingsPage.Home) { state.page = parent }
+    LaunchedEffect(state.page) { swipe.reset() }
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val w = constraints.maxWidth.toFloat()
+        if (swipe.active) {
+            Box(Modifier.fillMaxSize().graphicsLayer { translationX = -(1f - swipe.progress) * w * 0.3f }) { SettingsPageContent(parent, state, settings) }
+            Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.12f * (1f - swipe.progress))))
+        }
+        AnimatedContent(
+            targetState = state.page,
+            transitionSpec = {
+                if (swipe.finishedBySwipe) EnterTransition.None togetherWith ExitTransition.None
+                else pageTransition(reduced, deeper = targetState.ordinal > initialState.ordinal)
+            },
+            modifier = Modifier.graphicsLayer {
+                translationX = swipe.progress * w
+                shadowElevation = if (swipe.active) 18.dp.toPx() else 0f
+            },
+            label = "settings-page",
+        ) { page -> SettingsPageContent(page, state, settings) }
+    }
+}
+
+@Composable
+private fun SettingsPageContent(page: SettingsPage, state: AppState, settings: QuietSettings) {
         when (page) {
             SettingsPage.Home -> SettingsHome(state)
             SettingsPage.Interface -> InterfacePage(state, settings)
@@ -80,7 +107,6 @@ fun SettingsScreen(state: AppState, settings: QuietSettings) {
             SettingsPage.Trash -> TrashPage(state)
             SettingsPage.About -> AboutPage(state)
         }
-    }
 }
 
 @Composable
@@ -158,7 +184,7 @@ private fun PageHeader(title: String, state: AppState, back: SettingsPage = Sett
     Row(verticalAlignment = Alignment.CenterVertically) {
         IconKey(Icons.ChevronLeft, "Back", { state.page = back })
         Spacer(Modifier.width(12.dp))
-        Text(title, style = Type.pageTitle.copy(color = c.text), modifier = Modifier.asHeading())
+        Text(title, style = Type.pageTitle.copy(color = c.text))
     }
     Spacer(Modifier.height(20.dp))
 }
@@ -166,7 +192,7 @@ private fun PageHeader(title: String, state: AppState, back: SettingsPage = Sett
 @Composable
 private fun SectionTitle(title: String, hint: String = "") {
     val c = LocalColors.current
-    Text(title, style = Type.section.copy(color = c.text), modifier = Modifier.asHeading())
+    Text(title, style = Type.section.copy(color = c.text))
     if (hint.isNotEmpty()) {
         Spacer(Modifier.height(4.dp))
         Text(hint, style = Type.hint.copy(color = c.muted))
@@ -283,7 +309,7 @@ private fun Swatches(options: List<Pair<String, String>>, chosen: String, onPick
     val c = LocalColors.current
     val haptics = LocalHaptics.current
     androidx.compose.foundation.layout.FlowRow(
-        Modifier.selectableGroup(),
+        Modifier,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -294,7 +320,7 @@ private fun Swatches(options: List<Pair<String, String>>, chosen: String, onPick
                     .border(if (on) 2.dp else 1.dp, if (on) c.accent else c.keyEdge, RoundedCornerShape(22.dp))
                     .padding(4.dp)
                     .background(parseColour(hex) ?: Color.Gray, RoundedCornerShape(18.dp))
-                    .selectable(selected = on, role = Role.RadioButton) { haptics?.tick(); onPick(hex) }
+                    .clickable { haptics?.tick(); onPick(hex) }
                     .semantics { contentDescription = name },
             )
         }
@@ -360,7 +386,6 @@ private fun AboutPage(state: AppState) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextKey("The tour", {
                 quiet.settings.tourDone = false
-                quiet.settings.readerTipsDone = false
                 state.startTour()
             }, Modifier.weight(1f))
             TextKey("What’s new", { state.guide = "whatsnew" }, Modifier.weight(1f))
@@ -452,7 +477,7 @@ private fun AboutPage(state: AppState) {
 private fun Overline(text: String) {
     val c = LocalColors.current
     Spacer(Modifier.height(22.dp))
-    Text(text.uppercase(), style = Type.overline.copy(color = c.muted), modifier = Modifier.asHeading())
+    Text(text.uppercase(), style = Type.overline.copy(color = c.muted))
     Spacer(Modifier.height(10.dp))
 }
 
@@ -460,7 +485,7 @@ private fun Overline(text: String) {
 private fun Fact(value: String, label: String, modifier: Modifier = Modifier) {
     val c = LocalColors.current
     // One line each: shrinks a little at large text sizes rather than break a word.
-    Column(modifier.semantics(mergeDescendants = true) {}.padding(end = 4.dp)) {
+    Column(modifier.padding(end = 4.dp)) {
         val big = Type.monoLarge.copy(color = c.text)
         val small = Type.hint.copy(color = c.muted)
         BasicText(value, style = big, maxLines = 1, softWrap = false,

@@ -1,7 +1,6 @@
 package app.quietreader.reader
 
 import app.quietreader.ui.click
-import app.quietreader.ui.asHeading
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -130,7 +129,7 @@ fun NoteEditor(start: Note, book: Book?, focusNote: Boolean = false, onDeleted: 
     LaunchedEffect(Unit) { if (focusNote) runCatching { focus.requestFocus() } }
     Sheet({ save(); onClose() }) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp).verticalScroll(rememberScrollState())) {
-            Text(if (note.quote) "Quote" else "Highlight", style = Type.section.copy(color = c.text), modifier = Modifier.asHeading())
+            Text(if (note.quote) "Quote" else "Highlight", style = Type.section.copy(color = c.text))
             Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxWidth().background(c.panel, KeyShape).padding(12.dp)) {
                 Box(Modifier.width(3.dp).heightIn(min = 20.dp).background(hex(note.color)))
@@ -193,7 +192,7 @@ fun TranslateSheet(text: String, onClose: () -> Unit) {
     }
     Sheet(onClose) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp).verticalScroll(rememberScrollState())) {
-            Text("Translate", style = Type.section.copy(color = c.text), modifier = Modifier.asHeading())
+            Text("Translate", style = Type.section.copy(color = c.text))
             Spacer(Modifier.height(8.dp))
             Text(text, style = Type.reading.copy(color = c.muted, fontSize = 15.sp), maxLines = 4, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(12.dp))
@@ -244,7 +243,7 @@ fun BookNotesSheet(state: ReaderState, book: Book, onClose: () -> Unit) {
     var filter by remember { mutableStateOf("all") }
     Sheet(onClose) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
-            Text("Notes & bookmarks", style = Type.section.copy(color = c.text), modifier = Modifier.asHeading())
+            Text("Notes & bookmarks", style = Type.section.copy(color = c.text))
             Spacer(Modifier.height(10.dp))
             ChoiceRow(listOf("all" to "All", "marks" to "Bookmarks", "notes" to "Highlights", "quotes" to "Quotes"), filter, { filter = it })
             Spacer(Modifier.height(10.dp))
@@ -317,7 +316,7 @@ fun SearchSheet(state: ReaderState, onClose: () -> Unit) {
     }
     Sheet(onClose) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
-            Text("Search in book", style = Type.section.copy(color = c.text), modifier = Modifier.asHeading())
+            Text("Search in book", style = Type.section.copy(color = c.text))
             Spacer(Modifier.height(10.dp))
             if (state.search == null) {
                 Text("Search works in EPUB and TXT books.", style = Type.body.copy(color = c.muted)); return@Column

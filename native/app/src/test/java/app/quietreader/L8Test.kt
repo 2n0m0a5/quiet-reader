@@ -11,12 +11,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.test.assertIsNotSelected
-import androidx.compose.ui.test.assertIsOff
-import androidx.compose.ui.test.assertIsOn
-import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -33,7 +28,6 @@ import app.quietreader.ui.SettingsPage
 import app.quietreader.ui.Tab
 import app.quietreader.ui.buildReport
 import app.quietreader.ui.contrast
-import app.quietreader.ui.readerTips
 import app.quietreader.ui.resolveColors
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Assert.assertEquals
@@ -90,40 +84,20 @@ class L8Test {
         }
     }
 
-    @Test fun readerTipsPointAtTheBar() {
-        val reader = ReaderState().apply { progress = 0.3; page = 120; pages = 400; pageLabel = "120 / 400"; stations = listOf(0.1, 0.4, 0.7) }
-        compose.setContent {
-            CompositionLocalProvider(LocalQuiet provides quiet) {
-                QuietTheme(settings, null) {
-                    Box(Modifier.fillMaxSize()) {
-                        BottomBar(reader, Modifier.align(Alignment.BottomCenter)) {}
-                        var step by remember { mutableIntStateOf(0) }
-                        val tips = readerTips.filter { it.anywhere || it.key in reader.targets }
-                        CoachMarks(tips, reader.targets, step, onNext = { step++ }, onSkip = {})
-                    }
-                }
-            }
-        }
-        compose.onNodeWithText("Turning pages").assertExists()
-        compose.onNodeWithText("Next").performClick()
-        compose.onNodeWithText("Your place").assertExists()
-        shot("day-reader-tips")
-    }
-
     @Test fun whatsNewAndReport() {
         ErrorLog.keep("Import failed", RuntimeException("boom"))
         val report = buildReport(quiet, ApplicationProvider.getApplicationContext())
-        assertTrue(report, report.contains("Quiet 0.5.0 L8.1"))
+        assertTrue(report, report.contains("Quiet 0.5.0 L8.2"))
         assertTrue(report, report.contains("boom"))
         val state = AppState(Tab.Settings, SettingsPage.About)
         show(state)
         compose.onNodeWithText("The tour").assertExists()
         shot("day-about-l8")
         compose.onNodeWithText("What’s new").performClick()
-        compose.onNodeWithText("The curl folds the book’s page only", substring = true).assertExists()
+        compose.onNodeWithText("Books grow out of their cover", substring = true).assertExists()
         shot("day-whats-new")
         compose.runOnIdle { state.guide = "report" }
-        compose.onNode(hasText("Report a problem") and isHeading()).assertExists()
+        compose.onNodeWithText("Quiet has no servers", substring = true).assertExists()
         shot("day-report")
     }
 
@@ -144,21 +118,6 @@ class L8Test {
         assertTrue(contrast(Color(0xFF18202E), Color(0xFFE8E2D4)) > 4.5)
         compose.onNodeWithText("It was a bright cold day", substring = true).assertExists()
         shot("custom-interface")
-    }
-
-    @Test fun talkBackReadsStates() {
-        settings.theme = ThemeMode.Day
-        show(AppState(Tab.Settings, SettingsPage.Interface))
-        // Choices say which one is chosen; the whole vibration row is one switch.
-        compose.onNodeWithText("Day").assertIsSelected()
-        compose.onNodeWithText("Night").assertIsNotSelected()
-        compose.onNodeWithText("Vibration").assertIsOn()
-        compose.onNodeWithText("Vibration").performScrollTo().performClick()
-        compose.onNodeWithText("Vibration").assertIsOff()
-        compose.runOnIdle { assertEquals(false, settings.haptics) }
-        // Titles are headings, so TalkBack can jump between them.
-        compose.onNode(hasText("Interface") and isHeading()).assertExists()
-        compose.onNode(hasText("Theme") and isHeading()).assertExists()
     }
 
     @Test fun largestTextFits() {

@@ -1,6 +1,5 @@
 package app.quietreader.reader
 
-import app.quietreader.ui.asHeading
 import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -90,8 +89,6 @@ class ReaderState {
     var contents by mutableStateOf<List<ContentsEntry>>(emptyList())
     var currentContents by mutableStateOf<Any?>(null)
     var barsShown by mutableStateOf(true)
-    /** Where the bar's controls are, for the first-time tips. */
-    val targets = androidx.compose.runtime.mutableStateMapOf<String, androidx.compose.ui.geometry.Rect>()
     /** Where you were before a jump (Contents, Go to, the scale), to go back. */
     var backTo by mutableStateOf<Pair<String, () -> Unit>?>(null)
     var goTo: (ContentsEntry) -> Unit = {}
@@ -144,7 +141,7 @@ fun ReaderScreen(
     val state = remember(book.id) { ReaderState().also { it.pendingNote = startNote } }
     var sheet by remember { mutableStateOf<String?>(null) }
 
-    BackHandler { onClose() }
+    // Back: the stage around the book (ui/App.kt) follows the back swipe and closes the book.
     ImmersiveWhileReading(hidden = !state.barsShown)
 
     ReaderWindow(settings)
@@ -202,15 +199,6 @@ fun ReaderScreen(
                 ReaderKey.Bookmark -> state.toggleBookmark()
             }
         }
-        // The first time a book opens: a few tips over the reader, with the bars shown.
-        if (!settings.readerTipsDone) {
-            var step by remember { androidx.compose.runtime.mutableIntStateOf(0) }
-            LaunchedEffect(Unit) { state.barsShown = true }
-            val tips = app.quietreader.ui.readerTips.filter { it.anywhere || it.key in state.targets }
-            app.quietreader.ui.CoachMarks(tips, state.targets, step.coerceAtMost(tips.size - 1),
-                onNext = { if (step + 1 >= tips.size) settings.readerTipsDone = true else step++ },
-                onSkip = { settings.readerTipsDone = true })
-        }
     }
 
     val pdf = book.format == BookFormat.Pdf
@@ -257,8 +245,8 @@ private fun ReaderBars(
         AnimatedVisibility(
             visible = state.barsShown,
             modifier = Modifier.align(Alignment.TopCenter),
-            enter = if (reduced) fadeIn(snap()) else fadeIn(tween(180)) + slideInVertically(tween(220)) { -it },
-            exit = if (reduced) fadeOut(snap()) else fadeOut(tween(160)) + slideOutVertically(tween(200)) { -it },
+            enter = if (reduced) fadeIn(snap()) else fadeIn(tween(180)) + slideInVertically(androidx.compose.animation.core.spring(dampingRatio = 1f, stiffness = 520f)) { -it },
+            exit = if (reduced) fadeOut(snap()) else fadeOut(tween(160)) + slideOutVertically(androidx.compose.animation.core.spring(dampingRatio = 1f, stiffness = 520f)) { -it },
         ) {
             Row(
                 Modifier.fillMaxWidth().background(c.bg).hairline(c.line).windowInsetsPadding(WindowInsets.statusBars)
@@ -308,7 +296,7 @@ private fun ContentsSheet(state: ReaderState, pdf: Boolean, onClose: () -> Unit)
     val haptics = LocalHaptics.current
     Sheet(onClose) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
-            Text(if (pdf) "Pages" else "Contents", style = Type.section.copy(color = c.text), modifier = Modifier.asHeading())
+            Text(if (pdf) "Pages" else "Contents", style = Type.section.copy(color = c.text))
             Spacer(Modifier.height(12.dp))
             if (state.contents.isEmpty()) {
                 Text("This book has no contents list.", style = Type.body.copy(color = c.muted))
@@ -340,7 +328,7 @@ private fun TextSheet(pdf: Boolean, onClose: () -> Unit) {
     val c = LocalColors.current
     Sheet(onClose) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
-            Text("Text", style = Type.section.copy(color = c.text), modifier = Modifier.asHeading())
+            Text("Text", style = Type.section.copy(color = c.text))
             Spacer(Modifier.height(14.dp))
             if (!pdf) {
                 Row(verticalAlignment = Alignment.CenterVertically) {

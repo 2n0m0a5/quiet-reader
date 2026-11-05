@@ -13,14 +13,14 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** The real app, from the first start: the tour, then the first book shows the reader tips. */
+/** The real app, from the first start: the tour, then a book opens with nothing over it. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [35], qualifiers = "w393dp-h852dp-xxhdpi")
 class FlowTest {
     @get:Rule val compose = createEmptyComposeRule()
 
-    @Test fun firstStartTourThenReaderTips() {
+    @Test fun firstStartTourThenABook() {
         val app = ApplicationProvider.getApplicationContext<QuietApplication>()
         app.getSharedPreferences("quiet", Context.MODE_PRIVATE).edit().clear().commit()
         val file = java.io.File(app.cacheDir, "sample.epub")
@@ -31,7 +31,7 @@ class FlowTest {
             compose.onNodeWithText("Skip").performClick()
             compose.onNodeWithText(title).performClick()
             compose.mainClock.advanceTimeBy(2500)
-            compose.onNodeWithText("Turning pages").assertExists()
+            compose.onNodeWithText("Skip").assertDoesNotExist() // no tips over the book
         }
     }
 }

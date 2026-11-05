@@ -80,26 +80,70 @@ object PageScripts {
     var css = $BRIDGE.font(family);
     if (css) { var st = document.createElement('style'); st.id = 'quiet-font'; st.textContent = css; document.head.appendChild(st); }
   }
-  // Scroll mode: keep pulling past a chapter's end (or start) and let go to go on.
+  // Scroll mode: at a chapter's end (or start) the page stretches like iOS's rubber band as you
+  // keep pulling. A quiet line says "Pull for the next chapter", then "Release…" with a click
+  // when letting go will turn the chapter. Let go early and the page springs back.
   Q.scroll = $scroll;
   if (!Q.pull) {
     Q.pull = true;
-    var startY = null, atEnd = false, atStart = false;
+    var startY = null, atEnd = false, atStart = false, armed = false, dir = 0, can = { next: false, prev: false }, tip = null;
     var se = function(){ return document.scrollingElement || document.documentElement; };
+    var limit = function(){ return Math.min(window.innerHeight * 0.14, 110); };
+    var band = function(d){ var h = window.innerHeight; return (1 - 1 / (Math.abs(d) * 0.55 / h + 1)) * h * (d < 0 ? -1 : 1); };
+    var setY = function(y, glide){
+      var b = document.body; if (!b) return;
+      b.style.transition = glide ? 'transform .5s cubic-bezier(.2,.9,.25,1)' : 'none';
+      b.style.transform = y ? 'translateY(' + y + 'px)' : '';
+    };
+    var label = function(){
+      if (!tip) {
+        tip = document.createElement('div');
+        tip.id = 'quiet-pull';
+        tip.setAttribute('style', 'position:fixed;left:0;right:0;text-align:center;font:500 13px/1.3 system-ui,sans-serif;letter-spacing:.02em;pointer-events:none;opacity:0;z-index:2147483647;transition:opacity .15s');
+        tip.style.color = getComputedStyle(document.body || document.documentElement).color;
+        document.documentElement.appendChild(tip);
+      }
+      return tip;
+    };
+    var hide = function(){ if (tip) tip.style.opacity = 0; };
     document.addEventListener('touchstart', function(e){
       if (!Q.scroll || e.touches.length !== 1) { startY = null; return; }
       var s = se();
       startY = e.touches[0].clientY;
       atEnd = s.scrollTop + window.innerHeight >= s.scrollHeight - 4;
       atStart = s.scrollTop <= 4;
+      armed = false; dir = 0;
+      if (atEnd || atStart) { can.next = !!$BRIDGE.can(true); can.prev = !!$BRIDGE.can(false); }
     }, { passive: true });
-    document.addEventListener('touchend', function(e){
-      if (startY === null || !Q.scroll) return;
-      var dy = e.changedTouches[0].clientY - startY, pull = Math.min(window.innerHeight * 0.14, 110);
-      if (atEnd && dy < -pull) $BRIDGE.chapter(true);
-      else if (atStart && dy > pull) $BRIDGE.chapter(false);
-      startY = null;
+    document.addEventListener('touchmove', function(e){
+      if (startY === null || !Q.scroll || e.touches.length !== 1) return;
+      var dy = e.touches[0].clientY - startY;
+      if (atEnd && dy < 0) dir = 1; else if (atStart && dy > 0) dir = -1;
+      else { if (dir) { setY(0, true); hide(); } dir = 0; return; }
+      var y = band(dy);
+      setY(y, false);
+      var has = dir > 0 ? can.next : can.prev;
+      if (!has) return;
+      var past = Math.abs(dy) > limit(), t = label();
+      t.textContent = (past ? 'Release for the ' : 'Pull for the ') + (dir > 0 ? 'next chapter' : 'previous chapter');
+      t.style.top = dir < 0 ? '18px' : 'auto';
+      t.style.bottom = dir > 0 ? '24px' : 'auto';
+      t.style.opacity = Math.min(1, Math.abs(y) / (limit() * 0.6)) * (past ? 1 : 0.55);
+      if (past !== armed) { armed = past; if (past) $BRIDGE.tick(); }
     }, { passive: true });
+    var end = function(go){
+      if (startY === null) return;
+      var has = dir > 0 ? can.next : can.prev;
+      if (go && dir && armed && has) {
+        hide();
+        $BRIDGE.chapter(dir > 0);
+        // The app glides the chapter away; put this page back once it's out of sight.
+        setTimeout(function(){ setY(0, false); }, 700);
+      } else { setY(0, true); hide(); }
+      startY = null; dir = 0; armed = false;
+    };
+    document.addEventListener('touchend', function(){ end(true); }, { passive: true });
+    document.addEventListener('touchcancel', function(){ end(false); }, { passive: true });
   }
   return 'ok';
 })();
@@ -107,9 +151,16 @@ object PageScripts {
 }
 
 /** What the page script calls. Runs on a web view thread: hand the work to the reader. */
-class PageBridge(private val fonts: Fonts, private val onImage: (String) -> Unit, private val onChapter: (Boolean) -> Unit) {
+class PageBridge(
+    private val fonts: Fonts, private val onImage: (String) -> Unit, private val onChapter: (Boolean) -> Unit,
+    private val canGo: (Boolean) -> Boolean = { true }, private val onTick: () -> Unit = {},
+) {
     @JavascriptInterface fun openImage(url: String) = onImage(url)
     @JavascriptInterface fun chapter(forward: Boolean) = onChapter(forward)
+    /** Whether there's a chapter after (or before) this one. */
+    @JavascriptInterface fun can(forward: Boolean): Boolean = runCatching { canGo(forward) }.getOrDefault(false)
+    /** The click as a pull passes the point of no return. */
+    @JavascriptInterface fun tick() = onTick()
 
     /** The @font-face rules for a family you added, with the files inlined. */
     @JavascriptInterface fun font(family: String): String = fonts.all().filter { it.family == family }.joinToString("\n") { f ->

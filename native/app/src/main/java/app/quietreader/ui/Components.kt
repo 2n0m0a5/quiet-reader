@@ -16,7 +16,6 @@ import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import kotlin.math.abs
@@ -44,8 +43,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -55,6 +52,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.animation.core.snap
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
@@ -78,9 +78,6 @@ fun Modifier.click(enabled: Boolean = true, role: Role? = Role.Button, onClick: 
     val haptics = LocalHaptics.current
     clickable(enabled = enabled, role = role) { haptics?.tick(); onClick() }
 }
-
-/** A title TalkBack can jump between (swipe by headings). */
-fun Modifier.asHeading(): Modifier = semantics { heading() }
 
 val KeyShape = RoundedCornerShape(8.dp)
 val SmallShape = RoundedCornerShape(6.dp)
@@ -185,46 +182,68 @@ fun IconKey(icon: ImageVector, label: String, onClick: () -> Unit, modifier: Mod
 fun <T> ChoiceRow(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit, modifier: Modifier = Modifier, perRow: Int = 4) {
     val c = LocalColors.current
     val haptics = LocalHaptics.current
+    val reduced = LocalReducedMotion.current
     Column(
         modifier
             .fillMaxWidth()
             .background(c.panelDeep, KeyShape)
-            .selectableGroup()
             .padding(3.dp),
     ) {
         options.chunked(perRow).forEach { row ->
-            Row(Modifier.fillMaxWidth()) {
+            // The raised key slides to the choice you tap (like iOS's segmented control), rather
+            // than one key going down and another coming up. Across rows it fades over.
+            val cells = if (options.size > perRow) perRow else row.size
+            val target = row.indexOfFirst { it.first == selected }
+            val x = remember { androidx.compose.animation.core.Animatable(target.coerceAtLeast(0).toFloat()) }
+            val shown = remember { androidx.compose.animation.core.Animatable(if (target >= 0) 1f else 0f) }
+            LaunchedEffect(target) {
+                if (target >= 0) {
+                    if (shown.value < 0.05f || reduced) x.snapTo(target.toFloat())
+                    else launch { x.animateTo(target.toFloat(), androidx.compose.animation.core.spring(dampingRatio = 0.86f, stiffness = 520f)) }
+                    if (reduced) shown.snapTo(1f) else shown.animateTo(1f, androidx.compose.animation.core.tween(160))
+                } else if (reduced) shown.snapTo(0f) else shown.animateTo(0f, androidx.compose.animation.core.tween(140))
+            }
+            Row(
+                Modifier.fillMaxWidth().drawBehind {
+                    val a = shown.value
+                    if (a <= 0f) return@drawBehind
+                    val w = size.width / cells
+                    val left = w * x.value
+                    val r = androidx.compose.ui.geometry.CornerRadius(6.dp.toPx())
+                    drawRoundRect(c.keyEdge.copy(alpha = a), topLeft = Offset(left, 1.dp.toPx()), size = androidx.compose.ui.geometry.Size(w, size.height), cornerRadius = r)
+                    drawRoundRect(c.panel.copy(alpha = a), topLeft = Offset(left, 0f), size = androidx.compose.ui.geometry.Size(w, size.height), cornerRadius = r)
+                    drawRoundRect(c.keyEdge.copy(alpha = a), topLeft = Offset(left, 0f), size = androidx.compose.ui.geometry.Size(w, size.height), cornerRadius = r, style = Stroke(1.dp.toPx()))
+                },
+            ) {
                 row.forEach { (value, label) ->
                     val on = value == selected
-                    val face by animateColorAsState(if (on) c.panel else c.panelDeep, glide(), label = "choice")
-                    val edge by animateColorAsState(if (on) c.keyEdge else c.panelDeep, glide(), label = "choice-edge")
+                    val ink by animateColorAsState(if (on) c.text else c.muted, glide(), label = "choice-ink")
                     Box(
                         Modifier
                             .weight(1f)
                             .defaultMinSize(minHeight = 38.dp)
-                            .drawBehind {
-                                if (on) drawRoundRect(c.keyEdge, topLeft = Offset(0f, 1.dp.toPx()), size = size,
-                                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(6.dp.toPx()))
-                            }
-                            .background(face, SmallShape)
-                            .border(1.dp, edge, SmallShape)
-                            // "Selected" for TalkBack, one of a group.
-                            .selectable(selected = on, role = Role.RadioButton) {
+                            .clickable(remember { MutableInteractionSource() }, indication = null, role = Role.RadioButton) {
                                 if (!on) { haptics?.tick(); onSelect(value) }
                             }
                             .padding(horizontal = 6.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (on) {
-                                Box(Modifier.size(6.dp).background(c.accent, RoundedCornerShape(3.dp)))
-                                Spacer(Modifier.width(6.dp))
+                            androidx.compose.animation.AnimatedVisibility(
+                                visible = on,
+                                enter = if (reduced) androidx.compose.animation.fadeIn(snap()) else androidx.compose.animation.scaleIn(pop()) + androidx.compose.animation.fadeIn(),
+                                exit = if (reduced) androidx.compose.animation.fadeOut(snap()) else androidx.compose.animation.scaleOut(androidx.compose.animation.core.tween(120)) + androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(120)),
+                            ) {
+                                Row {
+                                    Box(Modifier.size(6.dp).background(c.accent, RoundedCornerShape(3.dp)))
+                                    Spacer(Modifier.width(6.dp))
+                                }
                             }
                             // One line; shrinks a little rather than wrap at large text sizes.
                             BasicText(
                                 label,
                                 style = Type.hint.copy(
-                                    color = if (on) c.text else c.muted,
+                                    color = ink,
                                     fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
                                     fontSize = Type.key.fontSize,
                                 ),
@@ -336,8 +355,7 @@ fun Switch(checked: Boolean, onChange: (Boolean) -> Unit, label: String, modifie
 }
 
 /**
- * A whole row that switches a setting: tap anywhere on it. TalkBack reads it once, as
- * "title, hint, on/off, switch".
+ * A whole row that switches a setting: tap anywhere on it.
  */
 @Composable
 fun SwitchRow(
@@ -440,7 +458,7 @@ fun ConfirmDialog(title: String, text: String, confirm: String, onDismiss: () ->
     val c = LocalColors.current
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().background(c.bg, CardShape).border(1.dp, c.line, CardShape).padding(20.dp)) {
-            Text(title, style = Type.section.copy(color = c.text), modifier = Modifier.asHeading())
+            Text(title, style = Type.section.copy(color = c.text))
             Spacer(Modifier.height(8.dp))
             Text(text, style = Type.body.copy(color = c.muted))
             Spacer(Modifier.height(18.dp))

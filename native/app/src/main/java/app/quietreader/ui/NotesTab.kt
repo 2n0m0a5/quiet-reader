@@ -24,6 +24,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
@@ -77,7 +78,9 @@ fun NotesTab(state: AppState) {
             .any { it.contains(query.trim(), ignoreCase = true) }
     }
     Box(Modifier.fillMaxSize()) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = if (selecting) 130.dp else 24.dp)) {
+    val list = androidx.compose.foundation.lazy.rememberLazyListState()
+    LaunchedEffect(state.reselect) { if (state.reselect > 0 && state.tab == Tab.Notes) list.animateScrollToItem(0) }
+    LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = if (selecting) 130.dp else 24.dp)) {
         item {
             fun n(count: Int, one: String) = "$count ${if (count == 1) one else one + "s"}"
             Text("${n(all.count { !it.isBookmark && !it.quote }, "highlight")} · ${n(all.count { it.quote }, "quote")} · ${n(all.count { it.isBookmark }, "bookmark")}",
@@ -90,6 +93,8 @@ fun NotesTab(state: AppState) {
             if (shown.isEmpty()) Text("Nothing matches.", style = Type.body.copy(color = c.muted), modifier = Modifier.padding(vertical = 16.dp))
         }
         items(shown, key = { it.id }) { n ->
+            // Notes glide into place when you filter, search or delete.
+            Column(if (LocalReducedMotion.current) Modifier else Modifier.animateItem()) {
             val book = byId[n.bookId]
             app.quietreader.reader.NoteRow(n, book?.title ?: "A book no longer in your library",
                 onLongClick = { haptics?.confirm(); if (!selecting) { selecting = true; selected = setOf(n.id) } else toggle(n.id) },
@@ -102,6 +107,7 @@ fun NotesTab(state: AppState) {
                 }
             }
             Divider()
+            }
         }
     }
     if (selecting) Column(Modifier.align(androidx.compose.ui.Alignment.BottomCenter).fillMaxWidth().background(c.panelDeep).hairline(c.line, top = true).padding(12.dp)) {

@@ -12,6 +12,8 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.flow.first
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
@@ -218,13 +220,30 @@ private fun EpubView(book: Book, publication: Publication, state: ReaderState) {
         navigator?.evaluateJavascript(PageScripts.script(settings.bionic, settings.customFont, settings.flow == Flow.Scrolled))
     }
     LaunchedEffect(navigator, settings.bionic, settings.customFont, settings.flow) { runPageScript() }
+    // Pulling into the next chapter (scroll mode): this chapter glides up and away, the next one
+    // rises in from below (the other way round going back). Instant with reduced motion.
+    val shift = remember { androidx.compose.animation.core.Animatable(0f) } // fraction of the height
+    val reducedNow = app.quietreader.ui.LocalReducedMotion.current
+    suspend fun glideToChapter(nav: EpubNavigatorFragment, publication: Publication, forward: Boolean) {
+        val sign = if (forward) -1f else 1f
+        val before = nav.currentLocator.value.href
+        if (!reducedNow) shift.animateTo(0.22f * sign, androidx.compose.animation.core.tween(200, easing = androidx.compose.animation.core.FastOutLinearInEasing))
+        chapterStep(nav, publication, forward)
+        // Wait (briefly) for the new chapter to be there before bringing it in.
+        kotlinx.coroutines.withTimeoutOrNull(900) { nav.currentLocator.first { it.href != before } }
+        kotlinx.coroutines.delay(60)
+        if (reducedNow) { shift.snapTo(0f); return }
+        shift.snapTo(-0.18f * sign)
+        shift.animateTo(0f, androidx.compose.animation.core.spring(dampingRatio = 1f, stiffness = 300f))
+    }
     LaunchedEffect(navigator) {
         var href: Any? = null
         navigator?.currentLocator?.collect { l -> if (l.href != href) { href = l.href; kotlinx.coroutines.delay(300); runPageScript() } }
     }
 
     AndroidView(
-        modifier = Modifier.fillMaxSize(),
+        // The chapter glide: the page moves and fades as a whole while the chapter changes underneath.
+        modifier = Modifier.fillMaxSize().graphicsLayer { translationY = shift.value * size.height; alpha = 1f - kotlin.math.abs(shift.value) * 2.2f },
         factory = { context ->
             FragmentContainerView(context).apply {
                 id = View.generateViewId()
@@ -253,7 +272,9 @@ private fun EpubView(book: Book, publication: Publication, state: ReaderState) {
                             registerJavascriptInterface(PageScripts.BRIDGE) {
                                 PageBridge(quiet.fonts,
                                     onImage = { url -> scope.launch { state.image = loadImage(publication, url) } },
-                                    onChapter = { forward -> scope.launch { navigator?.let { chapterStep(it, publication, forward) } } })
+                                    onChapter = { forward -> scope.launch { navigator?.let { glideToChapter(it, publication, forward) } } },
+                                    canGo = { forward -> navigator?.let { hasChapter(it, publication, forward) } ?: false },
+                                    onTick = { scope.launch { haptics?.tick() } })
                             }
                             servedAssets = listOf("fonts/.*")
                             decorationTemplates = quietTemplates()
@@ -415,6 +436,13 @@ private suspend fun loadImage(publication: Publication, url: String): androidx.c
     }
 
 /** Scroll mode: the next chapter from its start, or the previous one from its end. */
+/** Whether there's a chapter after (or before) the one you're in. */
+private fun hasChapter(nav: EpubNavigatorFragment, publication: Publication, forward: Boolean): Boolean {
+    val here = nav.currentLocator.value.href.removeFragment()
+    val i = publication.readingOrder.indexOfFirst { it.url().removeFragment() == here }
+    return i >= 0 && publication.readingOrder.getOrNull(i + if (forward) 1 else -1) != null
+}
+
 private fun chapterStep(nav: EpubNavigatorFragment, publication: Publication, forward: Boolean) {
     val here = nav.currentLocator.value.href.removeFragment()
     val i = publication.readingOrder.indexOfFirst { it.url().removeFragment() == here }

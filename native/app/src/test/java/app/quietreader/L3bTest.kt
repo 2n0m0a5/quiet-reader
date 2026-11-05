@@ -67,6 +67,7 @@ class L3bTest {
         File("build/outputs").mkdirs()
         File("build/outputs/page-script-on.js").writeText(PageScripts.script(bionic = true, fontFamily = "My Font"))
         File("build/outputs/page-script-off.js").writeText(PageScripts.script(bionic = false, fontFamily = "My Font"))
+        File("build/outputs/page-script-scroll.js").writeText(PageScripts.script(bionic = false, fontFamily = null, scroll = true))
         File("build/outputs/scroll-down.js").writeText(app.quietreader.reader.scrollStep(forward = true, smooth = false))
         File("build/outputs/scroll-up.js").writeText(app.quietreader.reader.scrollStep(forward = false, smooth = false))
     }
